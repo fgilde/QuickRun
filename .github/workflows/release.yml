@@ -100,6 +100,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Shipped with the release so people can load the extension unpacked while the store
+      # listings are still in review.
+      - name: Build the browser extension
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "${{ github.event_name }}" = "push" ] || version="${{ github.event.inputs.version }}"
+          cd extension
+          sh build.sh "$version"
+          mkdir -p ../dist
+          cp dist/quickrun-chromium-"$version".zip ../dist/quickrun-extension-chromium.zip
+          cp dist/quickrun-firefox-"$version".zip ../dist/quickrun-extension-firefox.zip
+
       - uses: actions/download-artifact@v4
         with:
           pattern: dist-*

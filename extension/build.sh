@@ -8,7 +8,13 @@
 # Usage: build.sh [version]
 set -eu
 
-version=${1:-$(python -c "import json,io;print(json.load(io.open('src/manifest.json',encoding='utf-8'))['version'])")}
+# Ubuntu images ship python3 without always aliasing `python`.
+PY=$(command -v python3 || command -v python) || {
+  echo "python3 is required" >&2
+  exit 1
+}
+
+version=${1:-$($PY -c "import json,io;print(json.load(io.open('src/manifest.json',encoding='utf-8'))['version'])")}
 
 rm -rf dist
 mkdir -p dist/chromium dist/firefox
@@ -16,7 +22,7 @@ mkdir -p dist/chromium dist/firefox
 cp -r src/. dist/chromium/
 cp -r src/. dist/firefox/
 
-python - "$version" <<'PY'
+"$PY" - "$version" <<'PY'
 import io, json, sys
 
 version = sys.argv[1]
@@ -39,7 +45,7 @@ for target in ("chromium", "firefox"):
 PY
 
 # python's zipfile rather than the zip binary, which is not present on every developer machine
-python - "$version" <<'PY'
+"$PY" - "$version" <<'PY'
 import io, os, sys, zipfile
 
 version = sys.argv[1]

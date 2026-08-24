@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/QuickRun.App/QuickRun.App.csproj" />
     <Project Path="src/QuickRun.Core/QuickRun.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/QuickRun.App.Tests/QuickRun.App.Tests.csproj" />
     <Project Path="tests/QuickRun.Core.Tests/QuickRun.Core.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuickRun.App\QuickRun.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../QuickRun.Core.Tests/LocalRepo.cs" Link="Helpers/LocalRepo.cs" />
+    <Compile Include="../QuickRun.Core.Tests/TempHome.cs" Link="Helpers/TempHome.cs" />
+    <Compile Include="../QuickRun.Core.Tests/FakeRepo.cs" Link="Helpers/FakeRepo.cs" />
+  </ItemGroup>
+
+</Project>

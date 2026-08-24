@@ -8,6 +8,11 @@
     <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>
 
+  <!-- Kestrel for the localhost listener the browser extension talks to. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>quickrun</AssemblyName>

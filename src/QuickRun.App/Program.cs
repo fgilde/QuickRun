@@ -26,6 +26,21 @@ app.Configure(config =>
         .WithExample("detect")
         .WithExample("detect", ".", "--save");
 
+    config.AddCommand<DaemonCommand>("daemon")
+        .WithDescription("Run the localhost listener the browser extension talks to.")
+        .WithExample("daemon")
+        .WithExample("daemon", "--pair");
+
+    config.AddCommand<PairCommand>("pair")
+        .WithDescription("Open a pairing window for the browser extension.")
+        .WithExample("pair")
+        .WithExample("pair", "--revoke");
+
+    config.AddCommand<UpdateCommand>("update")
+        .WithDescription("Check for a newer QuickRun and install it when QuickRun owns the binary.")
+        .WithExample("update")
+        .WithExample("update", "--check");
+
     config.AddCommand<ListCommand>("ls")
         .WithDescription("List checked-out workspaces with their size and last use.");
 

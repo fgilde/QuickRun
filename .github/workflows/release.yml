@@ -60,7 +60,7 @@ jobs:
         if: startsWith(matrix.rid, 'osx-')
         shell: bash
         run: |
-          scripts/build-macos-bundle.sh \
+          sh scripts/build-macos-bundle.sh \
             "out/${{ matrix.rid }}/quickrun" \
             "bundle/${{ matrix.rid }}" \
             "${{ steps.version.outputs.value }}"
@@ -119,7 +119,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           [ "${{ github.event_name }}" = "push" ] || version="${{ github.event.inputs.version }}"
-          scripts/package-manifests.sh "$version" dist/SHA256SUMS dist
+          sh scripts/package-manifests.sh "$version" dist/SHA256SUMS dist
 
       - uses: actions/upload-artifact@v4
         with:

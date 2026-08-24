@@ -75,15 +75,17 @@ jobs:
           rm -f "out/$rid"/*.pdb
           cp LICENSE README.md "out/$rid/"
 
+          # No version in the file name: releases/latest/download/<name> needs an exact name, and
+          # that is what makes the website's download buttons permanent. The version is the tag.
           if [[ "$rid" == win-* ]]; then
-            (cd "out/$rid" && 7z a -tzip "../../dist/quickrun-$version-$rid.zip" .)
+            (cd "out/$rid" && 7z a -tzip "../../dist/quickrun-$rid.zip" .)
           else
             chmod +x "out/$rid/quickrun"
-            tar -czf "dist/quickrun-$version-$rid.tar.gz" -C "out/$rid" .
+            tar -czf "dist/quickrun-$rid.tar.gz" -C "out/$rid" .
           fi
 
           if [[ "$rid" == osx-* ]]; then
-            (cd "bundle/$rid" && zip -qry "../../dist/QuickRun-$version-$rid.app.zip" QuickRun.app)
+            (cd "bundle/$rid" && zip -qry "../../dist/QuickRun-$rid.app.zip" QuickRun.app)
           fi
 
       - uses: actions/upload-artifact@v4

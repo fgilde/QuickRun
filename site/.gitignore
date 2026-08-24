@@ -1,0 +1,8 @@
+node_modules/
+.vitepress/dist/
+.vitepress/cache/
+# Copied in at build time from schema/ and scripts/, so a stale duplicate cannot be committed.
+public/quickrun.schema.json
+public/install.sh
+public/icon.png
+public/logo.png

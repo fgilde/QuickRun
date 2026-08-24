@@ -18,16 +18,17 @@ a version like `0.0.0-dev`. It builds and packages but publishes nothing.
 
 | Asset | Consumed by |
 |---|---|
-| `quickrun-<version>-<rid>.zip` (Windows) | direct download, scoop |
-| `quickrun-<version>-<rid>.tar.gz` (Linux, macOS) | direct download, `install.sh`, brew |
-| `QuickRun-<version>-osx-<arch>.app.zip` | macOS `quickrun://` registration |
+| `quickrun-<rid>.zip` (Windows) | direct download, scoop |
+| `quickrun-<rid>.tar.gz` (Linux, macOS) | direct download, `install.sh`, brew |
+| `QuickRun-osx-<arch>.app.zip` | macOS `quickrun://` registration |
 | `SHA256SUMS` | auto-update, `install.sh` |
 | `quickrun.json` | scoop |
 | `quickrun.rb` | Homebrew tap |
 
-The website links `https://github.com/fgilde/QuickRun/releases/latest/download/<asset>`,
-which GitHub serves as a permanent redirect to the newest release. No build-time
-version substitution, and the download buttons can never go stale.
+Asset names deliberately carry **no version**. `releases/latest/download/<name>`
+requires the exact file name, so a versioned name would leave the website with no
+stable link at all. The version lives in the release tag, and `quickrun --version`
+reports it from the binary.
 
 ## Package managers
 
@@ -60,7 +61,7 @@ winget manifests live in `microsoft/winget-pkgs` and arrive by pull request. Use
 
 ```powershell
 wingetcreate update fgilde.QuickRun --version 0.1.0 `
-  --urls https://github.com/fgilde/QuickRun/releases/download/v0.1.0/quickrun-0.1.0-win-x64.zip `
+  --urls https://github.com/fgilde/QuickRun/releases/download/v0.1.0/quickrun-win-x64.zip `
   --submit
 ```
 

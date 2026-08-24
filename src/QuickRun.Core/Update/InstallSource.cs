@@ -42,6 +42,24 @@ public static class InstallSources
         return InstallSource.Standalone;
     }
 
+    /// <summary>Reads the optional marker file an installer may have written.</summary>
+    public static string? ReadMarker(string configDirectory)
+    {
+        try
+        {
+            var path = Path.Combine(configDirectory, MarkerFileName);
+            return File.Exists(path) ? File.ReadAllText(path) : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Detects from the running executable, honouring a marker file if one exists.</summary>
+    public static InstallSource DetectCurrent(string configDirectory) =>
+        Detect(Environment.ProcessPath ?? "", ReadMarker(configDirectory));
+
     public static InstallSource? Parse(string? text)
     {
         var value = text?.Trim();

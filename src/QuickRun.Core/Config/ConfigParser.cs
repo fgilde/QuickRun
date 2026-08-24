@@ -15,20 +15,20 @@ public static partial class ConfigParser
 
     private static readonly string[] PlatformKeys = { "windows", "linux", "macos" };
 
-    private static readonly string[] TopLevelKeys =
+    internal static readonly string[] TopLevelKeys =
         { "version", "name", "description", "icon", "docs", "requires", "inputs", "env", "setup", "run", "tasks", "stop" };
 
-    private static readonly string[] StepKeys = { "run", "cwd", "when", "continueOnError" };
+    internal static readonly string[] StepKeys = { "run", "cwd", "when", "continueOnError" };
 
-    private static readonly string[] TaskKeys =
+    internal static readonly string[] TaskKeys =
         { "name", "run", "cwd", "env", "dependsOn", "readyWhen", "open", "restart" };
 
-    private static readonly string[] RequireKeys = { "tool", "version", "install", "optional" };
+    internal static readonly string[] RequireKeys = { "tool", "version", "install", "optional" };
 
-    private static readonly string[] InputKeys =
+    internal static readonly string[] InputKeys =
         { "id", "label", "type", "description", "default", "required", "pattern", "min", "max", "options", "env", "persist" };
 
-    private static readonly string[] ReadyWhenKeys = { "port", "http", "log", "delay" };
+    internal static readonly string[] ReadyWhenKeys = { "port", "http", "log", "delay" };
 
     public static RunConfig Parse(string yaml, OSKind os)
     {

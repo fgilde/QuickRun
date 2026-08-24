@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using QuickRun.Core;
 using QuickRun.Core.Update;
+using QuickRun.Core.Workspace;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -32,7 +33,7 @@ public sealed class UpdateCommand : AsyncCommand<UpdateCommand.Settings>
             return 1;
         }
 
-        var source = InstallSources.Detect(executable);
+        var source = InstallSources.DetectCurrent(new WorkspaceStore().Root);
         var checker = new UpdateChecker();
         var status = await checker.CheckAsync(BuildInfo.Version, source);
 

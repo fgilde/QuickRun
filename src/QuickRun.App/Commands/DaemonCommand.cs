@@ -75,7 +75,7 @@ public sealed class DaemonCommand : AsyncCommand<DaemonCommand.Settings>
 
     private static async Task ReportUpdateAsync()
     {
-        var source = InstallSources.Detect(Environment.ProcessPath ?? "");
+        var source = InstallSources.DetectCurrent(new WorkspaceStore().Root);
         var status = await new UpdateChecker().CheckAsync(BuildInfo.Version, source);
 
         if (status.UpdateAvailable) Output.Warn(status.Advice);

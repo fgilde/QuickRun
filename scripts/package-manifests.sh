@@ -21,12 +21,13 @@ sum_for() {
   awk -v a="$1" '$2 == a { print $1 }' "$sums" | head -n 1
 }
 
-win_x64="quickrun-$version-win-x64.zip"
-win_arm64="quickrun-$version-win-arm64.zip"
-osx_x64="quickrun-$version-osx-x64.tar.gz"
-osx_arm64="quickrun-$version-osx-arm64.tar.gz"
-linux_x64="quickrun-$version-linux-x64.tar.gz"
-linux_arm64="quickrun-$version-linux-arm64.tar.gz"
+# Asset names carry no version; the version is in the tag, which BASE already includes.
+win_x64="quickrun-win-x64.zip"
+win_arm64="quickrun-win-arm64.zip"
+osx_x64="quickrun-osx-x64.tar.gz"
+osx_arm64="quickrun-osx-arm64.tar.gz"
+linux_x64="quickrun-linux-x64.tar.gz"
+linux_arm64="quickrun-linux-arm64.tar.gz"
 
 cat > "$outdir/quickrun.json" <<JSON
 {
@@ -52,8 +53,8 @@ cat > "$outdir/quickrun.json" <<JSON
   "checkver": "github",
   "autoupdate": {
     "architecture": {
-      "64bit": { "url": "https://github.com/$REPO/releases/download/v\$version/quickrun-\$version-win-x64.zip" },
-      "arm64": { "url": "https://github.com/$REPO/releases/download/v\$version/quickrun-\$version-win-arm64.zip" }
+      "64bit": { "url": "https://github.com/$REPO/releases/download/v\$version/quickrun-win-x64.zip" },
+      "arm64": { "url": "https://github.com/$REPO/releases/download/v\$version/quickrun-win-arm64.zip" }
     }
   }
 }

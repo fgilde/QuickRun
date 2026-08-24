@@ -172,11 +172,11 @@ public static class DaemonHost
             }
         });
 
-        app.MapGet("/api/update", async (HttpContext context, Pairing pairing) =>
+        app.MapGet("/api/update", async (HttpContext context, Pairing pairing, WorkspaceStore store) =>
         {
             if (!Authorized(context, pairing)) return Unauthorized();
 
-            var source = InstallSources.Detect(Environment.ProcessPath ?? "");
+            var source = InstallSources.DetectCurrent(store.Root);
             var status = await new UpdateChecker().CheckAsync(BuildInfo.Version, source);
             return Results.Json(status, Json);
         });

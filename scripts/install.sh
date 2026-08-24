@@ -37,14 +37,12 @@ rid="$os-$arch"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-printf 'resolving latest release...\n'
-# The asset name carries the version, so read it out of SHA256SUMS rather than
-# calling the API - one fewer dependency and no rate limit.
+# Asset names carry no version, so the download URL is fixed and no API call is needed.
+asset="quickrun-$rid.tar.gz"
+
+printf 'fetching checksums\n'
 curl -fsSL "$BASE/SHA256SUMS" -o "$tmp/SHA256SUMS" \
   || die "could not download SHA256SUMS - is there a published release yet?"
-
-asset=$(awk -v rid="$rid" '$2 ~ ("quickrun-.*-" rid "\\.tar\\.gz$") { print $2 }' "$tmp/SHA256SUMS" | head -n 1)
-[ -n "$asset" ] || die "no asset for $rid in the latest release"
 
 printf 'downloading %s\n' "$asset"
 curl -fsSL "$BASE/$asset" -o "$tmp/$asset"
@@ -76,8 +74,11 @@ if [ "$os" = osx ]; then
   xattr -d com.apple.quarantine "$PREFIX/quickrun" 2>/dev/null || true
 fi
 
-# Records how QuickRun got here, so auto-update knows it owns this binary.
-config="${XDG_CONFIG_HOME:-$HOME/.config}/QuickRun"
+# Records how QuickRun got here, so auto-update knows it owns this binary even when PREFIX points
+# somewhere a package manager would normally own, such as /usr/bin.
+# XDG_DATA_HOME, not XDG_CONFIG_HOME: this must match .NET's LocalApplicationData, which QuickRun
+# reads, and that is ~/.local/share.
+config="${XDG_DATA_HOME:-$HOME/.local/share}/QuickRun"
 mkdir -p "$config"
 printf 'standalone\n' > "$config/install-source"
 

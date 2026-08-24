@@ -31,6 +31,33 @@ public class InstallSourceTests
         => Assert.Equal(InstallSource.Standalone, InstallSources.Detect("/home/me/bin/quickrun", marker));
 
     [Fact]
+    public void ReadMarker_returns_null_when_there_is_no_marker()
+    {
+        using var home = new TempHome();
+        Assert.Null(InstallSources.ReadMarker(home.Path));
+    }
+
+    [Fact]
+    public void ReadMarker_reads_what_an_installer_wrote()
+    {
+        using var home = new TempHome();
+        File.WriteAllText(Path.Combine(home.Path, InstallSources.MarkerFileName), "brew\n");
+
+        Assert.Equal(InstallSource.Brew, InstallSources.Parse(InstallSources.ReadMarker(home.Path)));
+    }
+
+    /// <summary>
+    /// The case the marker exists for: our own installer put the binary somewhere a package manager
+    /// would normally own, and path detection alone would get it wrong.
+    /// </summary>
+    [Fact]
+    public void A_marker_rescues_a_standalone_install_into_usr_bin()
+    {
+        Assert.Equal(InstallSource.Apt, InstallSources.Detect("/usr/bin/quickrun"));
+        Assert.Equal(InstallSource.Standalone, InstallSources.Detect("/usr/bin/quickrun", "standalone"));
+    }
+
+    [Fact]
     public void Only_a_standalone_install_may_replace_itself()
     {
         Assert.True(InstallSource.Standalone.MayReplaceItself());
@@ -54,14 +81,14 @@ public class UpdateCheckerTests
         {
           "tag_name": "v1.2.0",
           "assets": [
-            { "name": "quickrun-1.2.0-win-x64.zip",
-              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-1.2.0-win-x64.zip" },
-            { "name": "quickrun-1.2.0-linux-x64.tar.gz",
-              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-1.2.0-linux-x64.tar.gz" },
-            { "name": "QuickRun-1.2.0-osx-arm64.app.zip",
-              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/QuickRun-1.2.0-osx-arm64.app.zip" },
-            { "name": "quickrun-1.2.0-osx-arm64.tar.gz",
-              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-1.2.0-osx-arm64.tar.gz" },
+            { "name": "quickrun-win-x64.zip",
+              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-win-x64.zip" },
+            { "name": "quickrun-linux-x64.tar.gz",
+              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-linux-x64.tar.gz" },
+            { "name": "QuickRun-osx-arm64.app.zip",
+              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/QuickRun-osx-arm64.app.zip" },
+            { "name": "quickrun-osx-arm64.tar.gz",
+              "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-osx-arm64.tar.gz" },
             { "name": "SHA256SUMS",
               "browser_download_url": "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/SHA256SUMS" }
           ]
@@ -86,7 +113,7 @@ public class UpdateCheckerTests
     public async Task AssetFor_picks_the_archive_and_not_the_app_bundle()
     {
         var release = await Checker().LatestAsync();
-        Assert.Equal("quickrun-1.2.0-osx-arm64.tar.gz", release!.AssetFor("osx-arm64")!.Name);
+        Assert.Equal("quickrun-osx-arm64.tar.gz", release!.AssetFor("osx-arm64")!.Name);
     }
 
     [Fact]
@@ -140,12 +167,12 @@ public class UpdaterTests
 
     private static ReleaseInfo Release(string assetUrl, string sumsUrl) => new("1.2.0", "v1.2.0", new[]
     {
-        new ReleaseAsset("quickrun-1.2.0-linux-x64.tar.gz", assetUrl),
+        new ReleaseAsset("quickrun-linux-x64.tar.gz", assetUrl),
         new ReleaseAsset("SHA256SUMS", sumsUrl),
     });
 
     private const string GoodAssetUrl =
-        "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-1.2.0-linux-x64.tar.gz";
+        "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/quickrun-linux-x64.tar.gz";
 
     private const string GoodSumsUrl =
         "https://github.com/fgilde/QuickRun/releases/download/v1.2.0/SHA256SUMS";
@@ -164,8 +191,8 @@ public class UpdaterTests
     [Fact]
     public void ExpectedSum_reads_the_entry_for_one_asset()
     {
-        var sums = "aaa  other.zip\nbbb  quickrun-1.2.0-linux-x64.tar.gz\n";
-        Assert.Equal("bbb", Updater.ExpectedSum(sums, "quickrun-1.2.0-linux-x64.tar.gz"));
+        var sums = "aaa  other.zip\nbbb  quickrun-linux-x64.tar.gz\n";
+        Assert.Equal("bbb", Updater.ExpectedSum(sums, "quickrun-linux-x64.tar.gz"));
     }
 
     [Fact]
@@ -181,10 +208,10 @@ public class UpdaterTests
     {
         var updater = new Updater(
             download: _ => Task.FromResult(Payload),
-            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-1.2.0-linux-x64.tar.gz\n"));
+            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-linux-x64.tar.gz\n"));
 
         var (content, error) = await updater.FetchVerifiedAsync(
-            Release(GoodAssetUrl, GoodSumsUrl), "quickrun-1.2.0-linux-x64.tar.gz");
+            Release(GoodAssetUrl, GoodSumsUrl), "quickrun-linux-x64.tar.gz");
 
         Assert.Null(error);
         Assert.Equal(Payload, content);
@@ -195,10 +222,10 @@ public class UpdaterTests
     {
         var updater = new Updater(
             download: _ => Task.FromResult(Payload),
-            fetchText: _ => Task.FromResult("0000  quickrun-1.2.0-linux-x64.tar.gz\n"));
+            fetchText: _ => Task.FromResult("0000  quickrun-linux-x64.tar.gz\n"));
 
         var (content, error) = await updater.FetchVerifiedAsync(
-            Release(GoodAssetUrl, GoodSumsUrl), "quickrun-1.2.0-linux-x64.tar.gz");
+            Release(GoodAssetUrl, GoodSumsUrl), "quickrun-linux-x64.tar.gz");
 
         Assert.Null(content);
         Assert.Contains("checksum mismatch", error!);
@@ -210,10 +237,10 @@ public class UpdaterTests
         var downloaded = false;
         var updater = new Updater(
             download: _ => { downloaded = true; return Task.FromResult(Payload); },
-            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-1.2.0-linux-x64.tar.gz\n"));
+            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-linux-x64.tar.gz\n"));
 
         var (content, error) = await updater.FetchVerifiedAsync(
-            Release("https://evil.example.com/x.tar.gz", GoodSumsUrl), "quickrun-1.2.0-linux-x64.tar.gz");
+            Release("https://evil.example.com/x.tar.gz", GoodSumsUrl), "quickrun-linux-x64.tar.gz");
 
         Assert.Null(content);
         Assert.Contains("refusing", error!);
@@ -225,10 +252,10 @@ public class UpdaterTests
     {
         var updater = new Updater(
             download: _ => Task.FromResult(Payload),
-            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-1.2.0-linux-x64.tar.gz\n"));
+            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-linux-x64.tar.gz\n"));
 
         var (_, error) = await updater.FetchVerifiedAsync(
-            Release(GoodAssetUrl, "https://evil.example.com/SHA256SUMS"), "quickrun-1.2.0-linux-x64.tar.gz");
+            Release(GoodAssetUrl, "https://evil.example.com/SHA256SUMS"), "quickrun-linux-x64.tar.gz");
 
         Assert.Contains("refusing", error!);
     }
@@ -236,10 +263,10 @@ public class UpdaterTests
     [Fact]
     public async Task A_release_without_checksums_is_refused()
     {
-        var release = new ReleaseInfo("1.2.0", "v1.2.0", new[] { new ReleaseAsset("quickrun-1.2.0-linux-x64.tar.gz", GoodAssetUrl) });
+        var release = new ReleaseInfo("1.2.0", "v1.2.0", new[] { new ReleaseAsset("quickrun-linux-x64.tar.gz", GoodAssetUrl) });
         var updater = new Updater(download: _ => Task.FromResult(Payload), fetchText: _ => Task.FromResult(""));
 
-        var (content, error) = await updater.FetchVerifiedAsync(release, "quickrun-1.2.0-linux-x64.tar.gz");
+        var (content, error) = await updater.FetchVerifiedAsync(release, "quickrun-linux-x64.tar.gz");
 
         Assert.Null(content);
         Assert.Contains("SHA256SUMS", error!);
@@ -250,10 +277,10 @@ public class UpdaterTests
     {
         var updater = new Updater(
             download: _ => throw new HttpRequestException("connection reset"),
-            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-1.2.0-linux-x64.tar.gz\n"));
+            fetchText: _ => Task.FromResult($"{PayloadSum}  quickrun-linux-x64.tar.gz\n"));
 
         var (_, error) = await updater.FetchVerifiedAsync(
-            Release(GoodAssetUrl, GoodSumsUrl), "quickrun-1.2.0-linux-x64.tar.gz");
+            Release(GoodAssetUrl, GoodSumsUrl), "quickrun-linux-x64.tar.gz");
 
         Assert.Contains("connection reset", error!);
     }

@@ -51,13 +51,25 @@
   text-overflow: ellipsis;
 }
 
-/* One button per branch row: icon only, so a long branch name keeps its space. */
+/* One button per branch row, sitting among GitHub's own icon buttons: same size, icon only.
+ * It is deliberately not in the row's action cell - that column is 70px wide and anything
+ * placed there overflows the table's grid. */
 .quickrun-button--compact {
+  width: 28px;
   height: 28px;
-  padding: 0 8px;
-  margin-left: 4px;
-  font-size: 12px;
+  padding: 0;
+  margin: 0 0 0 2px;
+  justify-content: center;
+  border-color: transparent;
+  background-color: transparent;
 }
+
+.quickrun-button--compact:hover {
+  border-color: var(--borderColor-default, #d1d9e0);
+  background-color: var(--button-default-bgColor-hover, #eef1f4);
+}
+
+.quickrun-button--compact .quickrun-label { display: none; }
 
 /* --- states ------------------------------------------------------------------------------- */
 

@@ -20,6 +20,27 @@ globalThis.QuickRunPlacement = (() => {
     return null;
   }
 
+  /**
+   * Whether an element is actually on screen.
+   *
+   * GitHub renders several copies of its header actions and hides all but the one that fits the
+   * viewport - the desktop copy of PageHeader.ContextAreaActions carries data-hidden-regular.
+   * Appending into a hidden copy injects a button nobody can see.
+   */
+  function visible(element) {
+    return Boolean(element) && element.getClientRects().length > 0;
+  }
+
+  /** The first candidate that is both present and on screen. */
+  function firstVisible(root, selectors) {
+    for (const selector of selectors) {
+      for (const candidate of (root ?? document).querySelectorAll(selector)) {
+        if (visible(candidate)) return candidate;
+      }
+    }
+    return null;
+  }
+
   /** The repository toolbar: the row holding the branch selector and the file search. */
   function repoToolbar() {
     const branch = document.querySelector(
@@ -39,10 +60,15 @@ globalThis.QuickRunPlacement = (() => {
 
   /** The pull request header's action area, where Code and the merge button live. */
   function pullRequestActions() {
-    return document.querySelector('[data-component="PageHeader.ContextAreaActions"]')
-      ?? document.querySelector('[data-testid="issue-header"] [data-component="PageHeader.Actions"]')
-      ?? document.querySelector('[data-testid="issue-header"]')
-      ?? document.querySelector('.gh-header-actions');
+    const header = document.querySelector('[data-testid="issue-header"], .gh-header-actions');
+    if (!header) return null;
+
+    return firstVisible(header, [
+      '[data-component="PageHeader.Actions"]',
+      '[data-component="PageHeader.ContextAreaActions"]',
+      '[class*="buttonContainer"]',
+      '[class*="menuActionsContainer"]',
+    ]) ?? (visible(header) ? header : null);
   }
 
   /**
@@ -62,12 +88,18 @@ globalThis.QuickRunPlacement = (() => {
       if (!ref) continue;
 
       seen.add(row);
-      // Last cell where there is one, so the button lines up with the row's other actions.
-      rows.push({ ref, anchor: row.querySelector('td:last-child') ?? row });
+
+      // The branch name's own cell, next to the copy button - not the action cell at the end.
+      // That table is a CSS grid whose last column is 70px wide, and a button placed there
+      // overflows it and gives the whole table a horizontal scrollbar.
+      const cell = link.closest('td') ?? row;
+      const group = cell.querySelector('[class*="ActionGroup"]') ?? cell;
+
+      rows.push({ ref, anchor: group });
     }
 
     return rows;
   }
 
-  return { commonRow, repoToolbar, pullRequestActions, branchRows };
+  return { commonRow, visible, firstVisible, repoToolbar, pullRequestActions, branchRows };
 })();

@@ -55,6 +55,8 @@ function makeButton(target) {
 
   const label = document.createElement('span');
   label.className = 'quickrun-label';
+  // In a branch row the button stands among GitHub's icon buttons; the title carries the text.
+  if (target.compact) label.hidden = true;
 
   const progress = document.createElement('span');
   progress.className = 'quickrun-progress';

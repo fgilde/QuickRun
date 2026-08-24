@@ -72,3 +72,55 @@ test('an element with no parent yields nothing', () => {
   const orphan = node('orphan');
   assert.equal(commonRow(orphan, node('x'), node('root')), null);
 });
+
+// --- picking a container that is actually on screen -----------------------------------------
+
+const { visible, firstVisible } = globalThis.QuickRunPlacement;
+
+/** A candidate element: `shown` decides whether it has layout boxes. */
+function box(selector, shown) {
+  return {
+    selector,
+    getClientRects: () => (shown ? [{ width: 100, height: 30 }] : []),
+  };
+}
+
+/** A root whose querySelectorAll answers from a fixed selector map. */
+function root(map) {
+  return { querySelectorAll: (selector) => map[selector] ?? [] };
+}
+
+test('an element GitHub has hidden for this viewport does not count as visible', () => {
+  assert.equal(visible(box('a', false)), false);
+  assert.equal(visible(box('a', true)), true);
+  assert.equal(visible(null), false);
+});
+
+test('skips a hidden container and takes the next visible one', () => {
+  const hidden = box('first', false);
+  const shown = box('second', true);
+
+  assert.equal(firstVisible(root({ first: [hidden], second: [shown] }), ['first', 'second']), shown);
+});
+
+test('selector order wins when several are visible', () => {
+  const first = box('first', true);
+  const second = box('second', true);
+
+  assert.equal(firstVisible(root({ first: [first], second: [second] }), ['first', 'second']), first);
+});
+
+test('a container with several copies takes the visible copy, not the first', () => {
+  const narrow = box('actions', false);
+  const wide = box('actions', true);
+
+  assert.equal(firstVisible(root({ actions: [narrow, wide] }), ['actions']), wide);
+});
+
+test('all candidates hidden yields nothing rather than a hidden element', () => {
+  assert.equal(firstVisible(root({ actions: [box('actions', false)] }), ['actions']), null);
+});
+
+test('no candidates at all yields nothing', () => {
+  assert.equal(firstVisible(root({}), ['nothing']), null);
+});

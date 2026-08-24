@@ -3,6 +3,9 @@ using QuickRun.App.Commands;
 using QuickRun.Core;
 using Spectre.Console.Cli;
 
+// Before anything writes: bind to the parent console if this was started from a terminal.
+ConsoleAttach.TryAttach();
+
 // Double-clicking the binary must do something useful. Printing CLI help into a console window
 // that closes again is the worst possible front door, so no command means: start the daemon, put
 // an icon in the tray and open the dashboard.

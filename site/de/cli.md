@@ -24,6 +24,11 @@ Das Fenster wird nativ gezeichnet, nicht in einem eingebetteten Browser. Damit m
 Browser-Engine mitgeliefert werden, um ein paar Listen darzustellen — und der Browser fragt nicht,
 ob er die lokale Werkzeugseite übersetzen soll.
 
+Die Binary ist fürs GUI-Subsystem gebaut, ein Doppelklick öffnet also kein Konsolenfenster. Aus
+einem Terminal gestartet hängt sie sich an dieses Terminal — nur so bleiben die Befehle unten
+benutzbar. Die eine sichtbare Folge: die Shell druckt ihren nächsten Prompt, bevor die Ausgabe
+kommt, ein Prompt kann also darüber stehen.
+
 ## `quickrun run`
 
 ```bash

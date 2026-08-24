@@ -5,38 +5,19 @@ bookmark never goes stale.
 
 ## The application
 
-<DownloadButtons lang="en" />
+<DownloadHero lang="en" />
 
 Unpack the archive and put `quickrun` somewhere on your `PATH`. Run it with no arguments — or
-double-click it — and QuickRun puts an icon in the tray and opens its window.
-
-### With a package manager
-
-Package managers keep QuickRun up to date, and on macOS they avoid the Gatekeeper problem described
-below.
-
-::: code-group
-
-```powershell [Windows]
-scoop install https://fgilde.github.io/QuickRun/quickrun.json
-```
-
-```bash [macOS]
-brew install fgilde/tap/quickrun
-```
-
-```bash [Linux]
-curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh
-```
-
-:::
+double-click it — and QuickRun puts an icon in the tray and opens its window. No console window
+appears: the binary is a desktop application that also works as a command line tool when you start
+it from a terminal.
 
 `winget install fgilde.QuickRun` works once the package is accepted into the winget repository; the
 submission is [under review](https://github.com/microsoft/winget-pkgs/pulls?q=fgilde.QuickRun).
+Until then use scoop, which installs from the manifest this site serves.
 
-The Homebrew formula and the scoop manifest are served from this site and regenerated with every
-release, so neither needs a separate tap or bucket repository. If you prefer the tap:
-`brew install fgilde/tap/quickrun`.
+The Homebrew formula and the scoop manifest are regenerated with every release and served from here,
+so neither needs a separate tap or bucket repository.
 
 ### macOS app bundle
 
@@ -78,12 +59,7 @@ they wait.
 The extension puts a Run button on GitHub. It is not required — the application works on its own —
 but it is the reason QuickRun exists.
 
-| Browser | Store | Direct download |
-|---|---|---|
-| Chrome | *review pending* | [quickrun-extension-chromium.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-chromium.zip) |
-| Edge | *review pending* | same Chromium build |
-| Opera | *review pending* | same Chromium build |
-| Firefox | *review pending* | [quickrun-extension-firefox.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-firefox.zip) |
+<ExtensionCards lang="en" />
 
 Until the store listings are live, load it unpacked. Unzip the download, then:
 

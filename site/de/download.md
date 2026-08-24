@@ -5,38 +5,19 @@ veraltet also nie.
 
 ## Die Anwendung
 
-<DownloadButtons lang="de" />
+<DownloadHero lang="de" />
 
 Archiv entpacken und `quickrun` an eine Stelle im `PATH` legen. Ohne Argumente starten — oder
-doppelklicken — und QuickRun legt ein Icon ins Tray und öffnet sein Fenster.
-
-### Mit einem Paketmanager
-
-Paketmanager halten QuickRun aktuell und vermeiden unter macOS das unten beschriebene
-Gatekeeper-Problem.
-
-::: code-group
-
-```powershell [Windows]
-scoop install https://fgilde.github.io/QuickRun/quickrun.json
-```
-
-```bash [macOS]
-brew install fgilde/tap/quickrun
-```
-
-```bash [Linux]
-curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh
-```
-
-:::
+doppelklicken — und QuickRun legt ein Icon ins Tray und öffnet sein Fenster. Es geht kein
+Konsolenfenster auf: die Binary ist eine Desktop-Anwendung, die zusätzlich als
+Kommandozeilenwerkzeug funktioniert, wenn du sie aus einem Terminal startest.
 
 `winget install fgilde.QuickRun` funktioniert, sobald das Paket ins winget-Repository aufgenommen
 ist; die Einreichung ist [in Prüfung](https://github.com/microsoft/winget-pkgs/pulls?q=fgilde.QuickRun).
+Bis dahin scoop nehmen, das aus dem Manifest dieser Seite installiert.
 
-Homebrew-Formula und scoop-Manifest werden von dieser Seite ausgeliefert und mit jedem Release neu
-erzeugt — ein eigenes Tap- oder Bucket-Repository braucht keines davon. Wer die Tap bevorzugt:
-`brew install fgilde/tap/quickrun`.
+Homebrew-Formula und scoop-Manifest werden mit jedem Release neu erzeugt und von hier ausgeliefert —
+ein eigenes Tap- oder Bucket-Repository braucht keines davon.
 
 ### macOS-App-Bundle
 
@@ -79,12 +60,7 @@ gibt — deshalb warten sie.
 Die Erweiterung setzt einen Run-Button auf GitHub. Sie ist nicht erforderlich — die Anwendung
 funktioniert allein — aber sie ist der Grund, aus dem QuickRun existiert.
 
-| Browser | Store | Direkter Download |
-|---|---|---|
-| Chrome | *Prüfung läuft* | [quickrun-extension-chromium.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-chromium.zip) |
-| Edge | *Prüfung läuft* | derselbe Chromium-Build |
-| Opera | *Prüfung läuft* | derselbe Chromium-Build |
-| Firefox | *Prüfung läuft* | [quickrun-extension-firefox.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-firefox.zip) |
+<ExtensionCards lang="de" />
 
 Bis die Store-Einträge live sind, entpackt laden. Download entzippen, dann:
 

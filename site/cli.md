@@ -23,6 +23,11 @@ quickrun daemon          # listener only, no tray and no window
 The window is drawn natively rather than in an embedded browser. That avoids shipping a browser
 engine to render a few lists, and avoids the browser offering to translate a local tool page.
 
+The binary is built for the GUI subsystem, so double-clicking it opens no console window. Started
+from a terminal it attaches to that terminal, which is what keeps the commands below usable. The
+one visible consequence: your shell prints its next prompt before the output arrives, so a prompt
+can appear above it.
+
 ## `quickrun run`
 
 ```bash

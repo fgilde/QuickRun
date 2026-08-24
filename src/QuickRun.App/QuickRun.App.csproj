@@ -23,7 +23,9 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!-- WinExe, so double-clicking opens no console window. ConsoleAttach re-attaches to a
+         parent console when there is one, which keeps the CLI usable from a terminal. -->
+    <OutputType>WinExe</OutputType>
     <AssemblyName>quickrun</AssemblyName>
     <RootNamespace>QuickRun.App</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>

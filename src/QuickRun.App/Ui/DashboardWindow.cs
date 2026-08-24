@@ -115,9 +115,27 @@ public sealed class DashboardWindow : Window
                         VerticalAlignment = VerticalAlignment.Center,
                     },
                     Muted(BuildInfo.Version).With(t => t.VerticalAlignment = VerticalAlignment.Center),
+                    new Panel { Width = 16 },
+                    Link(_listenerUrl).With(b => b.VerticalAlignment = VerticalAlignment.Center),
                 },
             },
         };
+    }
+
+    /// <summary>A button that reads as a link, for the listener URL and the documentation.</summary>
+    private static Button Link(string url)
+    {
+        var button = new Button
+        {
+            Content = url,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Foreground = Brushes.CornflowerBlue,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+        };
+        button.Click += (_, _) => Open(url);
+        return button;
     }
 
     private Control WorkspacesPage()
@@ -182,7 +200,7 @@ public sealed class DashboardWindow : Window
             Spacing = 8,
             Children =
             {
-                Button("Download the extension", () => Open("https://fgilde.github.io/QuickRun/download")),
+                Button("Download the extension", () => Open("https://fgilde.github.io/QuickRun/download#the-browser-extension")),
                 Button("Documentation", () => Open("https://fgilde.github.io/QuickRun/extension")),
             },
         });

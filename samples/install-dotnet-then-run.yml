@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: a repository that brings its own SDK, so there is nothing to require.
+version: 1
+name: Self-contained .NET sample
+setup:
+  - run:
+      linux: curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh && chmod +x dotnet-install.sh && ./dotnet-install.sh -c 10.0 --install-dir ./dotnet10
+      macos: curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh && chmod +x dotnet-install.sh && ./dotnet-install.sh -c 10.0 --install-dir ./dotnet10
+      windows: powershell -NoProfile -Command "Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1; ./dotnet-install.ps1 -Channel 10.0 -InstallDir ./dotnet10"
+  - run:
+      linux: ./dotnet10/dotnet restore
+      macos: ./dotnet10/dotnet restore
+      windows: .\dotnet10\dotnet restore
+tasks:
+  - name: sample
+    run:
+      linux: ./dotnet10/dotnet run --project ./Samples/MainSample.WebAssembly/MainSample.WebAssembly.csproj
+      macos: ./dotnet10/dotnet run --project ./Samples/MainSample.WebAssembly/MainSample.WebAssembly.csproj
+      windows: .\dotnet10\dotnet run --project .\Samples\MainSample.WebAssembly\MainSample.WebAssembly.csproj
+    readyWhen: {log: 'Now listening on: (?<url>\S+)'}
+    open: true

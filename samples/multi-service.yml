@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: three runtimes at once, started in dependency order, cleaned up on stop.
+version: 1
+name: Full stack
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+  - tool: dotnet
+    version: ">=9.0"
+  - tool: node
+    version: ">=20"
+setup:
+  - run: npm ci
+    cwd: web
+  - dotnet restore
+tasks:
+  - name: db
+    run: docker compose up -d postgres
+    readyWhen: {port: 5432}
+  - name: api
+    run: dotnet run --project src/Api
+    dependsOn: [db]
+    env:
+      ConnectionStrings__Default: Host=localhost;Database=app;Username=postgres;Password=postgres
+    readyWhen: {http: "http://localhost:5000/health"}
+    restart: onFailure
+  - name: web
+    run: npm run dev
+    cwd: web
+    dependsOn: [api]
+    readyWhen: {port: 5173}
+    open: true
+stop:
+  - docker compose down

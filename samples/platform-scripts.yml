@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: one script per platform, the shortest possible config.
+version: 1
+name: Script runner
+run:
+  windows: powershell -ExecutionPolicy Bypass -File ./run.ps1
+  linux: ./run.sh
+  macos: ./run.sh

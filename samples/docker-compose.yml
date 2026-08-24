@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: wrapping an existing compose file, including teardown.
+version: 1
+name: Compose stack
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+tasks:
+  - name: stack
+    run: docker compose up
+    readyWhen: {http: "http://localhost:8080"}
+    open: true
+stop:
+  - docker compose down -v

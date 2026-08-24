@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: verifying an SDK version before running an ASP.NET Core app.
+version: 1
+name: ASP.NET Core API
+requires:
+  - tool: dotnet
+    version: ">=9.0"
+    install: https://dot.net
+env:
+  ASPNETCORE_ENVIRONMENT: Development
+setup:
+  - dotnet restore
+tasks:
+  - name: api
+    run: dotnet run --project src/Api
+    readyWhen: {log: 'Now listening on: (?<url>\S+)'}
+    open: true

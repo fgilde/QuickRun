@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: the smallest useful config - check node, install, start a dev server.
+version: 1
+name: Vite dev server
+requires:
+  - tool: node
+    version: ">=20"
+    install: https://nodejs.org/en/download
+setup:
+  - npm ci
+tasks:
+  - name: web
+    run: npm run dev
+    readyWhen: {port: 5173}
+    open: true

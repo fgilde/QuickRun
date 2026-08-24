@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# What this shows: a virtual environment, and how platform maps handle the venv layout difference.
+version: 1
+name: Flask app
+requires:
+  - tool: python
+    version: ">=3.11"
+    install: https://www.python.org/downloads/
+setup:
+  - run:
+      windows: python -m venv .venv
+      linux: python3 -m venv .venv
+      macos: python3 -m venv .venv
+  - run:
+      windows: .venv\Scripts\pip install -r requirements.txt
+      linux: .venv/bin/pip install -r requirements.txt
+      macos: .venv/bin/pip install -r requirements.txt
+tasks:
+  - name: web
+    run:
+      windows: .venv\Scripts\python app.py
+      linux: .venv/bin/python app.py
+      macos: .venv/bin/python app.py
+    readyWhen: {port: 5000}
+    open: true

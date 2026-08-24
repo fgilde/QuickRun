@@ -7,4 +7,8 @@
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuickRun.Core.Tests" />
+  </ItemGroup>
+
 </Project>

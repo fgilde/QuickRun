@@ -291,7 +291,12 @@ Credential resolution, first hit wins:
 5. plain `git clone` — SSH remotes and ambient credentials
 
 `GIT_TERMINAL_PROMPT=0` throughout, so nothing ever blocks on an invisible
-prompt. Tokens are injected as `https://<token>@host/…` and **scrubbed from
+prompt. That variable only covers *terminal* prompts, though: Git Credential
+Manager opens a GUI dialog and waits indefinitely, which for a background daemon
+is a hang nobody can see. Every git invocation therefore also carries
+`GCM_INTERACTIVE=never`, `GIT_ASKPASS=echo`, `SSH_ASKPASS=echo` and
+`-c credential.interactive=false`. Stored credentials are still returned - only
+prompting is disabled, so the "user is already logged in" fallback survives. Tokens are injected as `https://<token>@host/…` and **scrubbed from
 every log line and error message** before display or storage.
 
 PRs are fetched as `refs/pull/<n>/head`, which also covers PRs from forks.

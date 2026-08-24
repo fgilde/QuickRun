@@ -581,24 +581,33 @@ README stays English and links to both language landing pages.
 A tag matching `v*` builds all six targets, and the workflow publishes a
 GitHub Release containing:
 
-- `quickrun-<version>-<rid>.zip` (Windows) / `.tar.gz` (Linux, macOS) for each
-  of `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`
-- `QuickRun-<version>-osx-<arch>.app.zip`, the bundle §11 needs for the URL
-  scheme
-- `SHA256SUMS`, covering every asset, which auto-update (§14) verifies against
+- `quickrun-<rid>.zip` (Windows) / `.tar.gz` (Linux, macOS) for each of
+  `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`
+- `QuickRun-osx-<arch>.app.zip`, the bundle §11 needs for the URL scheme
+- `quickrun-extension-chromium.zip` and `quickrun-extension-firefox.zip`, so the
+  extension can be loaded unpacked while the store listings are in review
+- `SHA256SUMS`, covering every binary, which auto-update (§14) verifies against
+- `quickrun.json` and `quickrun.rb`, the scoop manifest and Homebrew formula
 
-Because GitHub serves `releases/latest/download/<name>` as a stable redirect,
-the website's download buttons need no build-time version substitution and never
-go stale. The page detects the visitor's platform and highlights the matching
+Asset names carry **no version**. `releases/latest/download/<name>` resolves only
+an exact file name, so a versioned name would leave the website with no stable
+link at all - the version lives in the tag, and `quickrun --version` reports it
+from the binary. The page detects the visitor's platform and highlights the matching
 one, with the others one click away.
 
 Package managers are the primary install path:
 
 | Platform | Command |
 |---|---|
-| Windows | `winget install fgilde.QuickRun` or `scoop install quickrun` |
-| macOS | `brew install fgilde/tap/quickrun` |
+| Windows | `scoop install https://fgilde.github.io/QuickRun/quickrun.json` |
+| macOS | `brew install https://fgilde.github.io/QuickRun/quickrun.rb` |
 | Linux | `curl -fsSL https://fgilde.github.io/QuickRun/install.sh \| sh` |
+
+Both manifests are generated per release and served from the site, which the Pages
+workflow fetches out of the newest release. That removes the need for a scoop
+bucket or a Homebrew tap repository entirely, at the cost of `brew upgrade` not
+tracking the formula. winget needs QuickRun accepted into `microsoft/winget-pkgs`
+first, so it lags.
 
 **Binaries are not signed in v1.** macOS Gatekeeper blocks an unsigned
 downloaded binary outright, and Windows SmartScreen warns about one. Homebrew

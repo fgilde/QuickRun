@@ -72,17 +72,25 @@ allein — aber sie ist der Grund, aus dem QuickRun existiert.
 | Firefox | Firefox Add-ons *(in Prüfung)* |
 | Opera | Chrome-Build über Operas Chrome-Extension-Unterstützung installieren |
 
-Bis die Store-Einträge live sind, entpackt laden:
+Bis die Store-Einträge live sind, den Build aus dem letzten Release herunterladen und entpackt
+laden:
+
+- [quickrun-extension-chromium.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-chromium.zip)
+  — Chrome, Edge, Opera
+- [quickrun-extension-firefox.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-firefox.zip)
+  — Firefox
+
+Entpacken, dann in Chrome oder Edge: `chrome://extensions` → Entwicklermodus → Entpackte
+Erweiterung laden → der entpackte Ordner. In Firefox: `about:debugging` → Dieser Firefox →
+Temporäres Add-on laden → die `manifest.json` darin.
+
+Oder selbst bauen:
 
 ```bash
 git clone https://github.com/fgilde/QuickRun
 cd QuickRun/extension
 sh build.sh
 ```
-
-Dann in Chrome oder Edge: `chrome://extensions` → Entwicklermodus → Entpackte Erweiterung laden →
-`extension/dist/chromium`. In Firefox: `about:debugging` → Dieser Firefox → Temporäres Add-on laden →
-`extension/dist/firefox/manifest.json`.
 
 ## Aktualisieren
 

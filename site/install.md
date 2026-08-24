@@ -70,17 +70,25 @@ but it is the reason QuickRun exists.
 | Firefox | Firefox Add-ons *(pending review)* |
 | Opera | install the Chrome build via Opera's Chrome extension support |
 
-Until the store listings are live, load it unpacked:
+Until the store listings are live, download the build from the latest release and load it
+unpacked:
+
+- [quickrun-extension-chromium.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-chromium.zip)
+  — Chrome, Edge, Opera
+- [quickrun-extension-firefox.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-firefox.zip)
+  — Firefox
+
+Unpack it, then in Chrome or Edge: `chrome://extensions` → Developer mode → Load unpacked → the
+unpacked folder. In Firefox: `about:debugging` → This Firefox → Load Temporary Add-on → the
+`manifest.json` inside it.
+
+Or build it yourself:
 
 ```bash
 git clone https://github.com/fgilde/QuickRun
 cd QuickRun/extension
 sh build.sh
 ```
-
-Then in Chrome or Edge: `chrome://extensions` → Developer mode → Load unpacked →
-`extension/dist/chromium`. In Firefox: `about:debugging` → This Firefox → Load Temporary Add-on →
-`extension/dist/firefox/manifest.json`.
 
 ## Updating
 

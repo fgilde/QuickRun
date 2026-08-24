@@ -14,7 +14,7 @@ scoop install https://fgilde.github.io/QuickRun/quickrun.json
 ```
 
 ```bash [macOS]
-brew install fgilde/tap/quickrun
+brew install https://fgilde.github.io/QuickRun/quickrun.rb
 ```
 
 ```bash [Linux]
@@ -25,6 +25,10 @@ curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh
 
 The Linux installer downloads the release asset for your architecture, verifies it against the
 published `SHA256SUMS`, and installs it to `~/.local/bin`. Set `PREFIX` to install elsewhere.
+
+The Homebrew formula and scoop manifest are served from this site and regenerated with every
+release, so no separate tap or bucket repository is needed. `winget install` needs QuickRun to be
+accepted into the winget repository first; until then use one of the other options.
 
 ## Direct download
 

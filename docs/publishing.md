@@ -34,25 +34,26 @@ reports it from the binary.
 
 ### scoop
 
-`quickrun.json` is generated per release. Serve it from GitHub Pages so no
-separate bucket repository is needed:
+`quickrun.json` is generated per release and served from GitHub Pages by the
+`pages` workflow, so no separate bucket repository is needed:
 
 ```powershell
 scoop install https://fgilde.github.io/QuickRun/quickrun.json
 ```
 
-Copy the generated manifest into the `site/public/` directory when publishing the
-site, or point users at the release asset directly.
-
 ### Homebrew
 
-The formula needs a tap repository named exactly `fgilde/homebrew-tap`. Create it
-once, then for each release copy the generated `quickrun.rb` into its
-`Formula/` directory:
+The generated `quickrun.rb` is served from GitHub Pages, which the `pages`
+workflow fetches out of the latest release. That makes it installable with no tap
+repository at all:
 
 ```bash
-brew install fgilde/tap/quickrun
+brew install https://fgilde.github.io/QuickRun/quickrun.rb
 ```
+
+A tap is still nicer for `brew upgrade`. To add one, create a repository named
+exactly `fgilde/homebrew-tap` and copy `quickrun.rb` into its `Formula/`
+directory each release; `brew install fgilde/tap/quickrun` then works too.
 
 ### winget
 

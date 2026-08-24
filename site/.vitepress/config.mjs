@@ -24,7 +24,8 @@ export default defineConfig({
       link: '/',
       themeConfig: {
         nav: [
-          { text: 'Install', link: '/install' },
+          { text: 'Download', link: '/download' },
+          { text: 'First run', link: '/install' },
           { text: 'Config reference', link: '/config' },
           { text: 'Samples', link: '/samples' },
           { text: 'Security', link: '/security' },
@@ -34,7 +35,8 @@ export default defineConfig({
             text: 'QuickRun',
             items: [
               { text: 'Overview', link: '/' },
-              { text: 'Install', link: '/install' },
+              { text: 'Download', link: '/download' },
+              { text: 'First run', link: '/install' },
               { text: 'Config reference', link: '/config' },
               { text: 'Samples', link: '/samples' },
               { text: 'CLI', link: '/cli' },
@@ -54,7 +56,8 @@ export default defineConfig({
       link: '/de/',
       themeConfig: {
         nav: [
-          { text: 'Installation', link: '/de/install' },
+          { text: 'Download', link: '/de/download' },
+          { text: 'Erster Start', link: '/de/install' },
           { text: 'Config-Referenz', link: '/de/config' },
           { text: 'Beispiele', link: '/de/samples' },
           { text: 'Sicherheit', link: '/de/security' },
@@ -64,7 +67,8 @@ export default defineConfig({
             text: 'QuickRun',
             items: [
               { text: 'Überblick', link: '/de/' },
-              { text: 'Installation', link: '/de/install' },
+              { text: 'Download', link: '/de/download' },
+              { text: 'Erster Start', link: '/de/install' },
               { text: 'Config-Referenz', link: '/de/config' },
               { text: 'Beispiele', link: '/de/samples' },
               { text: 'CLI', link: '/de/cli' },

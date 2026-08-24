@@ -8,7 +8,8 @@ const props = defineProps({
 // GitHub serves releases/latest/download as a permanent redirect, so these links never carry a
 // version and can never go stale.
 const base = 'https://github.com/fgilde/QuickRun/releases/latest/download';
-const releases = 'https://github.com/fgilde/QuickRun/releases/latest';
+// Deliberately not a link to the release page: every download goes through this site.
+const checksums = `${base}/SHA256SUMS`;
 
 const detected = ref(null);
 
@@ -19,7 +20,7 @@ const copy = computed(() =>
         detectedNote: 'Für dein System erkannt',
         others: 'Andere Plattformen',
         preferred: 'Empfohlen: Paketmanager',
-        allAssets: 'Alle Dateien dieser Version',
+        allAssets: 'Checksummen (SHA256SUMS)',
         unsigned:
           'Die Binaries sind nicht signiert. macOS blockiert einen direkt geladenen Download, '
           + 'deshalb ist Homebrew dort der empfohlene Weg.',
@@ -29,7 +30,7 @@ const copy = computed(() =>
         detectedNote: 'Detected for your system',
         others: 'Other platforms',
         preferred: 'Recommended: package managers',
-        allAssets: 'All files in this release',
+        allAssets: 'Checksums (SHA256SUMS)',
         unsigned:
           'Binaries are unsigned. macOS blocks a directly downloaded binary, which is why Homebrew '
           + 'is the recommended path there.',
@@ -84,7 +85,7 @@ function detect() {
           <a :href="`${base}/${platform.asset}`">{{ platform.label }}</a>
         </li>
       </ul>
-      <p><a :href="releases">{{ copy.allAssets }}</a></p>
+      <p><a :href="checksums">{{ copy.allAssets }}</a></p>
     </details>
 
     <p class="qr-unsigned">{{ copy.unsigned }}</p>

@@ -10,8 +10,8 @@ hero:
     alt: QuickRun
   actions:
     - theme: brand
-      text: Installation
-      link: /de/install
+      text: Download
+      link: /de/download
     - theme: alt
       text: Config-Referenz
       link: /de/config

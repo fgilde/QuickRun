@@ -165,8 +165,8 @@ public sealed class DashboardWindow : Window
 
         page.Children.Add(Heading("How it works"));
         page.Children.Add(Muted(
-            "1. Install the extension. Until the store listings are live, download the build from "
-            + "the latest release and load it unpacked."));
+            "1. Install the extension from the download page. Until the store listings are live it "
+            + "is loaded unpacked; that page has the steps."));
         page.Children.Add(Muted(
             "2. Click \"Open pairing window\", then Pair in the extension options within 60 seconds."));
         page.Children.Add(Muted(
@@ -182,7 +182,7 @@ public sealed class DashboardWindow : Window
             Spacing = 8,
             Children =
             {
-                Button("Download the extension", () => Open("https://github.com/fgilde/QuickRun/releases/latest")),
+                Button("Download the extension", () => Open("https://fgilde.github.io/QuickRun/download")),
                 Button("Documentation", () => Open("https://fgilde.github.io/QuickRun/extension")),
             },
         });

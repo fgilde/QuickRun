@@ -62,7 +62,19 @@ public class DashboardTests
         var html = new Dashboard().Render(9876);
 
         Assert.Contains("pairing window", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("quickrun-extension-chromium.zip", html);
-        Assert.Contains("quickrun-extension-firefox.zip", html);
+        Assert.Contains("https://fgilde.github.io/QuickRun/download", html);
+    }
+
+    /// <summary>
+    /// Downloads always go through the project's own page, never a GitHub release page or a
+    /// hand-written asset link that would rot when the assets change.
+    /// </summary>
+    [Fact]
+    public void The_page_links_no_release_assets_directly()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.DoesNotContain("releases/latest/download", html);
+        Assert.DoesNotContain("releases/tag/", html);
     }
 }

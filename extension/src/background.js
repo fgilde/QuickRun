@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 
-const DOWNLOAD_PAGE = 'https://fgilde.github.io/QuickRun/#install';
+const DOWNLOAD_PAGE = 'https://fgilde.github.io/QuickRun/download';
 
 /** Live runs, keyed by run id, so the content script can be told where a run has got to. */
 const active = new Map();

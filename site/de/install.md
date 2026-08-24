@@ -1,100 +1,57 @@
-# Installation
+# Erster Start
 
-## Paketmanager
+Die Dateien holst du von der [Download-Seite](/de/download). Diese Seite beschreibt, was du damit
+machst.
 
-Der empfohlene Weg auf allen Plattformen. Paketmanager halten QuickRun aktuell und vermeiden unter
-macOS das unten beschriebene Gatekeeper-Problem.
+## Starten
 
-::: code-group
-
-```powershell [Windows]
-winget install fgilde.QuickRun
-# oder
-scoop install https://fgilde.github.io/QuickRun/quickrun.json
-```
-
-```bash [macOS]
-brew install https://fgilde.github.io/QuickRun/quickrun.rb
-```
-
-```bash [Linux]
-curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh
-```
-
-:::
-
-Der Linux-Installer lädt das Release-Asset für deine Architektur, prüft es gegen die veröffentlichte
-`SHA256SUMS` und installiert nach `~/.local/bin`. `PREFIX` setzen, um woanders zu installieren.
-
-Homebrew-Formula und scoop-Manifest werden von dieser Seite ausgeliefert und mit jedem Release neu
-erzeugt — ein eigenes Tap- oder Bucket-Repository ist nicht nötig. `winget install` funktioniert
-erst, wenn QuickRun ins winget-Repository aufgenommen ist; bis dahin einen der anderen Wege nutzen.
-
-## Direkter Download
-
-<DownloadButtons lang="de" />
-
-Archiv entpacken und `quickrun` an eine Stelle im `PATH` legen.
-
-### Unsignierte Binaries
-
-QuickRun ist noch nicht code-signiert. Was das pro Plattform bedeutet:
-
-- **macOS** verweigert die Ausführung eines heruntergeladenen unsignierten Binaries komplett.
-  Entweder Homebrew benutzen, das das Quarantäne-Attribut entfernt, oder es selbst entfernen:
-  ```bash
-  xattr -d com.apple.quarantine ./quickrun
-  ```
-- **Windows** zeigt beim ersten Start eine SmartScreen-Warnung. Installationen über `winget` oder
-  `scoop` umgehen das.
-- **Linux** interessiert es nicht.
-
-Signatur-Zertifikate kosten jährlich Geld und bringen nichts, solange es keine Nutzer zu schützen
-gibt — deshalb warten sie. Die Release-Pipeline ist so gebaut, dass ein Signing-Schritt später
-genau einen Job berührt.
-
-## Erster Start
+Binary ohne Argumente starten, oder doppelklicken:
 
 ```bash
-quickrun install     # quickrun:// registrieren und Daemon beim Anmelden starten
-quickrun daemon      # oder den Listener im Vordergrund laufen lassen
-quickrun pair        # danach in der Browser-Erweiterung auf Pair klicken
+quickrun
 ```
 
-`quickrun install` registriert das `quickrun://`-Schema — darüber kann die Erweiterung einen
-installierten, aber nicht laufenden Daemon starten.
+QuickRun startet seinen Listener auf `127.0.0.1:9876`, legt ein Icon ins Tray und öffnet sein
+Fenster. Das Fenster hat vier Bereiche:
 
-## Browser-Erweiterung
+- **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
+- **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
+- **Browser extension** — der Pairing-Button und wie die Erweiterung funktioniert
+- **About** — Version, Installationsquelle, Update-Prüfung
 
-Die Erweiterung setzt den Run-Button auf GitHub. Sie ist nicht erforderlich — die CLI funktioniert
-allein — aber sie ist der Grund, aus dem QuickRun existiert.
+Dieselbe Ansicht gibt es im Browser unter `http://127.0.0.1:9876`, wenn du sie dort lieber hast.
+`quickrun --browser` öffnet sie so; `quickrun --no-tray` lässt das Tray-Icon ganz weg.
 
-| Browser | Wo |
-|---|---|
-| Chrome | Chrome Web Store *(in Prüfung)* |
-| Edge | Edge Add-ons *(in Prüfung)* |
-| Firefox | Firefox Add-ons *(in Prüfung)* |
-| Opera | Chrome-Build über Operas Chrome-Extension-Unterstützung installieren |
-
-Bis die Store-Einträge live sind, den Build aus dem letzten Release herunterladen und entpackt
-laden:
-
-- [quickrun-extension-chromium.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-chromium.zip)
-  — Chrome, Edge, Opera
-- [quickrun-extension-firefox.zip](https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-firefox.zip)
-  — Firefox
-
-Entpacken, dann in Chrome oder Edge: `chrome://extensions` → Entwicklermodus → Entpackte
-Erweiterung laden → der entpackte Ordner. In Firefox: `about:debugging` → Dieser Firefox →
-Temporäres Add-on laden → die `manifest.json` darin.
-
-Oder selbst bauen:
+## Protokoll registrieren und beim Anmelden starten
 
 ```bash
-git clone https://github.com/fgilde/QuickRun
-cd QuickRun/extension
-sh build.sh
+quickrun install
 ```
+
+Registriert das `quickrun://`-Schema und legt einen Autostart-Eintrag an. Das Schema hat eine
+Aufgabe: die Browser-Erweiterung kann QuickRun damit starten, wenn es installiert ist aber nicht
+läuft. Ohne funktioniert alles weiter, solange QuickRun läuft, wenn du den Button klickst.
+
+Unter macOS braucht das Schema das [App-Bundle](/de/download#macos-app-bundle) — eine nackte Binary
+kann kein URL-Schema für sich beanspruchen.
+
+## Browser-Erweiterung pairen
+
+Im QuickRun-Fenster **Browser extension** öffnen und **Open pairing window** klicken. Dann innerhalb
+von 60 Sekunden in der Erweiterung auf **Pair**. Aus dem Terminal:
+
+```bash
+quickrun pair
+```
+
+Der Token bleibt im Extension-Storage des Browsers. Er wird keiner Webseite gegeben, und das
+Content-Script sieht ihn nie. `quickrun pair --revoke` macht ihn ungültig.
+
+## Prüfen, ob es funktioniert
+
+Ein beliebiges Repository auf GitHub öffnen. Neben dem Branch-Dropdown erscheint ein
+**Run this**-Button. Ein Klick startet noch nichts: QuickRun checkt das Repository aus, dann zeigt
+die Erweiterung die exakten Befehle und wartet auf deine Bestätigung.
 
 ## Aktualisieren
 
@@ -103,9 +60,13 @@ quickrun update          # installiert, wenn QuickRun das Binary besitzt
 quickrun update --check  # meldet nur
 ```
 
-QuickRun leitet aus dem Installationspfad ab, wer das Binary verwaltet. Hat ein Paketmanager es
-dort abgelegt, meldet `update` die Version und den passenden Befehl statt die Datei zu
-überschreiben — zwei Updater, die um dieselbe Datei kämpfen, sind der Anfang von Versionschaos.
+QuickRun leitet aus dem Installationspfad ab, wer das Binary verwaltet. Hat ein Paketmanager es dort
+abgelegt, meldet `update` die Version und den passenden Befehl statt die Datei zu überschreiben —
+zwei Updater, die um dieselbe Datei kämpfen, sind der Anfang von Versionschaos.
+
+Der Download wird gegen die mit dem Release veröffentlichten Checksummen geprüft, bevor etwas
+ersetzt wird, und das Update greift beim Neustart, nie mitten in einem Lauf. `--no-update` schaltet
+die Prüfung ab.
 
 ## Deinstallieren
 
@@ -114,5 +75,5 @@ quickrun clean --all   # zuerst die ausgecheckten Workspaces entfernen
 quickrun uninstall     # quickrun:// und den Autostart-Eintrag abmelden
 ```
 
-Danach das Binary entfernen, oder `winget uninstall fgilde.QuickRun` /
-`brew uninstall quickrun` / `scoop uninstall quickrun`.
+Danach das Binary entfernen, oder `scoop uninstall quickrun` / `brew uninstall quickrun` /
+`winget uninstall fgilde.QuickRun`.

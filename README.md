@@ -5,6 +5,7 @@
 <p align="center"><strong>Run any git repository with one click.</strong></p>
 
 <p align="center">
+  <a href="https://fgilde.github.io/QuickRun/download">Download</a> ·
   <a href="https://fgilde.github.io/QuickRun/">Documentation (English)</a> ·
   <a href="https://fgilde.github.io/QuickRun/de/">Dokumentation (Deutsch)</a> ·
   <a href="samples/">Example configs</a>
@@ -131,7 +132,8 @@ cd extension
 sh build.sh     # dist/chromium for Chrome, Edge and Opera; dist/firefox for Firefox
 ```
 
-Store listings are pending review. See the [extension docs](https://fgilde.github.io/QuickRun/extension).
+Store listings are pending review. Until then the [download page](https://fgilde.github.io/QuickRun/download)
+has the builds and the steps to load them unpacked.
 
 ## Updating
 

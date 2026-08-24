@@ -111,15 +111,19 @@ async function stopRun(runId) {
   return { ok: stopped };
 }
 
-/** Opens confirm.html and resolves with the user's decision. */
+/**
+ * Opens confirm.html and resolves with the user's decision. The window is left open afterwards:
+ * once approved it becomes the run's log view, which is where a hundred lines of build output
+ * belong - not in a toolbar button.
+ */
 async function confirmInWindow(run) {
   await chrome.storage.session.set({ pendingRun: run });
 
   const created = await chrome.windows.create({
     url: chrome.runtime.getURL('confirm.html'),
     type: 'popup',
-    width: 720,
-    height: 620,
+    width: 760,
+    height: 720,
   });
 
   return new Promise((resolve) => {
@@ -160,13 +164,12 @@ function follow(runId, tabId, connection) {
 }
 
 function notify(tabId, runId, event) {
-  if (tabId === undefined) return;
+  const message = { type: 'runEvent', runId, event };
 
-  chrome.tabs
-    .sendMessage(tabId, { type: 'runEvent', runId, event })
-    .catch(() => {
-      // The tab navigated away; the run continues without a listener.
-    });
+  // The tab drives the button's progress; the confirmation window shows the full log. Either may
+  // be gone, and a run must not care.
+  if (tabId !== undefined) chrome.tabs.sendMessage(tabId, message).catch(() => {});
+  chrome.runtime.sendMessage(message).catch(() => {});
 }
 
 function sleep(ms) {

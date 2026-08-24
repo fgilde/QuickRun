@@ -75,6 +75,42 @@ code {
 
 footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
+/* --- progress view ------------------------------------------------------------------------ */
+#progress h2 { display: flex; align-items: baseline; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--fg); }
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.bar > div {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width .3s ease;
+}
+
+#log {
+  margin: 0;
+  padding: 10px 12px;
+  height: 320px;
+  overflow: auto;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#log .err { color: var(--warn-line); }
+#log .meta { color: var(--muted); }
+
 button {
   padding: 6px 14px;
   border: 1px solid var(--line);

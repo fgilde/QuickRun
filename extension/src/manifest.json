@@ -33,6 +33,7 @@
       ],
       "js": [
         "targets.js",
+        "placement.js",
         "content.js"
       ],
       "css": [
@@ -47,5 +48,15 @@
   "host_permissions": [
     "http://127.0.0.1/*",
     "http://localhost/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/icon-32.png"
+      ],
+      "matches": [
+        "https://github.com/*"
+      ]
+    }
   ]
 }

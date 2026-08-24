@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { withBase } from 'vitepress';
 
 const props = defineProps({
   lang: { type: String, default: 'en' },
@@ -8,6 +9,7 @@ const props = defineProps({
 // Release assets carry no version in their names, precisely so these links can be permanent:
 // releases/latest/download/<name> needs the exact file name, and the version lives in the tag.
 const base = 'https://github.com/fgilde/QuickRun/releases/latest/download';
+const logos = withBase('/logos');
 
 const detected = ref(null);
 const copied = ref('');
@@ -44,6 +46,7 @@ const platforms = [
   {
     os: 'windows',
     name: 'Windows',
+    logo: 'windows',
     tint: '#0078d4',
     command: 'winget install fgilde.QuickRun',
     alternative: 'scoop install https://fgilde.github.io/QuickRun/quickrun.json',
@@ -55,6 +58,9 @@ const platforms = [
   {
     os: 'macos',
     name: 'macOS',
+    logo: 'apple',
+    // Simple Icons ships this monochrome, so it needs inverting on a dark background.
+    mono: true,
     tint: '#a2aaad',
     command: 'brew install fgilde/tap/quickrun',
     builds: [
@@ -65,6 +71,8 @@ const platforms = [
   {
     os: 'linux',
     name: 'Linux',
+    logo: 'linux',
+    mono: true,
     tint: '#f0b400',
     command: 'curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh',
     builds: [
@@ -109,22 +117,8 @@ function label(build) {
     <!-- Detected platform first: one obvious thing to do. -->
     <section v-if="mine" class="qr-mine" :style="{ '--tint': mine.tint }">
       <header>
-        <svg class="qr-glyph" viewBox="0 0 24 24" aria-hidden="true">
-          <!-- Geometric glyphs, not brand logos: a badly redrawn logo looks worse than none. -->
-          <template v-if="mine.os === 'windows'">
-            <rect x="3" y="3" width="8" height="8" /><rect x="13" y="3" width="8" height="8" />
-            <rect x="3" y="13" width="8" height="8" /><rect x="13" y="13" width="8" height="8" />
-          </template>
-          <template v-else-if="mine.os === 'macos'">
-            <path d="M8 3a3 3 0 0 1 3 3v3H8a3 3 0 1 1 0-6Zm8 0a3 3 0 1 1 0 6h-3V6a3 3 0 0 1 3-3ZM8 21a3 3 0 1 1 0-6h3v3a3 3 0 0 1-3 3Zm8 0a3 3 0 0 1-3-3v-3h3a3 3 0 1 1 0 6ZM9 9h6v6H9V9Z"
-              fill="none" stroke="currentColor" stroke-width="1.7" />
-          </template>
-          <template v-else>
-            <rect x="2.5" y="4" width="19" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7" />
-            <path d="M7 9.5 10 12l-3 2.5M12.5 15h4.5" fill="none" stroke="currentColor"
-              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-          </template>
-        </svg>
+        <img class="qr-logo" :class="{ 'qr-logo--mono': mine.mono }"
+             :src="`${logos}/${mine.logo}.svg`" :alt="mine.name">
         <div>
           <span class="qr-eyebrow">{{ t.yours }}</span>
           <h3>{{ mine.name }}</h3>
@@ -159,7 +153,11 @@ function label(build) {
       <span class="qr-eyebrow">{{ mine ? t.pick : t.direct }}</span>
       <div class="qr-grid">
         <article v-for="platform in others" :key="platform.os" :style="{ '--tint': platform.tint }">
-          <h4>{{ platform.name }}</h4>
+          <h4>
+            <img class="qr-logo qr-logo--small" :class="{ 'qr-logo--mono': platform.mono }"
+                 :src="`${logos}/${platform.logo}.svg`" alt="">
+            {{ platform.name }}
+          </h4>
           <code>{{ platform.command }}</code>
           <div class="qr-links">
             <a v-for="build in platform.builds" :key="build.asset" :href="`${base}/${build.asset}`">
@@ -198,7 +196,11 @@ function label(build) {
 .qr-mine header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .qr-mine h3 { margin: 0; font-size: 20px; line-height: 1.2; }
 
-.qr-glyph { width: 34px; height: 34px; flex: 0 0 34px; fill: var(--tint); color: var(--tint); }
+.qr-logo { width: 34px; height: 34px; flex: 0 0 34px; object-fit: contain; }
+.qr-logo--small { width: 18px; height: 18px; flex: 0 0 18px; vertical-align: -3px; margin-right: 6px; }
+
+/* Simple Icons renders black; invert it rather than shipping a second file per theme. */
+:global(html.dark) .qr-logo--mono { filter: invert(1); }
 
 .qr-command {
   display: flex;

@@ -1,15 +1,11 @@
-const fields = ['port', 'useProtocolFallback', 'preferMergeRef'];
-
 const stored = await chrome.storage.local.get({
   port: 9876,
   token: null,
   useProtocolFallback: true,
-  preferMergeRef: false,
 });
 
 document.getElementById('port').value = stored.port;
 document.getElementById('useProtocolFallback').checked = stored.useProtocolFallback;
-document.getElementById('preferMergeRef').checked = stored.preferMergeRef;
 
 await refreshStatus();
 
@@ -47,7 +43,6 @@ document.getElementById('save').addEventListener('click', async () => {
   await chrome.storage.local.set({
     port: Number(document.getElementById('port').value) || 9876,
     useProtocolFallback: document.getElementById('useProtocolFallback').checked,
-    preferMergeRef: document.getElementById('preferMergeRef').checked,
   });
   document.getElementById('saveResult').textContent = 'saved';
   await refreshStatus();

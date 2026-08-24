@@ -13,13 +13,25 @@ function targets() {
 
   switch (parsed.kind) {
     case 'repo':
-      return withAnchor({ repo: parsed.repo, label: 'Run this' }, repoHomeAnchor());
+      return withAnchor({ repo: parsed.repo, label: 'Run this' }, QuickRunPlacement.repoToolbar());
     case 'tree':
-      return withAnchor({ repo: parsed.repo, ref: parsed.ref, label: 'Run this branch' }, repoHomeAnchor());
+      return withAnchor(
+        { repo: parsed.repo, ref: parsed.ref, label: 'Run this branch' },
+        QuickRunPlacement.repoToolbar(),
+      );
     case 'pull':
-      return withAnchor({ repo: parsed.repo, pr: parsed.pr, label: `Run PR #${parsed.pr}` }, pullRequestAnchor());
+      return withAnchor(
+        { repo: parsed.repo, pr: parsed.pr, label: `Run PR #${parsed.pr}` },
+        QuickRunPlacement.pullRequestActions(),
+      );
     case 'branches':
-      return branchRowTargets(parsed.repo);
+      return QuickRunPlacement.branchRows(parsed.repo).map((row) => ({
+        repo: parsed.repo,
+        ref: row.ref,
+        anchor: row.anchor,
+        label: 'Run',
+        compact: true,
+      }));
     default:
       return [];
   }
@@ -29,41 +41,25 @@ function withAnchor(target, anchor) {
   return anchor ? [{ ...target, anchor }] : [];
 }
 
-function repoHomeAnchor() {
-  return (
-    document.querySelector('[data-testid="anchor-button"]')?.parentElement
-    ?? document.querySelector('#branch-picker-repos-header-ref-selector')?.parentElement
-    ?? document.querySelector('[data-testid="repos-header-ref-selector"]')?.parentElement
-    ?? document.querySelector('.file-navigation')
-  );
-}
-
-function pullRequestAnchor() {
-  return (
-    document.querySelector('[data-testid="pr-header-actions"]')
-    ?? document.querySelector('.gh-header-actions')
-    ?? document.querySelector('.gh-header-meta')
-  );
-}
-
-function branchRowTargets(repo) {
-  const rows = document.querySelectorAll('[data-testid="branch-row"], .Box-row');
-
-  return Array.from(rows)
-    .map((row) => {
-      const link = row.querySelector('a[href*="/tree/"]');
-      const ref = QuickRunTargets.refFromTreeHref(link?.getAttribute('href'));
-      return ref ? { repo, ref, anchor: row, label: 'Run' } : null;
-    })
-    .filter(Boolean);
-}
-
 function makeButton(target) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = `${BUTTON_CLASS} btn btn-sm`;
+  button.className = BUTTON_CLASS;
+  if (target.compact) button.classList.add('quickrun-button--compact');
   button.dataset.quickrun = 'true';
-  button.innerHTML = `<span class="quickrun-icon" aria-hidden="true"></span><span class="quickrun-label"></span>`;
+
+  const icon = document.createElement('img');
+  icon.className = 'quickrun-icon';
+  icon.alt = '';
+  icon.src = chrome.runtime.getURL('icons/icon-32.png');
+
+  const label = document.createElement('span');
+  label.className = 'quickrun-label';
+
+  const progress = document.createElement('span');
+  progress.className = 'quickrun-progress';
+
+  button.append(icon, label, progress);
   setLabel(button, target.label);
 
   button.addEventListener('click', (event) => {
@@ -73,6 +69,16 @@ function makeButton(target) {
   });
 
   return button;
+}
+
+/** A few words, not a log line: the button is a status light, not a console. */
+function phaseOf(progress) {
+  switch (progress.phase) {
+    case 'checkout': return 'checking out';
+    case 'setup': return 'setting up';
+    case 'tasks': return 'starting';
+    default: return progress.detail?.slice(0, 28) ?? '';
+  }
 }
 
 function setLabel(button, text) {
@@ -144,7 +150,9 @@ chrome.runtime.onMessage.addListener((message) => {
 
   if (progress) {
     setState(button, 'running');
-    setLabel(button, `${progress.percent}% ${progress.detail}`.slice(0, 60));
+    // Coarse action only; the full log lives in the confirmation window.
+    setLabel(button, `${progress.percent}% ${phaseOf(progress)}`);
+    button.style.setProperty('--quickrun-progress', `${progress.percent}%`);
     return;
   }
 

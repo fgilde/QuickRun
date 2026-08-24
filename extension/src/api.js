@@ -10,7 +10,6 @@ export async function settings() {
     port: DEFAULT_PORT,
     token: null,
     useProtocolFallback: true,
-    preferMergeRef: false,
   });
   return stored;
 }

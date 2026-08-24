@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
   <meta charset="utf-8">
+  <meta name="google" content="notranslate">
   <title>QuickRun — confirm</title>
   <link rel="stylesheet" href="confirm.css">
 </head>
-<body>
+<body class="notranslate">
   <header>
     <img src="icons/icon-48.png" alt="" width="32" height="32">
     <div>
@@ -20,17 +21,30 @@
     <dt>Commit</dt><dd id="commit"></dd>
   </dl>
 
-  <h2>These commands will run on your machine</h2>
-  <ol id="commands"></ol>
+  <section id="review">
+    <h2>These commands will run on your machine</h2>
+    <ol id="commands"></ol>
 
-  <p class="warning">
-    QuickRun executes these commands with your privileges, outside any sandbox. Only continue if you
-    would be willing to run them by hand.
-  </p>
+    <p class="warning">
+      QuickRun executes these commands with your privileges, outside any sandbox. Only continue if
+      you would be willing to run them by hand.
+    </p>
+  </section>
+
+  <section id="progress" hidden>
+    <h2>
+      <span id="phase">starting</span>
+      <span id="percent" class="muted"></span>
+    </h2>
+    <div class="bar"><div id="fill"></div></div>
+    <pre id="log" aria-live="polite"></pre>
+  </section>
 
   <footer>
     <button id="cancel" type="button">Cancel</button>
     <button id="approve" type="button" class="primary">Run</button>
+    <button id="stop" type="button" hidden>Stop</button>
+    <button id="close" type="button" class="primary" hidden>Close</button>
   </footer>
 
   <script src="confirm.js" type="module"></script>

@@ -3,6 +3,15 @@ name: release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build without the leading v, for a dry run'
+        required: true
+        default: '0.0.0-dev'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -19,17 +28,108 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish
-        run: >
-          dotnet publish src/QuickRun.App
-          -c Release -r ${{ matrix.rid }}
-          --self-contained true
-          -p:PublishSingleFile=true
-          -o publish/${{ matrix.rid }}
+        shell: bash
+        run: |
+          dotnet publish src/QuickRun.App \
+            -c Release -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:Version=${{ steps.version.outputs.value }} \
+            -p:InformationalVersion=${{ steps.version.outputs.value }} \
+            -o out/${{ matrix.rid }}
+
+      # macOS needs an app bundle for CFBundleURLTypes; a bare single-file binary
+      # cannot register the quickrun:// scheme.
+      - name: Build macOS app bundle
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          scripts/build-macos-bundle.sh \
+            "out/${{ matrix.rid }}/quickrun" \
+            "bundle/${{ matrix.rid }}" \
+            "${{ steps.version.outputs.value }}"
+
+      - name: Package
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          rid="${{ matrix.rid }}"
+          mkdir -p dist
+
+          rm -f "out/$rid"/*.pdb
+          cp LICENSE README.md "out/$rid/"
+
+          if [[ "$rid" == win-* ]]; then
+            (cd "out/$rid" && 7z a -tzip "../../dist/quickrun-$version-$rid.zip" .)
+          else
+            chmod +x "out/$rid/quickrun"
+            tar -czf "dist/quickrun-$version-$rid.tar.gz" -C "out/$rid" .
+          fi
+
+          if [[ "$rid" == osx-* ]]; then
+            (cd "bundle/$rid" && zip -qry "../../dist/QuickRun-$version-$rid.app.zip" QuickRun.app)
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
-          name: quickrun-${{ matrix.rid }}
-          path: publish/${{ matrix.rid }}
+          name: dist-${{ matrix.rid }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      # Auto-update verifies downloaded assets against this file, so it covers
+      # every asset and is published alongside them.
+      - name: Write SHA256SUMS
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      # scoop and brew reference the checksums, so this runs after SHA256SUMS.
+      - name: Generate package manifests
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "${{ github.event_name }}" = "push" ] || version="${{ github.event.inputs.version }}"
+          scripts/package-manifests.sh "$version" dist/SHA256SUMS dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist/
+
+      - name: Publish release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "QuickRun $GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag

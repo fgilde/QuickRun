@@ -1,5 +1,6 @@
 using QuickRun.App;
 using QuickRun.App.Commands;
+using QuickRun.Core;
 using Spectre.Console.Cli;
 
 var app = new CommandApp();
@@ -7,6 +8,7 @@ var app = new CommandApp();
 app.Configure(config =>
 {
     config.SetApplicationName("quickrun");
+    config.SetApplicationVersion(BuildInfo.Version);
 
     config.AddCommand<RunCommand>("run")
         .WithDescription("Check out a repository and run it.")

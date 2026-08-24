@@ -29,7 +29,7 @@ Two audiences:
 ### Non-goals
 
 - Not a package manager, not a container orchestrator, not a CI system.
-- No sandboxing in v1 (see §10 — the trust dialog is the control).
+- No sandboxing in v1 (see §10 - the trust dialog is the control).
 - No hosted service. Everything runs on the user's machine.
 
 ## 2. Decisions
@@ -45,8 +45,11 @@ Two audiences:
 | No config | Detect candidates, present them, user picks; never auto-run |
 | Trust | Confirmation dialog always; "trust this repo" invalidated by config hash |
 | Workspace | Reuse per repo+branch, `fetch` + `reset --hard`; "clone fresh" escape hatch |
-| Trigger | `quickrun://` by default, localhost listener optional |
-| Extension | One MV3 source for Chrome/Edge/Opera, Firefox variant; button always shown |
+| Trigger | Localhost listener is the primary channel; `quickrun://` is the cold-start bootstrap |
+| Extension | One MV3 source for Chrome/Edge/Opera, Firefox variant; button always shown, state from a ping |
+| Progress | Real numbers where they exist (git clone), step counters elsewhere; never estimated |
+| Updates | Self-update for standalone installs, notify-only when a package manager owns the binary |
+| Signing | Unsigned in v1; package managers are the primary install path, direct downloads documented |
 | Docs | VitePress with `en`/`de`, plus one Blazor WASM playground page |
 | Default port | 9876 |
 
@@ -389,9 +392,29 @@ the natural upgrade is an opt-in `isolate: docker` per repo.
 
 ## 11. Trigger transports
 
-Both transports funnel into the same run request. `quickrun://` is the default
-because it works when the daemon is not running and inherits the browser's own
-"open this application?" prompt.
+Both transports funnel into the same run request, but they are not
+interchangeable, and the reason is worth stating because it inverts an earlier
+decision.
+
+**A browser cannot tell whether a URL scheme has a handler.** That is deliberate
+- it would be a fingerprinting vector - and there is no API for it. So an
+extension whose only channel is `quickrun://` can never know whether QuickRun is
+installed, and can never receive progress back from a run it triggered. Both of
+those are requirements, so the **localhost listener is the primary channel and is
+on by default**. `quickrun://` remains, in exactly one role: starting the daemon
+when it is installed but not running.
+
+The resulting button logic:
+
+| Ping result | Button shows |
+|---|---|
+| answers | ready - clicking posts a run and streams progress back |
+| refused, handler present | "start QuickRun" - the click goes through `quickrun://`, then the ping succeeds |
+| refused, no handler | "install QuickRun" - links to the download page |
+
+The extension cannot distinguish the last two cases directly, so it offers the
+`quickrun://` attempt first and falls back to the install prompt if the ping
+still fails a few seconds later.
 
 ### Protocol
 
@@ -414,9 +437,19 @@ Registration happens in `quickrun install`, run on first launch:
 
 ### Listener
 
-`POST http://127.0.0.1:9876/api/run` with the same fields as JSON and an
-`X-QuickRun-Token` header. Off by default; enabling it is a setting in both the
-app and the extension.
+On by default, bound to `127.0.0.1:9876` - loopback only, never `0.0.0.0`.
+
+| Endpoint | Token | Purpose |
+|---|---|---|
+| `GET /api/ping` | no | version, whether a run is active; how the extension detects QuickRun |
+| `POST /api/pair` | no | returns a token, but only inside a pairing window |
+| `POST /api/run` | yes | starts a run, returns a run id |
+| `GET /api/runs/{id}/events` | yes | Server-Sent Events: progress and log lines |
+| `POST /api/runs/{id}/stop` | yes | stops a run |
+
+`/api/ping` carries no token on purpose: any page can learn that QuickRun is
+installed, which is the point. It exposes nothing else - no repository names, no
+paths, no run contents.
 
 Pairing: the user clicks "Pair browser extension" in the UI, which opens a
 60-second window during which `POST /api/pair` returns a token. The extension
@@ -424,11 +457,12 @@ stores it and sends it with every subsequent request. Outside that window,
 `/api/pair` returns 403. This avoids asking the user to copy-paste a secret and
 avoids any web page silently obtaining one.
 
-`GET /api/ping` (no token) returns version and status so the extension can tell
-whether QuickRun is installed and running.
+CORS is granted to `https://github.com` only. Chromium additionally requires a
+Private Network Access preflight for `https://github.com` → `http://127.0.0.1`;
+the daemon answers it with the required headers.
 
-Chromium requires a Private Network Access preflight for `https://github.com` →
-`http://127.0.0.1`; the daemon answers the preflight with the required headers.
+A run posted over the listener still goes through the confirmation dialog (§10).
+The listener starts the *preparation*; the browser never gets to skip the gate.
 
 ## 12. Browser extension
 
@@ -446,8 +480,20 @@ The button is always shown; the engine decides what is runnable (config,
 run script, or detection). No GitHub API call, no token in the extension, no
 rate limits.
 
-Options: transport (protocol / listener), port, pairing, and whether to prefer
-the PR head or its merge ref.
+The button has four visual states, driven by `/api/ping` and the event stream:
+
+- **ready** - QuickRun answers. Click starts a run.
+- **not installed** - no answer and the `quickrun://` attempt did not help.
+  Click opens the download page.
+- **running** - a spinner with the current phase and, where a real number
+  exists, a percentage. Click opens the dashboard.
+- **failed** - the last run for this repository failed. Hovering shows why.
+
+Progress arrives over the event stream (§11) and is rendered in place, so the
+user watches a repository start without leaving the GitHub page.
+
+Options: port, pairing, whether to prefer the PR head or its merge ref, and
+whether to use `quickrun://` when the ping fails.
 
 GitHub is a Turbo-driven SPA, so injection hooks `turbo:load` and a
 `MutationObserver` rather than running once on load. Selectors are anchored on
@@ -456,7 +502,59 @@ changes its DOM — a missing button is acceptable, a broken page is not. Known
 ceiling: selector drift needs extension updates; a resilient-anchor test page
 in the repo makes that a fast fix rather than an investigation.
 
-## 13. Website and documentation
+## 13. Progress reporting
+
+A repository's own commands do not report progress, so QuickRun reports only
+what it can actually measure. Nothing is estimated and nothing is interpolated
+from previous runs - a bar that sits at 90% is worse than no bar.
+
+Three phases, each contributing a fixed share of the total:
+
+| Phase | Weight | Where the number comes from |
+|---|---|---|
+| checkout | 30% | `git clone --progress` writes real counters to stderr: "Receiving objects: 47%", "Resolving deltas: 12%". Parsed and passed through. |
+| setup | 40% | step *i* of *n* - the config says how many there are |
+| tasks | 30% | tasks ready *j* of *m* |
+
+A run therefore emits a stream of `RunProgress(Phase, Percent, Detail)` records,
+where `Percent` is the weighted total and `Detail` is the honest text ("Receiving
+objects: 47%", "setup 2/5: npm ci", "waiting for api on port 5000"). Both the
+CLI and the extension render the same records.
+
+When git reports nothing measurable - a cached update rather than a fresh clone -
+the checkout phase reports its share as a single step rather than inventing
+counters.
+
+## 14. Auto-update
+
+The daemon checks `https://api.github.com/repos/fgilde/QuickRun/releases/latest`
+once a day, and on demand from the UI.
+
+Whether it may act on what it finds depends on how QuickRun was installed. The
+installer records that in `<config>/install-source`:
+
+| Source | Behaviour |
+|---|---|
+| `standalone` | downloads, verifies, swaps, restarts |
+| `winget`, `scoop`, `brew`, `apt` | reports the new version and the upgrade command; never touches the binary |
+| absent | treated as `standalone` |
+
+Two updaters fighting over the same file produces version chaos and broken
+package-manager state, so the distinction is not optional.
+
+The standalone path is a code-execution channel and is treated as one:
+
+- the asset is fetched only from the release's own `browser_download_url` on
+  `github.com`, over HTTPS, following no redirects off that host
+- its SHA-256 is verified against the `SHA256SUMS` file published with the
+  release, which is fetched separately; a mismatch aborts and is reported
+- the new binary is written beside the current one, then swapped: on Windows the
+  running executable is renamed to `quickrun.old.exe` first, because it cannot be
+  overwritten in place, and the stale file is removed on next start
+- the update is applied on daemon restart, never mid-run
+- `--no-update` and a UI setting disable checking entirely
+
+## 15. Website and documentation
 
 VitePress at `site/`, deployed to GitHub Pages.
 
@@ -478,36 +576,69 @@ sample gives repo owners autocomplete in VS Code.
 
 README stays English and links to both language landing pages.
 
-## 14. Distribution
+## 16. Distribution
 
-GitHub Releases carry the six single-file binaries plus checksums, built by a
-release matrix workflow. The two macOS artifacts additionally ship as a
-`QuickRun.app` bundle (§11) so the URL scheme can be registered. Beyond that: winget and scoop manifests for Windows, a
-Homebrew tap for macOS, and an `install.sh` for Linux (with AUR later if there
-is demand).
+A tag matching `v*` builds all six targets, and the workflow publishes a
+GitHub Release containing:
+
+- `quickrun-<version>-<rid>.zip` (Windows) / `.tar.gz` (Linux, macOS) for each
+  of `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`
+- `QuickRun-<version>-osx-<arch>.app.zip`, the bundle §11 needs for the URL
+  scheme
+- `SHA256SUMS`, covering every asset, which auto-update (§14) verifies against
+
+Because GitHub serves `releases/latest/download/<name>` as a stable redirect,
+the website's download buttons need no build-time version substitution and never
+go stale. The page detects the visitor's platform and highlights the matching
+one, with the others one click away.
+
+Package managers are the primary install path:
+
+| Platform | Command |
+|---|---|
+| Windows | `winget install fgilde.QuickRun` or `scoop install quickrun` |
+| macOS | `brew install fgilde/tap/quickrun` |
+| Linux | `curl -fsSL https://fgilde.github.io/QuickRun/install.sh \| sh` |
+
+**Binaries are not signed in v1.** macOS Gatekeeper blocks an unsigned
+downloaded binary outright, and Windows SmartScreen warns about one. Homebrew
+strips the quarantine attribute, which is why it is the documented macOS path;
+for direct downloads the docs give the exact workaround (right-click → Open, or
+`xattr -d com.apple.quarantine`). Signing certificates cost money every year and
+buy nothing until there are users to protect, so they wait - but the release
+workflow is structured so that adding a signing step later touches one job, not
+the whole pipeline.
 
 Extension listings: Chrome Web Store, Edge Add-ons, Firefox AMO, Opera
 add-ons. The site links all of them and the app's UI links the store matching
 the browser it is being viewed in.
 
-## 15. Build order
+## 17. Build order
 
 Each phase ends with something demonstrable.
 
-1. **Core + CLI** — config parse, shorthand expansion, validation, detector,
-   git and auth, workspaces, supervisor, `quickrun run/validate/detect/ls/clean`.
-   Fully testable headless; the whole engine lives here.
-2. **Daemon + UI** — Kestrel, Blazor Server dashboard, trust dialog, generated
-   input form, log streaming, workspace manager, `quickrun install` with
-   protocol registration and autostart.
-3. **Extension** — MV3 build for both targets, injection points, options page,
-   listener transport and pairing.
-4. **Site, docs, samples, playground** — VitePress with `en`/`de`, sample
-   gallery, generated schema, WASM playground.
-5. **Distribution** — release matrix, installers, store submissions.
-6. **Deferred** — tray icon, container isolation, richer scheduling.
+1. **Core + CLI** - *done.* Config parse, shorthand expansion, validation,
+   detector, git and auth, workspaces, supervisor,
+   `quickrun run/validate/detect/ls/clean`.
+2. **Release process** - tag-driven workflow producing all six targets, the
+   macOS bundle, `SHA256SUMS` and a published Release; package manifests and
+   `install.sh`. Comes before the daemon because auto-update consumes it and the
+   website's download button depends on it.
+3. **Progress** - `RunProgress` in Core, git clone counters parsed from stderr,
+   phase weighting, CLI rendering.
+4. **Daemon** - Kestrel, the five endpoints, pairing, SSE, CORS and the PNA
+   preflight, `quickrun install` with protocol registration and autostart,
+   auto-update.
+5. **Extension** - MV3 build for both targets, injection points, the four button
+   states, options page.
+6. **Blazor UI** - dashboard, trust dialog, generated input form, log view,
+   workspace manager.
+7. **Site, docs, samples, playground** - VitePress with `en`/`de`, platform-aware
+   download buttons, sample gallery, generated schema, WASM playground.
+8. **Deferred** - tray icon, container isolation, code signing, richer
+   scheduling.
 
-## 16. Testing
+## 18. Testing
 
 - xUnit against `QuickRun.Core`: shorthand expansion (every row of the table in
   §4), validation errors, interpolation, secret redaction, semver range
@@ -521,7 +652,7 @@ Each phase ends with something demonstrable.
   injection point, so selector drift is caught by running one page rather than
   by manual clicking.
 
-## 17. Open items
+## 19. Open items
 
 - Port conflicts between a repo's hardcoded ports and whatever is already
   listening are detected and surfaced in the dialog, but not remapped. Remapping

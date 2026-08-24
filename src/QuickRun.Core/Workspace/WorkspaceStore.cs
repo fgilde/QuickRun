@@ -161,9 +161,20 @@ public sealed class WorkspaceStore
             : ("repo", segments.LastOrDefault() ?? "repo");
     }
 
+    /// <summary>
+    /// Characters removed from a workspace name. Deliberately a fixed set rather than
+    /// <see cref="Path.GetInvalidFileNameChars"/>: on Unix that returns only '/' and NUL, so the
+    /// same repository and ref would produce different ids on different platforms.
+    /// </summary>
+    private static readonly HashSet<char> InvalidNameChars =
+    [
+        '<', '>', ':', '"', '/', '\\', '|', '?', '*', ' ',
+        .. Enumerable.Range(0, 32).Select(c => (char)c),
+    ];
+
     private static string Sanitize(string value)
     {
-        var invalid = Path.GetInvalidFileNameChars().Concat(new[] { '/', '\\', ' ' }).ToHashSet();
+        var invalid = InvalidNameChars;
         var builder = new StringBuilder(value.Length);
 
         foreach (var c in value) builder.Append(invalid.Contains(c) ? "__" : c.ToString());

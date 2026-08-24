@@ -39,6 +39,8 @@ jobs:
       # from a URL without a separate bucket repository.
       - name: Stage published files
         run: |
+          # site/public holds only generated files, so git does not track the directory itself.
+          mkdir -p site/public
           cp schema/quickrun.schema.json site/public/quickrun.schema.json
           cp scripts/install.sh site/public/install.sh
           cp assets/icon.png site/public/icon.png

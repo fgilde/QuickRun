@@ -22,13 +22,25 @@ public class WorkspaceStoreTests
     public void IdFor_is_stable_across_calls()
         => Assert.Equal(WorkspaceStore.IdFor(Repo, "main"), WorkspaceStore.IdFor(Repo, "main"));
 
+    /// <summary>
+    /// The stripped set is fixed, not the running platform's: the same repository and ref must
+    /// produce the same id on Windows, Linux and macOS.
+    /// </summary>
     [Fact]
-    public void IdFor_strips_characters_that_are_illegal_on_windows()
+    public void IdFor_strips_characters_that_are_illegal_on_any_supported_platform()
     {
-        var id = WorkspaceStore.IdFor(Repo, "fix:colon?star*");
-        Assert.DoesNotContain(':', id);
-        Assert.DoesNotContain('?', id);
-        Assert.DoesNotContain('*', id);
+        var id = WorkspaceStore.IdFor(Repo, "fix:colon?star*pipe|quote\"lt<gt>");
+
+        foreach (var illegal in new[] { ':', '?', '*', '|', '"', '<', '>', '/', '\\' })
+            Assert.DoesNotContain(illegal, id);
+    }
+
+    [Fact]
+    public void IdFor_is_the_same_regardless_of_the_platform_it_runs_on()
+    {
+        // A literal, so a regression that reintroduces platform-dependent stripping is caught
+        // wherever the suite runs rather than only on one operating system.
+        Assert.StartsWith("acme__app__fix__colon", WorkspaceStore.IdFor(Repo, "fix:colon"));
     }
 
     [Fact]

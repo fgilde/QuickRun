@@ -3,4 +3,8 @@
   <PropertyGroup>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
 </Project>

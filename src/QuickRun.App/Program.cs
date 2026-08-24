@@ -8,6 +8,12 @@ app.Configure(config =>
 {
     config.SetApplicationName("quickrun");
 
+    config.AddCommand<RunCommand>("run")
+        .WithDescription("Check out a repository and run it.")
+        .WithExample("run", "acme/app")
+        .WithExample("run", "acme/app", "--ref", "feature/login")
+        .WithExample("run", "https://github.com/acme/app", "--pr", "42", "--input", "apiKey=sk-1");
+
     config.AddCommand<ValidateCommand>("validate")
         .WithDescription("Validate a quickrun.yml without running anything.")
         .WithExample("validate")

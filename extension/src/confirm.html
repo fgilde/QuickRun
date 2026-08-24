@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>QuickRun — confirm</title>
+  <link rel="stylesheet" href="confirm.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon-48.png" alt="" width="32" height="32">
+    <div>
+      <h1 id="name">Run this repository?</h1>
+      <p id="subtitle" class="muted"></p>
+    </div>
+  </header>
+
+  <dl class="facts">
+    <dt>Repository</dt><dd id="repo"></dd>
+    <dt>Ref</dt><dd id="ref"></dd>
+    <dt>Commit</dt><dd id="commit"></dd>
+  </dl>
+
+  <h2>These commands will run on your machine</h2>
+  <ol id="commands"></ol>
+
+  <p class="warning">
+    QuickRun executes these commands with your privileges, outside any sandbox. Only continue if you
+    would be willing to run them by hand.
+  </p>
+
+  <footer>
+    <button id="cancel" type="button">Cancel</button>
+    <button id="approve" type="button" class="primary">Run</button>
+  </footer>
+
+  <script src="confirm.js" type="module"></script>
+</body>
+</html>

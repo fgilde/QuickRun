@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>QuickRun</title>
+  <link rel="stylesheet" href="confirm.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon-48.png" alt="" width="32" height="32">
+    <div>
+      <h1>QuickRun</h1>
+      <p id="status" class="muted">checking...</p>
+    </div>
+  </header>
+
+  <h2>Pairing</h2>
+  <p class="muted">
+    Run <code>quickrun pair</code> on your machine, then click Pair here within 60 seconds.
+    The token stays in this browser and is never sent to a web page.
+  </p>
+  <p>
+    <button id="pair" type="button" class="primary">Pair</button>
+    <button id="unpair" type="button">Forget token</button>
+  </p>
+  <p id="pairResult" class="muted"></p>
+
+  <h2>Connection</h2>
+  <p>
+    <label for="port">Port</label>
+    <input id="port" type="number" min="1" max="65535" style="width: 7rem">
+  </p>
+  <p>
+    <label><input id="useProtocolFallback" type="checkbox"> Try <code>quickrun://</code> when QuickRun does not answer</label>
+  </p>
+  <p>
+    <label><input id="preferMergeRef" type="checkbox"> For pull requests, run the merge result instead of the head</label>
+  </p>
+  <p><button id="save" type="button">Save</button> <span id="saveResult" class="muted"></span></p>
+
+  <h2>Not installed?</h2>
+  <p class="muted">
+    QuickRun is a small tool that runs on your machine.
+    <a href="https://fgilde.github.io/QuickRun/#install" target="_blank" rel="noreferrer">Download it here.</a>
+  </p>
+
+  <script src="options.js" type="module"></script>
+</body>
+</html>

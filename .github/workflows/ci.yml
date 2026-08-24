@@ -20,3 +20,15 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --no-restore
       - run: dotnet test --no-build --verbosity normal
+
+      - name: Extension tests
+        shell: bash
+        run: node --test extension/test/*.test.js
+
+      - name: Extension builds for both targets
+        shell: bash
+        run: |
+          cd extension
+          sh build.sh 0.0.0-ci
+          test -f dist/quickrun-chromium-0.0.0-ci.zip
+          test -f dist/quickrun-firefox-0.0.0-ci.zip

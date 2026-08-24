@@ -43,6 +43,11 @@ public class PortScanTests
         Assert.Equal("taken", Assert.Single(PortScan.Occupied(Config(yaml), p => p == 5001)).Task);
     }
 
+    /// <summary>
+    /// Exercises the real TCP path, with a timeout no loaded CI machine can exceed. Reporting a
+    /// listening port as free is the one answer that makes this warning useless, so the test must
+    /// not be able to produce it by being slow.
+    /// </summary>
     [Fact]
     public void The_real_probe_finds_a_port_this_test_is_listening_on()
     {
@@ -51,8 +56,11 @@ public class PortScanTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         try
         {
-            Assert.Single(PortScan.Occupied(
-                Config($"tasks:\n  - name: api\n    run: a\n    readyWhen: {{port: {port}}}")));
+            var conflicts = PortScan.Occupied(
+                Config($"tasks:\n  - name: api\n    run: a\n    readyWhen: {{port: {port}}}"),
+                probeTimeout: TimeSpan.FromSeconds(10));
+
+            Assert.Single(conflicts);
         }
         finally { listener.Stop(); }
     }
@@ -66,6 +74,11 @@ public class PortScanTests
         listener.Stop();
 
         Assert.Empty(PortScan.Occupied(
-            Config($"tasks:\n  - name: api\n    run: a\n    readyWhen: {{port: {port}}}")));
+            Config($"tasks:\n  - name: api\n    run: a\n    readyWhen: {{port: {port}}}"),
+            probeTimeout: TimeSpan.FromSeconds(2)));
     }
+
+    [Fact]
+    public void The_default_probe_timeout_is_generous_enough_for_a_loaded_machine()
+        => Assert.True(PortScan.ProbeTimeout >= TimeSpan.FromSeconds(1));
 }

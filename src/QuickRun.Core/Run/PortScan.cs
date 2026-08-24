@@ -12,9 +12,19 @@ public sealed record PortConflict(string Task, int Port);
 /// </summary>
 public static class PortScan
 {
-    public static IReadOnlyList<PortConflict> Occupied(RunConfig config, Func<int, bool>? isInUse = null)
+    /// <summary>
+    /// How long a single loopback connect may take before the port counts as free. Generous on
+    /// purpose: a busy machine can take well over a hundred milliseconds to accept a loopback
+    /// connection, and a check that gives up early reports occupied ports as free - which is the
+    /// one answer that makes the warning useless.
+    /// </summary>
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(2);
+
+    public static IReadOnlyList<PortConflict> Occupied(
+        RunConfig config, Func<int, bool>? isInUse = null, TimeSpan? probeTimeout = null)
     {
-        isInUse ??= InUse;
+        var timeout = probeTimeout ?? ProbeTimeout;
+        isInUse ??= port => InUse(port, timeout);
 
         return config.Tasks
             .Where(task => task.ReadyWhen?.Port is not null)
@@ -23,12 +33,12 @@ public static class PortScan
             .ToList();
     }
 
-    private static bool InUse(int port)
+    private static bool InUse(int port, TimeSpan timeout)
     {
         try
         {
             using var client = new TcpClient();
-            return client.ConnectAsync("127.0.0.1", port).Wait(300) && client.Connected;
+            return client.ConnectAsync("127.0.0.1", port).Wait(timeout) && client.Connected;
         }
         catch
         {

@@ -86,7 +86,9 @@ function phaseOf(progress) {
 function setLabel(button, text) {
   const label = button.querySelector('.quickrun-label');
   if (label) label.textContent = text;
-  button.title = `QuickRun: ${text}`;
+  // The version is in the tooltip because an unpacked extension does not update itself: when a
+  // button misbehaves, the first question is always which build is actually loaded.
+  button.title = `QuickRun ${chrome.runtime.getManifest().version}: ${text}`;
 }
 
 function setState(button, state) {

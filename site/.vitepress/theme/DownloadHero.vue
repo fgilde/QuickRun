@@ -199,8 +199,12 @@ function label(build) {
 .qr-logo { width: 34px; height: 34px; flex: 0 0 34px; object-fit: contain; }
 .qr-logo--small { width: 18px; height: 18px; flex: 0 0 18px; vertical-align: -3px; margin-right: 6px; }
 
-/* Simple Icons renders black; invert it rather than shipping a second file per theme. */
-:global(html.dark) .qr-logo--mono { filter: invert(1); }
+/* Simple Icons renders these black, so they need flipping on a dark background.
+ *
+ * Written without :global(): in a scoped block the compiler drops the descendant part of
+ * ":global(html.dark) .qr-logo--mono" and emits "html.dark { filter: invert(1) }", which inverts
+ * the entire page. A plain ancestor selector scopes correctly to "html.dark .x[data-v-…]". */
+html.dark .qr-logo--mono { filter: invert(1); }
 
 .qr-command {
   display: flex;

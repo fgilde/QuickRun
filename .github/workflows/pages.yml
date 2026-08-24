@@ -64,6 +64,10 @@ jobs:
         working-directory: site
         run: npx vitepress build
 
+      - name: Check the built CSS
+        working-directory: site
+        run: node check-build.mjs
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/.vitepress/dist

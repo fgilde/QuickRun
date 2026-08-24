@@ -21,6 +21,15 @@ jobs:
       - run: dotnet build --no-restore
       - run: dotnet test --no-build --verbosity normal
 
+      - name: Site builds and carries no page-wide styles
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          cd site
+          npm ci || npm install
+          npx vitepress build
+          node check-build.mjs
+
       - name: Extension tests
         shell: bash
         run: node --test extension/test/*.test.js

@@ -1,0 +1,10 @@
+bin/
+obj/
+publish/
+*.user
+.vs/
+.idea/
+site/node_modules/
+site/.vitepress/dist/
+site/.vitepress/cache/
+extension/dist/

@@ -31,6 +31,16 @@ app.Configure(config =>
         .WithExample("daemon")
         .WithExample("daemon", "--pair");
 
+    config.AddCommand<InstallCommand>("install")
+        .WithDescription("Register quickrun:// and start the daemon at login.");
+
+    config.AddCommand<UninstallCommand>("uninstall")
+        .WithDescription("Undo what install did. Workspaces are kept.");
+
+    config.AddCommand<HandleCommand>("handle")
+        .IsHidden()
+        .WithDescription("Handle a quickrun:// URL. Invoked by the operating system.");
+
     config.AddCommand<PairCommand>("pair")
         .WithDescription("Open a pairing window for the browser extension.")
         .WithExample("pair")

@@ -29,8 +29,12 @@ public sealed class DaemonCommand : AsyncCommand<DaemonCommand.Settings>
         public bool NoUpdate { get; init; }
     }
 
-    protected override async Task<int> ExecuteAsync(
-        CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override Task<int> ExecuteAsync(
+        CommandContext context, Settings settings, CancellationToken cancellationToken) =>
+        RunAsync(settings, cancellationToken);
+
+    /// <summary>Also used by the quickrun:// handler, whose only job is starting this.</summary>
+    public async Task<int> RunAsync(Settings settings, CancellationToken cancellationToken)
     {
         var store = new WorkspaceStore();
         Directory.CreateDirectory(store.Root);

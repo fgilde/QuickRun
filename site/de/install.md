@@ -17,7 +17,7 @@ Fenster. Das Fenster hat fünf Bereiche:
 - **Run a repository** — ein Repository ohne Browser-Erweiterung starten
 - **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
-- **Browser extension** — der Pairing-Button und wie die Erweiterung funktioniert
+- **Browser extension** — wie die Erweiterung funktioniert
 - **About** — Version, Installationsquelle, Update-Prüfung
 
 Dieselbe Ansicht gibt es im Browser unter `http://127.0.0.1:9876`, wenn du sie dort lieber hast.
@@ -35,18 +35,6 @@ läuft. Ohne funktioniert alles weiter, solange QuickRun läuft, wenn du den But
 
 Unter macOS braucht das Schema das [App-Bundle](/de/download#macos-app-bundle) — eine nackte Binary
 kann kein URL-Schema für sich beanspruchen.
-
-## Browser-Erweiterung pairen
-
-Im QuickRun-Fenster **Browser extension** öffnen und **Open pairing window** klicken. Dann innerhalb
-von 60 Sekunden in der Erweiterung auf **Pair**. Aus dem Terminal:
-
-```bash
-quickrun pair
-```
-
-Der Token bleibt im Extension-Storage des Browsers. Er wird keiner Webseite gegeben, und das
-Content-Script sieht ihn nie. `quickrun pair --revoke` macht ihn ungültig.
 
 ## Prüfen, ob es funktioniert
 

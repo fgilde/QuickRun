@@ -25,8 +25,8 @@ asks for whatever inputs the config declares, shows you the exact commands it is
 execute, and supervises the resulting processes until you stop them.
 
 Run the binary with no arguments — or double-click it — and QuickRun puts an icon in the tray and
-opens a desktop window: what is running with live progress, the workspaces on disk, and the pairing
-button for the browser extension. The same view is available in a browser at
+opens a desktop window: what is running with live progress, the workspaces on disk, and how the
+browser extension works. The same view is available in a browser at
 `http://127.0.0.1:9876` when you would rather have it there.
 
 Repositories with no config still work: QuickRun scans for an entry point it recognises —
@@ -74,7 +74,6 @@ repository that installs its own SDK.
 | `quickrun clean --all \| --older-than 30d \| <id>` | Remove workspaces |
 | `quickrun` (no arguments) | Start with a tray icon and open the desktop window |
 | `quickrun daemon` | Run the localhost listener without a tray icon |
-| `quickrun pair` | Open a pairing window for the extension |
 | `quickrun update` | Check for a newer QuickRun and install it when QuickRun owns the binary |
 
 Useful `run` options: `--ref <branch\|tag\|sha>`, `--pr <number>`, `--subdir <path>`,

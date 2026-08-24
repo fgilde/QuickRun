@@ -50,7 +50,6 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
 
         if (Environment.ProcessPath is { } self) Updater.CleanUpAfterSwap(self);
 
-        var pairing = new Pairing(store.Root);
         var url = $"http://127.0.0.1:{settings.Port}";
 
         // Another instance already owns the port: open its dashboard instead of failing with a
@@ -63,7 +62,7 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
             return 0;
         }
 
-        var app = DaemonHost.Build(settings.Port, store, pairing);
+        var app = DaemonHost.Build(settings.Port, store);
 
         try
         {
@@ -91,25 +90,23 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
             var registry = app.Services.GetRequiredService<RunRegistry>();
 
             TrayApp.Tooltip = $"QuickRun {BuildInfo.Version} - {url}";
-            TrayApp.OpenDashboard = () => AppWindows.Show(registry, store, pairing, url);
+            TrayApp.OpenDashboard = () => AppWindows.Show(registry, store, url);
             TrayApp.OpenInBrowser = () => Launch(url);
-            TrayApp.OpenPairing = () =>
-            {
-                pairing.OpenWindow();
-                AppWindows.Show(registry, store, pairing, url);
-            };
             TrayApp.Quit = shutdown.Cancel;
 
             if (!settings.NoWindow)
                 TrayApp.Started = settings.Browser
                     ? () => Launch(url)
-                    : () => AppWindows.Show(registry, store, pairing, url);
+                    : () => AppWindows.Show(registry, store, url);
 
             // Blocks on this thread until Quit; Kestrel keeps serving in the background.
             TrayApp.Run(shutdown.Token);
         }
 
-        await app.StopAsync(CancellationToken.None);
+        // Bounded: a connection that refuses to finish must not keep the process alive after the
+        // user has asked it to quit.
+        using var abort = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await app.StopAsync(abort.Token);
         return 0;
     }
 

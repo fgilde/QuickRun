@@ -22,7 +22,6 @@ public sealed class TrayApp : Application
 
     public static Action? OpenInBrowser { get; set; }
 
-    public static Action? OpenPairing { get; set; }
 
     public static Action? Quit { get; set; }
 
@@ -67,7 +66,6 @@ public sealed class TrayApp : Application
         var menu = new NativeMenu();
 
         menu.Add(Item("Open QuickRun", () => OpenDashboard?.Invoke()));
-        menu.Add(Item("Pair browser extension", () => OpenPairing?.Invoke()));
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(Item("Open in browser", () => OpenInBrowser?.Invoke()));
         menu.Add(new NativeMenuItemSeparator());
@@ -114,6 +112,18 @@ public sealed class TrayApp : Application
         builder.SetupWithLifetime(lifetime);
 
         shutdown.Register(() => Dispatcher.UIThread.Post(() => lifetime.Shutdown()));
+
+        // Quitting cannot be driven from a test - a tray menu needs a desktop and a real click -
+        // so this is the seam that makes it reachable. It fires the same Quit the menu item does.
+        if (int.TryParse(Environment.GetEnvironmentVariable("QUICKRUN_QUIT_AFTER_MS"), out var delay))
+            DispatcherTimer.RunOnce(() => Quit?.Invoke(), TimeSpan.FromMilliseconds(delay));
+
         lifetime.Start([]);
+
+        // Avalonia installs its own SynchronizationContext on this thread, and the dispatcher
+        // backing it is gone the moment the loop ends. Anything awaited afterwards would try to
+        // resume on a dispatcher that will never run another callback and would wait forever -
+        // which is exactly how quitting used to hang, in app.StopAsync.
+        SynchronizationContext.SetSynchronizationContext(null);
     }
 }

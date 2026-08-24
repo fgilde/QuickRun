@@ -23,8 +23,6 @@ Die Befehle werden dir vor der Ausführung gezeigt.
 
 - **Workspaces** — die ausgecheckten Repositories, im Anwendungsdaten-Verzeichnis des Systems.
 - **Lauf-Historie** — Repository, Ref, Commit, Ergebnis und ein Log-Ende, in jedem Workspace.
-- **Der Pairing-Token** — ein Zufallswert im QuickRun-Datenverzeichnis und eine Kopie im Storage
-  der Browser-Erweiterung.
 - **Eingaben** — Werte, die eine `quickrun.yml` deklariert. Als `password` markierte Werte bleiben
   für den Lauf im Speicher und gehen als Umgebungsvariablen an die Befehle. Sie werden nie in Logs,
   Lauf-Historie oder Fortschrittstexte geschrieben und nur gespeichert, wenn du es ausdrücklich
@@ -34,7 +32,7 @@ Die Befehle werden dir vor der Ausführung gezeigt.
 
 ## Die Browser-Erweiterung
 
-Die Erweiterung speichert den Pairing-Token, den Port und zwei Einstellungen und sendet sie
+Die Erweiterung speichert den Port und zwei Einstellungen und sendet sie
 ausschließlich an `127.0.0.1`. Sie liest nichts aus den Seiten, die du besuchst: sie setzt einen
 Button auf `github.com` und nimmt Repository und Ref aus der Adresszeile. Zugriff auf deine anderen
 Tabs verlangt sie nicht.

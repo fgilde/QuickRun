@@ -29,20 +29,17 @@ public sealed class DashboardWindow : Window
 
     private readonly RunRegistry _runs;
     private readonly WorkspaceStore _store;
-    private readonly Pairing _pairing;
     private readonly string _listenerUrl;
 
     private readonly StackPanel _runList = Rows();
     private readonly StackPanel _workspaceList = Rows();
-    private readonly TextBlock _pairState = Muted("checking…");
     private readonly TextBlock _updateState = Muted("checking…");
     private readonly DispatcherTimer _timer;
 
-    public DashboardWindow(RunRegistry runs, WorkspaceStore store, Pairing pairing, string listenerUrl)
+    public DashboardWindow(RunRegistry runs, WorkspaceStore store, string listenerUrl)
     {
         _runs = runs;
         _store = store;
-        _pairing = pairing;
         _listenerUrl = listenerUrl;
 
         Title = $"QuickRun {BuildInfo.Version}";
@@ -166,28 +163,16 @@ public sealed class DashboardWindow : Window
     {
         var page = Rows();
 
-        page.Children.Add(new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children =
-            {
-                new TextBlock { Text = "Pairing", VerticalAlignment = VerticalAlignment.Center },
-                _pairState.With(t => t.VerticalAlignment = VerticalAlignment.Center),
-                Button("Open pairing window", OpenPairingWindow),
-            },
-        });
-
         page.Children.Add(Muted(
-            "A token is handed out only while a pairing window is open, and the window can only be "
-            + "opened from this machine. That is what stops any web page from silently obtaining one."));
+            "Only a browser extension may start a run. QuickRun checks the request's origin, which "
+            + "a web page cannot forge, so no site can drive it - and there is nothing to set up."));
 
         page.Children.Add(Heading("How it works"));
         page.Children.Add(Muted(
             "1. Install the extension from the download page. Until the store listings are live it "
             + "is loaded unpacked; that page has the steps."));
         page.Children.Add(Muted(
-            "2. Click \"Open pairing window\", then Pair in the extension options within 60 seconds."));
+            "2. That is all - there is nothing to pair."));
         page.Children.Add(Muted(
             "3. Open any repository on GitHub. A \"Run this\" button appears next to the branch "
             + "dropdown, in pull request headers, and on every row of the branch list."));
@@ -255,9 +240,6 @@ public sealed class DashboardWindow : Window
         RenderRuns();
         RenderWorkspaces();
 
-        _pairState.Text = _pairing.WindowOpen ? "window open — click Pair in the extension"
-            : _pairing.HasToken ? "paired"
-            : "not paired";
     }
 
     private void RenderRuns()
@@ -355,12 +337,6 @@ public sealed class DashboardWindow : Window
     private void RemoveAllWorkspaces()
     {
         _store.RemoveAll();
-        Refresh();
-    }
-
-    private void OpenPairingWindow()
-    {
-        _pairing.OpenWindow();
         Refresh();
     }
 

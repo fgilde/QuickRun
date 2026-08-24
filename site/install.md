@@ -16,7 +16,7 @@ The window has five sections:
 - **Run a repository** — start any repository without the browser extension
 - **Runs** — what is running, with live progress and log output
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
-- **Browser extension** — the pairing button and how the extension works
+- **Browser extension** — how the extension works
 - **About** — version, install source, update check
 
 The same view is available in a browser at `http://127.0.0.1:9876` if you would rather have it
@@ -34,18 +34,6 @@ still works, as long as QuickRun is running when you click the button.
 
 On macOS the scheme needs the [app bundle](/download#macos-app-bundle); a bare binary cannot claim a
 URL scheme.
-
-## Pair the browser extension
-
-In the QuickRun window, open **Browser extension** and click **Open pairing window**. Then click
-**Pair** in the extension within 60 seconds. From a terminal:
-
-```bash
-quickrun pair
-```
-
-The token stays in the browser's extension storage. It is never given to a web page, and the content
-script never sees it. `quickrun pair --revoke` invalidates it.
 
 ## Check it works
 

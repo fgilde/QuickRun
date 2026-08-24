@@ -22,14 +22,28 @@ public sealed record RunRequest(
     Dictionary<string, string?>? Inputs);
 
 /// <summary>
-/// The localhost listener the browser extension talks to. Loopback only, CORS for github.com only,
-/// and every endpoint except the ping requires the pairing token.
+/// The localhost listener the browser extension talks to. Loopback only, and every endpoint that
+/// can start something requires the request to come from a browser extension.
 /// </summary>
 public static class DaemonHost
 {
     public const int DefaultPort = 9876;
 
-    private static readonly string[] AllowedOrigins = { "https://github.com" };
+    /// <summary>
+    /// The origins allowed to drive a run.
+    /// <para>
+    /// A browser sets Origin itself on every cross-origin request and a page cannot forge it, so
+    /// this is the one claim about the caller that can be trusted. Extension origins only:
+    /// https://github.com is deliberately absent, because allowing it would let any script running
+    /// on that site start runs on this machine.
+    /// </para>
+    /// </summary>
+    private static readonly string[] ExtensionOrigins =
+    {
+        "chrome-extension://",
+        "moz-extension://",
+        "safari-web-extension://",
+    };
 
     /// <summary>
     /// Enums go over the wire as names: the extension should read "awaitingConfirmation", not 0.
@@ -39,7 +53,7 @@ public static class DaemonHost
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
-    public static WebApplication Build(int port, WorkspaceStore store, Pairing pairing)
+    public static WebApplication Build(int port, WorkspaceStore store)
     {
         var builder = WebApplication.CreateSlimBuilder();
 
@@ -48,7 +62,6 @@ public static class DaemonHost
         builder.Services.Configure<KestrelServerOptions>(options => options.ListenLocalhost(port));
 
         builder.Services.AddSingleton(store);
-        builder.Services.AddSingleton(pairing);
         builder.Services.AddSingleton(new RunRegistry(store));
         builder.Services.AddSingleton(new Dashboard());
         builder.Services.AddSingleton(new ListenerPort(port));
@@ -94,7 +107,7 @@ public static class DaemonHost
         });
 
         app.MapGet("/api/dashboard/state", (HttpContext context, Dashboard dashboard,
-            RunRegistry runs, WorkspaceStore store, Pairing pairing) =>
+            RunRegistry runs, WorkspaceStore store) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
 
@@ -103,8 +116,6 @@ public static class DaemonHost
                 version = BuildInfo.Version,
                 installSource = InstallSources.DetectCurrent(store.Root).ToString().ToLowerInvariant(),
                 workspaceRoot = store.Root,
-                paired = pairing.HasToken,
-                pairingWindowOpen = pairing.WindowOpen,
                 runs = runs.All(),
                 workspaces = store.List().Select(w => new
                 {
@@ -119,13 +130,6 @@ public static class DaemonHost
             }, Json);
         });
 
-        app.MapPost("/api/dashboard/pair/open", (HttpContext context, Dashboard dashboard, Pairing pairing) =>
-        {
-            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
-
-            pairing.OpenWindow();
-            return Results.Json(new { seconds = (int)Pairing.WindowLength.TotalSeconds }, Json);
-        });
 
         app.MapGet("/api/dashboard/update", async (HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
         {
@@ -193,10 +197,10 @@ public static class DaemonHost
     private static void ApplyCors(HttpContext context)
     {
         var origin = context.Request.Headers.Origin.ToString();
-        if (AllowedOrigins.Contains(origin, StringComparer.Ordinal))
+        if (FromExtensionOrigin(origin))
             context.Response.Headers.AccessControlAllowOrigin = origin;
 
-        context.Response.Headers.AccessControlAllowHeaders = "Content-Type, X-QuickRun-Token";
+        context.Response.Headers.AccessControlAllowHeaders = "Content-Type";
         context.Response.Headers.AccessControlAllowMethods = "GET, POST, OPTIONS";
         context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
         context.Response.Headers.AccessControlMaxAge = "600";
@@ -213,18 +217,9 @@ public static class DaemonHost
             busy = runs.AnyActive,
         }, Json));
 
-        app.MapPost("/api/pair", (Pairing pairing) =>
+        app.MapPost("/api/run", async (RunRequest request, HttpContext context, RunRegistry runs) =>
         {
-            var token = pairing.Claim();
-            return token is null
-                ? Results.Json(new { error = "no pairing window is open - click 'Pair browser extension' or run: quickrun pair" },
-                    Json, statusCode: StatusCodes.Status403Forbidden)
-                : Results.Json(new { token }, Json);
-        });
-
-        app.MapPost("/api/run", async (RunRequest request, HttpContext context, Pairing pairing, RunRegistry runs) =>
-        {
-            if (!Authorized(context, pairing)) return Unauthorized();
+            if (!Authorized(context)) return Unauthorized();
             if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
 
             var args = new RunArgs(
@@ -247,9 +242,9 @@ public static class DaemonHost
                 : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
-        app.MapPost("/api/runs/{id}/confirm", (string id, HttpContext context, Pairing pairing, RunRegistry runs) =>
+        app.MapPost("/api/runs/{id}/confirm", (string id, HttpContext context, RunRegistry runs) =>
         {
-            if (!Authorized(context, pairing)) return Unauthorized();
+            if (!Authorized(context)) return Unauthorized();
 
             return runs.Confirm(id)
                 ? Results.Json(runs.Get(id), Json)
@@ -257,21 +252,21 @@ public static class DaemonHost
                     Json, statusCode: StatusCodes.Status409Conflict);
         });
 
-        app.MapPost("/api/runs/{id}/stop", (string id, HttpContext context, Pairing pairing, RunRegistry runs) =>
+        app.MapPost("/api/runs/{id}/stop", (string id, HttpContext context, RunRegistry runs) =>
         {
-            if (!Authorized(context, pairing)) return Unauthorized();
+            if (!Authorized(context)) return Unauthorized();
             return runs.Stop(id) ? Results.Ok() : Results.NotFound();
         });
 
-        app.MapGet("/api/runs/{id}", (string id, HttpContext context, Pairing pairing, RunRegistry runs) =>
+        app.MapGet("/api/runs/{id}", (string id, HttpContext context, RunRegistry runs) =>
         {
-            if (!Authorized(context, pairing)) return Unauthorized();
+            if (!Authorized(context)) return Unauthorized();
             return runs.Get(id) is { } summary ? Results.Json(summary, Json) : Results.NotFound();
         });
 
-        app.MapGet("/api/runs/{id}/events", async (string id, HttpContext context, Pairing pairing, RunRegistry runs) =>
+        app.MapGet("/api/runs/{id}/events", async (string id, HttpContext context, RunRegistry runs) =>
         {
-            if (!Authorized(context, pairing))
+            if (!Authorized(context))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return;
@@ -280,9 +275,9 @@ public static class DaemonHost
             await StreamEventsAsync(context, runs, id);
         });
 
-        app.MapGet("/api/update", async (HttpContext context, Pairing pairing, WorkspaceStore store) =>
+        app.MapGet("/api/update", async (HttpContext context, WorkspaceStore store) =>
         {
-            if (!Authorized(context, pairing)) return Unauthorized();
+            if (!Authorized(context)) return Unauthorized();
 
             var source = InstallSources.DetectCurrent(store.Root);
             var status = await new UpdateChecker().CheckAsync(BuildInfo.Version, source);
@@ -290,10 +285,26 @@ public static class DaemonHost
         });
     }
 
-    private static bool Authorized(HttpContext context, Pairing pairing) =>
-        pairing.IsValid(context.Request.Headers["X-QuickRun-Token"].ToString());
+    /// <summary>
+    /// Whether this request may start something.
+    /// <para>
+    /// An absent Origin means the caller is not a browser - a local program such as curl or
+    /// QuickRun's own CLI. That is allowed: a program already running on this machine has the
+    /// user's privileges and gains nothing by going through the daemon. What must not be allowed
+    /// is a web page, and a web page always sends its Origin.
+    /// </para>
+    /// </summary>
+    internal static bool Authorized(HttpContext context)
+    {
+        var origin = context.Request.Headers.Origin.ToString();
+        return string.IsNullOrEmpty(origin) || FromExtensionOrigin(origin);
+    }
+
+    private static bool FromExtensionOrigin(string origin) =>
+        !string.IsNullOrEmpty(origin)
+        && ExtensionOrigins.Any(scheme => origin.StartsWith(scheme, StringComparison.Ordinal));
 
     private static IResult Unauthorized() =>
-        Results.Json(new { error = "not paired - open the extension options and pair with QuickRun" },
-            Json, statusCode: StatusCodes.Status401Unauthorized);
+        Results.Json(new { error = "only a browser extension may start a run" },
+            Json, statusCode: StatusCodes.Status403Forbidden);
 }

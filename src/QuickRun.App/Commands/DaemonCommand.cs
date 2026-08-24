@@ -20,9 +20,6 @@ public sealed class DaemonCommand : AsyncCommand<DaemonCommand.Settings>
         [Description("Port to listen on. Loopback only.")]
         public int Port { get; init; } = DaemonHost.DefaultPort;
 
-        [CommandOption("--pair")]
-        [Description("Open a pairing window at startup, so an extension can collect its token.")]
-        public bool Pair { get; init; }
 
         [CommandOption("--no-update")]
         [Description("Do not check for updates.")]
@@ -42,14 +39,8 @@ public sealed class DaemonCommand : AsyncCommand<DaemonCommand.Settings>
         // Removes whatever a previous Windows self-update left behind.
         if (Environment.ProcessPath is { } self) Updater.CleanUpAfterSwap(self);
 
-        var pairing = new Pairing(store.Root);
-        if (settings.Pair)
-        {
-            pairing.OpenWindow();
-            Output.Info($"pairing window open for {Pairing.WindowLength.TotalSeconds:0} seconds");
-        }
 
-        var app = DaemonHost.Build(settings.Port, store, pairing);
+        var app = DaemonHost.Build(settings.Port, store);
 
         Output.Info($"QuickRun {BuildInfo.Version} listening on http://127.0.0.1:{settings.Port}");
         if (!settings.NoUpdate) _ = ReportUpdateAsync();
@@ -83,34 +74,5 @@ public sealed class DaemonCommand : AsyncCommand<DaemonCommand.Settings>
         var status = await new UpdateChecker().CheckAsync(BuildInfo.Version, source);
 
         if (status.UpdateAvailable) Output.Warn(status.Advice);
-    }
-}
-
-/// <summary>Opens the pairing window, so a browser extension can collect its token.</summary>
-public sealed class PairCommand : Command<PairCommand.Settings>
-{
-    public sealed class Settings : CommandSettings
-    {
-        [CommandOption("--revoke")]
-        [Description("Invalidate the current token instead of pairing.")]
-        public bool Revoke { get; init; }
-    }
-
-    protected override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
-    {
-        // The window lives in a file, so this works whether or not a daemon is already running.
-        var pairing = new Pairing(new WorkspaceStore().Root);
-
-        if (settings.Revoke)
-        {
-            pairing.Reset();
-            Output.Info("token revoked - pair again to reconnect the extension");
-            return 0;
-        }
-
-        pairing.OpenWindow();
-        Output.Info($"pairing window open for {Pairing.WindowLength.TotalSeconds:0} seconds");
-        Output.Info("now open the QuickRun extension options and click Pair");
-        return 0;
     }
 }

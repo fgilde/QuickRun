@@ -23,8 +23,6 @@ commands are shown to you before anything runs.
 
 - **Workspaces** — the checked-out repositories, under the OS application-data directory.
 - **Run history** — repository, ref, commit, outcome and a log tail, inside each workspace.
-- **The pairing token** — a random value in the QuickRun data directory, and a copy in the
-  browser extension's own storage.
 - **Values you enter** — inputs a `quickrun.yml` declares. Values marked `password` are held in
   memory for the run and passed to the commands as environment variables. They are never written to
   logs, run history or progress text, and are only stored if you explicitly ask for that.
@@ -33,7 +31,7 @@ commands are shown to you before anything runs.
 
 ## The browser extension
 
-The extension stores the pairing token, the port and two preferences, and sends them only to
+The extension stores the port and two preferences, and sends them only to
 `127.0.0.1`. It reads nothing from the pages you visit: it adds a button on `github.com` and takes
 the repository and ref from the address bar. It requests no access to your other tabs.
 

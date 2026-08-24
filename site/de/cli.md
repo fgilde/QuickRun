@@ -10,7 +10,7 @@ und es ist der Einstiegspunkt für alles andere:
 - **Run a repository** — ein Repository ohne Browser-Erweiterung starten
 - **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
-- **Browser extension** — der Pairing-Button und wie die Erweiterung funktioniert
+- **Browser extension** — wie die Erweiterung funktioniert
 - **About** — Version, Installationsquelle, Update-Prüfung
 
 ```bash
@@ -84,13 +84,10 @@ quickrun clean acme__app__main-1a2b3c
 `clean` verlangt genau einen Selektor. Standardmäßig alles zu löschen wäre die schlechtestmögliche
 Vermutung — deshalb ist „kein Selektor" ein Benutzungsfehler.
 
-## `quickrun daemon` und `quickrun pair`
+## `quickrun daemon`
 
 ```bash
 quickrun daemon              # lauscht auf 127.0.0.1:9876
-quickrun daemon --pair       # und öffnet beim Start ein Pairing-Fenster
-quickrun pair                # Pairing-Fenster für einen laufenden Daemon öffnen
-quickrun pair --revoke       # Token ungültig machen
 ```
 
 ## `quickrun update`

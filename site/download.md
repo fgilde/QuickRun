@@ -68,12 +68,11 @@ Until the store listings are live, load it unpacked. Unzip the download, then:
 - **Firefox** — `about:debugging` → This Firefox → Load Temporary Add-on → the `manifest.json`
   inside the folder
 
-Then pair it: open QuickRun, go to **Browser extension**, click **Open pairing window**, and click
-**Pair** in the extension within 60 seconds.
+That is all: there is nothing to pair. QuickRun accepts requests only from a browser extension.
 
 ## What to do next
 
-- [First run and pairing](/install)
+- [First run](/install)
 - [Config reference](/config) — for making your own repository runnable
 - [How the extension works](/extension)
 - [Security model](/security)

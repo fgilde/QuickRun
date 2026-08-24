@@ -19,6 +19,11 @@
 
   <!-- Kestrel for the localhost listener the browser extension talks to. -->
   <ItemGroup>
+    <!-- The origin check that replaced pairing is internal; its tests need to see it. -->
+    <InternalsVisibleTo Include="QuickRun.App.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

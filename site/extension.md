@@ -41,20 +41,15 @@ That window is an extension page, not part of the GitHub page, and that is on pu
 can draw a convincing fake panel over its own content, and nobody should ever approve one set of
 commands while a different set runs.
 
-## Pairing
+## Why no web page can drive it
 
-Every endpoint except the ping requires a token, and a token is handed out only while a pairing
-window is open on your machine:
+There is nothing to pair. A browser attaches an `Origin` header to every cross-origin request and
+a page cannot change it, so QuickRun simply refuses anything that does not come from a browser
+extension. `https://github.com` is not on that list: a script running on GitHub itself cannot start
+a run.
 
-```bash
-quickrun pair
-```
-
-Then click **Pair** in the extension options within 60 seconds. The token stays in the browser's
-extension storage; it is never given to a web page, and the content script never sees it.
-
-`quickrun pair --revoke` invalidates it.
-
+A program on your own machine — `curl`, QuickRun's own CLI — sends no `Origin` and is allowed. It
+already runs with your privileges, so the daemon grants it nothing it did not have.
 ## Options
 
 | Setting | Default |

@@ -27,7 +27,7 @@ features:
   - title: A tray icon and a dashboard
     details: >
       Double-click the binary and QuickRun sits in the tray. The dashboard shows what is running
-      with live progress, the workspaces on disk, and how to pair the browser extension.
+      with live progress, the workspaces on disk, and how the browser extension works.
   - title: A button on GitHub
     details: >
       The browser extension puts a Run button next to the branch dropdown, in pull request headers

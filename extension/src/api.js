@@ -6,29 +6,26 @@
 const DEFAULT_PORT = 9876;
 
 export async function settings() {
-  const stored = await chrome.storage.local.get({
+  return chrome.storage.local.get({
     port: DEFAULT_PORT,
-    token: null,
     useProtocolFallback: true,
   });
-  return stored;
 }
 
 export function baseUrl(port) {
   return `http://127.0.0.1:${port}`;
 }
 
-async function request(path, { method = 'GET', body, token, port, timeoutMs = 8000 } = {}) {
+async function request(path, { method = 'GET', body, port, timeoutMs = 8000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(`${baseUrl(port)}${path}`, {
       method,
-      headers: {
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { 'X-QuickRun-Token': token } : {}),
-      },
+      // The daemon authorises by the Origin the browser attaches to this request, which the
+      // extension cannot choose and a web page cannot forge. Nothing else identifies us.
+      headers: body ? { 'Content-Type': 'application/json' } : {},
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
@@ -59,20 +56,12 @@ export async function ping(port) {
   return { running: true, version: payload.version, busy: Boolean(payload.busy) };
 }
 
-/** Claims a token; only succeeds while a pairing window is open on the machine. */
-export async function pair(port) {
-  const { ok, payload, status } = await request('/api/pair', { method: 'POST', port });
-  if (ok && payload?.token) return { token: payload.token };
-  return { error: payload?.error ?? `pairing failed (${status})` };
-}
-
 /** Prepares a run. Nothing executes: the daemon returns the plan for confirmation. */
-export async function prepare(request_, { port, token }) {
+export async function prepare(request_, { port }) {
   const { ok, payload, status } = await request('/api/run', {
     method: 'POST',
     body: request_,
     port,
-    token,
     timeoutMs: 120000,
   });
 
@@ -80,22 +69,21 @@ export async function prepare(request_, { port, token }) {
   return { error: payload?.error ?? `could not prepare the run (${status})`, run: payload?.run };
 }
 
-export async function confirm(runId, { port, token }) {
+export async function confirm(runId, { port }) {
   const { ok, payload, status } = await request(`/api/runs/${runId}/confirm`, {
     method: 'POST',
     port,
-    token,
   });
   return ok ? { run: payload } : { error: payload?.error ?? `could not start the run (${status})` };
 }
 
-export async function stop(runId, { port, token }) {
-  const { ok } = await request(`/api/runs/${runId}/stop`, { method: 'POST', port, token });
+export async function stop(runId, { port }) {
+  const { ok } = await request(`/api/runs/${runId}/stop`, { method: 'POST', port });
   return ok;
 }
 
-export async function updateStatus({ port, token }) {
-  const { ok, payload } = await request('/api/update', { port, token });
+export async function updateStatus({ port }) {
+  const { ok, payload } = await request('/api/update', { port });
   return ok ? payload : null;
 }
 
@@ -105,11 +93,8 @@ export async function updateStatus({ port, token }) {
  * EventSource does not exist in an MV3 service worker, so the stream is read from fetch and the
  * SSE framing is parsed here.
  */
-export async function streamEvents(runId, { port, token }, onEvent, signal) {
-  const response = await fetch(`${baseUrl(port)}/api/runs/${runId}/events`, {
-    headers: { 'X-QuickRun-Token': token },
-    signal,
-  });
+export async function streamEvents(runId, { port }, onEvent, signal) {
+  const response = await fetch(`${baseUrl(port)}/api/runs/${runId}/events`, { signal });
 
   if (!response.ok || !response.body) return;
 

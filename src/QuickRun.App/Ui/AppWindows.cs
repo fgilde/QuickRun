@@ -14,7 +14,7 @@ public static class AppWindows
 {
     private static DashboardWindow? _dashboard;
 
-    public static void Show(RunRegistry runs, WorkspaceStore store, Pairing pairing, string listenerUrl) =>
+    public static void Show(RunRegistry runs, WorkspaceStore store, string listenerUrl) =>
         Dispatcher.UIThread.Post(() =>
         {
             // Clicking the tray icon twice should raise the window, not stack another one.
@@ -25,7 +25,7 @@ public static class AppWindows
                 return;
             }
 
-            var window = new DashboardWindow(runs, store, pairing, listenerUrl);
+            var window = new DashboardWindow(runs, store, listenerUrl);
             window.Closed += (_, _) => _dashboard = null;
             _dashboard = window;
             window.Show();

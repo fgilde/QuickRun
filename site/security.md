@@ -25,12 +25,16 @@ keep working, changed commands do not.
 ## The listener
 
 - Bound to `127.0.0.1` only, never to an address reachable from the network.
-- Every endpoint except `GET /api/ping` requires the pairing token.
-- `/api/ping` needs no token on purpose: telling a page that QuickRun exists is its entire job. It
+- Every endpoint that can start something requires the request to come from a browser extension,
+  checked against the `Origin` header the browser attaches and a page cannot forge.
+- `/api/ping` answers anyone on purpose: telling a page that QuickRun exists is its entire job. It
   reveals nothing else — no repository names, no paths, no run contents.
-- CORS is granted to `https://github.com` alone.
-- A token is issued only while a pairing window is open, and that window can only be opened from
-  your machine.
+- `https://github.com` is deliberately **not** an accepted origin. A script running on GitHub
+  itself cannot start a run.
+- A caller with no `Origin` is not a browser — `curl`, or QuickRun's own CLI — and is allowed. Such
+  a program already runs with your privileges and gains nothing by going through the daemon.
+- There is no pairing token any more. It guarded against exactly what the origin check guards
+  against, while costing every user a setup step.
 
 ## Secrets
 

@@ -27,7 +27,7 @@ features:
   - title: Tray-Icon und Dashboard
     details: >
       Doppelklick auf die Binary, und QuickRun sitzt im Tray. Das Dashboard zeigt, was läuft —
-      mit Fortschritt in Echtzeit —, die Workspaces auf der Platte und wie das Pairing der
+      mit Fortschritt in Echtzeit —, die Workspaces auf der Platte und wie die
       Browser-Erweiterung geht.
   - title: Ein Button auf GitHub
     details: >

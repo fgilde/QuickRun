@@ -10,7 +10,7 @@ does, and it is the entry point for everything else:
 - **Run a repository** — start any repository without the browser extension
 - **Runs** — what is running, with live progress and log output
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
-- **Browser extension** — the pairing button and how the extension works
+- **Browser extension** — how the extension works
 - **About** — version, install source, update check
 
 ```bash
@@ -83,13 +83,10 @@ quickrun clean acme__app__main-1a2b3c
 `clean` requires exactly one selector. Deleting everything by default would be the worst possible
 guess, so no selector is a usage error.
 
-## `quickrun daemon` and `quickrun pair`
+## `quickrun daemon`
 
 ```bash
 quickrun daemon              # listen on 127.0.0.1:9876
-quickrun daemon --pair       # and open a pairing window at startup
-quickrun pair                # open a pairing window for a running daemon
-quickrun pair --revoke       # invalidate the token
 ```
 
 ## `quickrun update`

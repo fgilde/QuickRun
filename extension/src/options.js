@@ -1,6 +1,5 @@
 const stored = await chrome.storage.local.get({
   port: 9876,
-  token: null,
   useProtocolFallback: true,
 });
 
@@ -17,27 +16,12 @@ async function refreshStatus() {
     case 'ready':
       target.textContent = `connected to QuickRun ${status.version}`;
       break;
-    case 'not-paired':
-      target.textContent = `QuickRun ${status.version} is running but not paired yet`;
-      break;
     default:
       target.textContent = 'QuickRun is not running on this machine';
   }
 }
 
-document.getElementById('pair').addEventListener('click', async () => {
-  const result = await chrome.runtime.sendMessage({ type: 'pair' });
-  document.getElementById('pairResult').textContent = result?.ok
-    ? 'paired'
-    : result?.error ?? 'pairing failed';
-  await refreshStatus();
-});
 
-document.getElementById('unpair').addEventListener('click', async () => {
-  await chrome.storage.local.remove('token');
-  document.getElementById('pairResult').textContent = 'token forgotten';
-  await refreshStatus();
-});
 
 document.getElementById('save').addEventListener('click', async () => {
   await chrome.storage.local.set({

@@ -47,7 +47,7 @@ app.Configure(config =>
     config.AddCommand<DaemonCommand>("daemon")
         .WithDescription("Run the localhost listener the browser extension talks to.")
         .WithExample("daemon")
-        .WithExample("daemon", "--pair");
+        .WithExample("daemon");
 
     config.AddCommand<InstallCommand>("install")
         .WithDescription("Register quickrun:// and start the daemon at login.");
@@ -59,10 +59,6 @@ app.Configure(config =>
         .IsHidden()
         .WithDescription("Handle a quickrun:// URL. Invoked by the operating system.");
 
-    config.AddCommand<PairCommand>("pair")
-        .WithDescription("Open a pairing window for the browser extension.")
-        .WithExample("pair")
-        .WithExample("pair", "--revoke");
 
     config.AddCommand<UpdateCommand>("update")
         .WithDescription("Check for a newer QuickRun and install it when QuickRun owns the binary.")

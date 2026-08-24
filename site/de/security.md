@@ -27,13 +27,17 @@ funktionieren weiter, geänderte Befehle nicht.
 ## Der Listener
 
 - Bindet nur an `127.0.0.1`, nie an eine aus dem Netz erreichbare Adresse.
-- Jeder Endpoint außer `GET /api/ping` verlangt den Pairing-Token.
+- Jeder Endpoint, der etwas starten kann, verlangt, dass die Anfrage von einer Browser-Erweiterung
+  kommt — geprüft am `Origin`-Header, den der Browser selbst setzt und eine Seite nicht fälschen kann.
 - `/api/ping` braucht absichtlich keinen Token: einer Seite mitzuteilen, dass QuickRun existiert, ist
   seine ganze Aufgabe. Mehr gibt er nicht heraus — keine Repository-Namen, keine Pfade, keine
   Lauf-Inhalte.
-- CORS wird ausschließlich für `https://github.com` gewährt.
-- Ein Token wird nur ausgegeben, während ein Pairing-Fenster offen ist, und dieses Fenster kann nur
-  von deiner Maschine geöffnet werden.
+- `https://github.com` ist bewusst **kein** akzeptierter Origin. Ein Skript, das auf GitHub selbst
+  läuft, kann keinen Lauf starten.
+- Ein Aufrufer ohne `Origin` ist kein Browser — `curl` oder QuickRuns eigene CLI — und ist erlaubt.
+  Ein solches Programm läuft ohnehin mit deinen Rechten und gewinnt über den Daemon nichts dazu.
+- Es gibt keinen Pairing-Token mehr. Er schützte vor genau dem, wovor die Origin-Prüfung schützt,
+  kostete aber jeden Nutzer einen Einrichtungsschritt.
 
 ## Secrets
 

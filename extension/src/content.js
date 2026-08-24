@@ -111,14 +111,6 @@ async function onClick(button, target) {
     }
   }
 
-  const paired = await send({ type: 'status' });
-  if (paired.state === 'not-paired') {
-    setState(button, 'error');
-    setLabel(button, 'Pair QuickRun first');
-    await chrome.runtime.openOptionsPage?.();
-    return;
-  }
-
   setState(button, 'working');
   setLabel(button, 'Preparing...');
 

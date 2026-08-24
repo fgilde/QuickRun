@@ -21,12 +21,6 @@ function render(state) {
       say('Open any repository on GitHub and use the Run button.');
       break;
 
-    case 'not-paired':
-      status.textContent = `found ${state.version} · not paired`;
-      button('Pair', 'primary', pair);
-      say('Run <code>quickrun pair</code> on your machine, then click Pair.');
-      break;
-
     default:
       status.textContent = 'not running';
       button('Install QuickRun', 'primary', () => open(DOWNLOADS));
@@ -49,14 +43,6 @@ function say(html) {
   hint.innerHTML = html;
 }
 
-async function pair() {
-  const result = await chrome.runtime.sendMessage({ type: 'pair' });
-  status.textContent = result?.ok ? 'paired' : result?.error ?? 'pairing failed';
-  if (result?.ok) {
-    actions.replaceChildren();
-    render(await chrome.runtime.sendMessage({ type: 'status' }));
-  }
-}
 
 async function start() {
   status.textContent = 'starting…';

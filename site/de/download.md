@@ -69,12 +69,11 @@ Bis die Store-Einträge live sind, entpackt laden. Download entzippen, dann:
 - **Firefox** — `about:debugging` → Dieser Firefox → Temporäres Add-on laden → die `manifest.json`
   darin
 
-Danach pairen: QuickRun öffnen, **Browser extension**, **Open pairing window** klicken, und
-innerhalb von 60 Sekunden in der Erweiterung auf **Pair**.
+Das war es: es gibt nichts zu koppeln. QuickRun nimmt nur Anfragen von einer Browser-Erweiterung an.
 
 ## Wie es weitergeht
 
-- [Erster Start und Pairing](/de/install)
+- [Erster Start](/de/install)
 - [Config-Referenz](/de/config) — um das eigene Repository startbar zu machen
 - [Wie die Erweiterung funktioniert](/de/extension)
 - [Sicherheitsmodell](/de/security)

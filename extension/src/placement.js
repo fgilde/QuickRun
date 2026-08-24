@@ -58,17 +58,22 @@ globalThis.QuickRunPlacement = (() => {
     return (search && commonRow(branch, search)) ?? branch.parentElement?.parentElement ?? null;
   }
 
-  /** The pull request header's action area, where Code and the merge button live. */
+  /**
+   * The pull request header's action area, where the merge status and Code buttons live.
+   *
+   * Searched from the document rather than from a header element: the pull request view has no
+   * single stable header container - the logged-out issue viewer uses data-testid="issue-header",
+   * the pull request page uses none of it. PH_Actions is the region that actually holds the
+   * buttons, and it is not the same thing as PageHeader.Actions.
+   */
   function pullRequestActions() {
-    const header = document.querySelector('[data-testid="issue-header"], .gh-header-actions');
-    if (!header) return null;
-
-    return firstVisible(header, [
+    return firstVisible(document, [
+      '[data-component="PH_Actions"]',
       '[data-component="PageHeader.Actions"]',
+      '[data-testid="issue-header"] [class*="buttonContainer"]',
       '[data-component="PageHeader.ContextAreaActions"]',
-      '[class*="buttonContainer"]',
-      '[class*="menuActionsContainer"]',
-    ]) ?? (visible(header) ? header : null);
+      '.gh-header-actions',
+    ]);
   }
 
   /**

@@ -41,21 +41,15 @@ Dieses Fenster ist eine Extension-Seite und nicht Teil der GitHub-Seite — und 
 Webseite kann über ihren eigenen Inhalt ein überzeugendes gefälschtes Panel zeichnen, und niemand
 soll je eine Befehlsliste bestätigen, während eine andere ausgeführt wird.
 
-## Pairing
+## Warum keine Webseite es fernsteuern kann
 
-Jeder Endpoint außer dem Ping verlangt einen Token, und ein Token wird nur ausgegeben, während auf
-deiner Maschine ein Pairing-Fenster offen ist:
+Es gibt nichts zu koppeln. Der Browser hängt an jede seitenübergreifende Anfrage einen
+`Origin`-Header, den eine Seite nicht ändern kann — QuickRun lehnt daher alles ab, was nicht von
+einer Browser-Erweiterung kommt. `https://github.com` steht nicht auf dieser Liste: ein Skript auf
+GitHub selbst kann keinen Lauf starten.
 
-```bash
-quickrun pair
-```
-
-Dann innerhalb von 60 Sekunden in den Optionen der Erweiterung auf **Pair** klicken. Der Token
-bleibt im Extension-Storage des Browsers; er wird keiner Webseite gegeben, und das Content-Script
-sieht ihn nie.
-
-`quickrun pair --revoke` macht ihn ungültig.
-
+Ein Programm auf deinem eigenen Rechner — `curl`, QuickRuns eigene CLI — sendet keinen `Origin`
+und ist erlaubt. Es läuft ohnehin mit deinen Rechten, der Daemon gibt ihm also nichts dazu.
 ## Optionen
 
 | Einstellung | Standard |

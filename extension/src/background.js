@@ -1,7 +1,5 @@
-// Owns the pairing token and every conversation with the daemon.
+// Owns every conversation with the daemon.
 //
-// The token deliberately never reaches a content script: a page shares the content script's world
-// closely enough that leaking it there would let a page post runs on its own.
 
 import * as api from './api.js';
 
@@ -21,8 +19,6 @@ async function handle(message, sender) {
   switch (message?.type) {
     case 'status':
       return status();
-    case 'pair':
-      return pair();
     case 'run':
       return startRun(message.target, sender?.tab?.id);
     case 'stop':
@@ -39,25 +35,14 @@ async function handle(message, sender) {
 
 /** What the button and the popup should show. */
 async function status() {
-  const { port, token } = await api.settings();
+  const { port } = await api.settings();
   const ping = await api.ping(port);
 
   if (!ping.running) return { state: 'not-installed', port };
-  if (!token) return { state: 'not-paired', version: ping.version, port };
 
   return { state: 'ready', version: ping.version, busy: ping.busy, port };
 }
 
-async function pair() {
-  const { port } = await api.settings();
-  const result = await api.pair(port);
-
-  if (result.token) {
-    await chrome.storage.local.set({ token: result.token });
-    return { ok: true };
-  }
-  return { error: result.error };
-}
 
 /**
  * Tries to start an installed-but-stopped daemon. This is the single remaining job of the
@@ -85,10 +70,9 @@ async function bootstrapDaemon() {
 }
 
 async function startRun(target, tabId) {
-  const { port, token } = await api.settings();
-  if (!token) return { error: 'not paired' };
+  const { port } = await api.settings();
 
-  const prepared = await api.prepare(target, { port, token });
+  const prepared = await api.prepare(target, { port });
   if (prepared.error) return { error: prepared.error };
 
   const run = prepared.run;
@@ -98,16 +82,16 @@ async function startRun(target, tabId) {
   const approved = await confirmInWindow(run);
   if (!approved) return { cancelled: true };
 
-  const started = await api.confirm(run.id, { port, token });
+  const started = await api.confirm(run.id, { port });
   if (started.error) return { error: started.error };
 
-  follow(run.id, tabId, { port, token });
+  follow(run.id, tabId, { port });
   return { runId: run.id, state: 'running' };
 }
 
 async function stopRun(runId) {
-  const { port, token } = await api.settings();
-  const stopped = await api.stop(runId, { port, token });
+  const { port } = await api.settings();
+  const stopped = await api.stop(runId, { port });
   return { ok: stopped };
 }
 

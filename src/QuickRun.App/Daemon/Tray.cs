@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Themes.Fluent;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 
@@ -19,15 +20,28 @@ public sealed class TrayApp : Application
     /// <summary>What the menu items do. Set before <see cref="Run"/>.</summary>
     public static Action? OpenDashboard { get; set; }
 
+    public static Action? OpenInBrowser { get; set; }
+
     public static Action? OpenPairing { get; set; }
 
     public static Action? Quit { get; set; }
+
+    /// <summary>Runs once the UI thread is up, for whatever should be shown at startup.</summary>
+    public static Action? Started { get; set; }
 
     public static string Tooltip { get; set; } = "QuickRun";
 
     private TrayIcon? _icon;
 
-    public override void Initialize() => Name = "QuickRun";
+    public override void Initialize()
+    {
+        Name = "QuickRun";
+
+        // Without a theme, templated controls (TabControl, Button, ProgressBar) have no template
+        // and render as nothing at all, while raw TextBlocks still show. Easy to misread as a
+        // layout bug.
+        Styles.Add(new FluentTheme());
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -43,6 +57,9 @@ public sealed class TrayApp : Application
         _icon.Clicked += (_, _) => OpenDashboard?.Invoke();
 
         base.OnFrameworkInitializationCompleted();
+
+        // Only safe once the framework is up: a window cannot be created before this point.
+        Started?.Invoke();
     }
 
     private static NativeMenu BuildMenu()
@@ -51,6 +68,8 @@ public sealed class TrayApp : Application
 
         menu.Add(Item("Open QuickRun", () => OpenDashboard?.Invoke()));
         menu.Add(Item("Pair browser extension", () => OpenPairing?.Invoke()));
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(Item("Open in browser", () => OpenInBrowser?.Invoke()));
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(Item("Quit", () => Quit?.Invoke()));
 

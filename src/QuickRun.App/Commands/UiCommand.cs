@@ -1,9 +1,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using QuickRun.App.Daemon;
+using QuickRun.App.Ui;
 using QuickRun.Core;
 using QuickRun.Core.Update;
+using QuickRun.Core.Run;
 using QuickRun.Core.Workspace;
 using Spectre.Console.Cli;
 
@@ -22,9 +25,13 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
         [Description("Port to listen on. Loopback only.")]
         public int Port { get; init; } = DaemonHost.DefaultPort;
 
-        [CommandOption("--no-browser")]
-        [Description("Do not open the dashboard in a browser.")]
-        public bool NoBrowser { get; init; }
+        [CommandOption("--browser")]
+        [Description("Open the dashboard in a browser instead of the desktop window.")]
+        public bool Browser { get; init; }
+
+        [CommandOption("--no-window")]
+        [Description("Do not open any window at startup. The tray icon still opens one on demand.")]
+        public bool NoWindow { get; init; }
 
         [CommandOption("--no-tray")]
         [Description("Do not show a tray icon. The dashboard is then the only way back in.")]
@@ -50,8 +57,9 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
         // bind error nobody can act on.
         if (await AlreadyRunningAsync(settings.Port))
         {
+            // Its tray icon owns the window; the browser is the only thing this process can offer.
             Output.Info($"QuickRun is already running on {url}");
-            if (!settings.NoBrowser) Launch(url);
+            Launch(url);
             return 0;
         }
 
@@ -69,24 +77,33 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
 
         Output.Info($"QuickRun {BuildInfo.Version} listening on {url}");
         if (!settings.NoUpdate) _ = ReportUpdateAsync(store);
-        if (!settings.NoBrowser) Launch(url);
 
         using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+        // Without a tray there is no Avalonia loop to host a window, so the browser is the UI.
         if (settings.NoTray)
         {
+            if (!settings.NoWindow) Launch(url);
             await WaitForShutdownAsync(app, shutdown.Token);
         }
         else
         {
-            TrayApp.Tooltip = $"QuickRun {BuildInfo.Version} — {url}";
-            TrayApp.OpenDashboard = () => Launch(url);
+            var registry = app.Services.GetRequiredService<RunRegistry>();
+
+            TrayApp.Tooltip = $"QuickRun {BuildInfo.Version} - {url}";
+            TrayApp.OpenDashboard = () => AppWindows.Show(registry, store, pairing, url);
+            TrayApp.OpenInBrowser = () => Launch(url);
             TrayApp.OpenPairing = () =>
             {
                 pairing.OpenWindow();
-                Launch(url);
+                AppWindows.Show(registry, store, pairing, url);
             };
             TrayApp.Quit = shutdown.Cancel;
+
+            if (!settings.NoWindow)
+                TrayApp.Started = settings.Browser
+                    ? () => Launch(url)
+                    : () => AppWindows.Show(registry, store, pairing, url);
 
             // Blocks on this thread until Quit; Kestrel keeps serving in the background.
             TrayApp.Run(shutdown.Token);

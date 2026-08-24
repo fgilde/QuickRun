@@ -13,11 +13,15 @@ does, and it is the entry point for everything else:
 - **About** — version, install source, update check
 
 ```bash
-quickrun                 # tray icon + dashboard
-quickrun --no-browser    # same, without opening a browser
-quickrun --no-tray       # dashboard only, no tray icon
-quickrun daemon          # listener only, no tray and no browser
+quickrun                 # tray icon + desktop window
+quickrun --browser       # open the dashboard in a browser instead of the window
+quickrun --no-window     # tray icon only; the icon opens a window when you want one
+quickrun --no-tray       # no tray icon, so the browser is the UI
+quickrun daemon          # listener only, no tray and no window
 ```
+
+The window is drawn natively rather than in an embedded browser. That avoids shipping a browser
+engine to render a few lists, and avoids the browser offering to translate a local tool page.
 
 ## `quickrun run`
 

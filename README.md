@@ -23,9 +23,10 @@ QuickRun checks the repository out into a managed workspace, verifies the prereq
 asks for whatever inputs the config declares, shows you the exact commands it is about to
 execute, and supervises the resulting processes until you stop them.
 
-Run the binary with no arguments — or double-click it — and QuickRun puts an icon in the tray
-and opens a local dashboard: what is running with live progress, the workspaces on disk, and
-the pairing button for the browser extension.
+Run the binary with no arguments — or double-click it — and QuickRun puts an icon in the tray and
+opens a desktop window: what is running with live progress, the workspaces on disk, and the pairing
+button for the browser extension. The same view is available in a browser at
+`http://127.0.0.1:9876` when you would rather have it there.
 
 Repositories with no config still work: QuickRun scans for an entry point it recognises —
 compose files, `package.json` scripts, .NET projects, Python apps, Makefiles, Cargo, Go,
@@ -70,7 +71,7 @@ repository that installs its own SDK.
 | `quickrun detect [path] [--save]` | Show how QuickRun would start a repository, optionally write the config |
 | `quickrun ls` | List workspaces with their size and last use |
 | `quickrun clean --all \| --older-than 30d \| <id>` | Remove workspaces |
-| `quickrun` (no arguments) | Start with a tray icon and open the dashboard |
+| `quickrun` (no arguments) | Start with a tray icon and open the desktop window |
 | `quickrun daemon` | Run the localhost listener without a tray icon |
 | `quickrun pair` | Open a pairing window for the extension |
 | `quickrun update` | Check for a newer QuickRun and install it when QuickRun owns the binary |

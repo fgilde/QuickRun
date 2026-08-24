@@ -13,11 +13,16 @@ und es ist der Einstiegspunkt für alles andere:
 - **About** — Version, Installationsquelle, Update-Prüfung
 
 ```bash
-quickrun                 # Tray-Icon + Dashboard
-quickrun --no-browser    # dasselbe, ohne Browser zu öffnen
-quickrun --no-tray       # nur Dashboard, kein Tray-Icon
-quickrun daemon          # nur Listener, kein Tray und kein Browser
+quickrun                 # Tray-Icon + Desktop-Fenster
+quickrun --browser       # Dashboard im Browser statt im Fenster öffnen
+quickrun --no-window     # nur Tray-Icon; das Icon öffnet ein Fenster, wenn du eins willst
+quickrun --no-tray       # kein Tray-Icon, damit ist der Browser die UI
+quickrun daemon          # nur Listener, kein Tray und kein Fenster
 ```
+
+Das Fenster wird nativ gezeichnet, nicht in einem eingebetteten Browser. Damit muss keine
+Browser-Engine mitgeliefert werden, um ein paar Listen darzustellen — und der Browser fragt nicht,
+ob er die lokale Werkzeugseite übersetzen soll.
 
 ## `quickrun run`
 

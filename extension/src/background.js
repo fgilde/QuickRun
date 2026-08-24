@@ -37,15 +37,15 @@ async function handle(message, sender) {
   }
 }
 
-/** What the button should show. */
+/** What the button and the popup should show. */
 async function status() {
   const { port, token } = await api.settings();
   const ping = await api.ping(port);
 
-  if (!ping.running) return { state: 'not-installed' };
-  if (!token) return { state: 'not-paired', version: ping.version };
+  if (!ping.running) return { state: 'not-installed', port };
+  if (!token) return { state: 'not-paired', version: ping.version, port };
 
-  return { state: 'ready', version: ping.version, busy: ping.busy };
+  return { state: 'ready', version: ping.version, busy: ping.busy, port };
 }
 
 async function pair() {

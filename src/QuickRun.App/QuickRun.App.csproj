@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>
 

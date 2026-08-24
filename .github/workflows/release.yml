@@ -104,6 +104,12 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
       # Shipped with the release so people can load the extension unpacked while the store
       # listings are still in review.
       - name: Build the browser extension
@@ -115,12 +121,6 @@ jobs:
           mkdir -p ../dist
           cp dist/quickrun-chromium-"$version".zip ../dist/quickrun-extension-chromium.zip
           cp dist/quickrun-firefox-"$version".zip ../dist/quickrun-extension-firefox.zip
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: dist-*
-          merge-multiple: true
-          path: dist
 
       # Auto-update verifies downloaded assets against this file, so it covers
       # every asset and is published alongside them.

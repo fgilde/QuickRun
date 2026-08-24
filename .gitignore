@@ -5,3 +5,5 @@ publish/
 .vs/
 .idea/
 extension/dist/
+# Belt and braces: nothing named dist/ anywhere belongs in the repository.
+dist/

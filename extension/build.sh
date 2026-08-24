@@ -8,6 +8,10 @@
 # Usage: build.sh [version]
 set -eu
 
+# Anchor to this script's directory: run from the repository root, `cp -r src/.` would copy the
+# .NET source tree instead of the extension.
+cd "$(dirname "$0")"
+
 # Ubuntu images ship python3 without always aliasing `python`.
 PY=$(command -v python3 || command -v python) || {
   echo "python3 is required" >&2

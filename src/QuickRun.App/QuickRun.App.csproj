@@ -1,11 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\QuickRun.Core\QuickRun.Core.csproj" />
+    <ProjectReference Include="../QuickRun.Core/QuickRun.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Spectre.Console.Cli" />
+  </ItemGroup>
+
+  <!-- Embedded rather than copied next to the binary: Blazor-style static web assets are published
+       as loose files, and the dashboard has to survive being a single file. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Daemon/dashboard.html" />
+    <EmbeddedResource Include="../../assets/icon-round-256.png" LogicalName="QuickRun.App.Daemon.icon.png" />
   </ItemGroup>
 
   <!-- Kestrel for the localhost listener the browser extension talks to. -->
@@ -19,6 +27,18 @@
     <RootNamespace>QuickRun.App</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <!-- Avalonia ships Skia and friends as native libraries; without this they are published as
+         loose files next to the executable and the single-binary promise is gone. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
   </PropertyGroup>
+
+  <!-- SkiaSharp and HarfBuzz ship 100 MB of native .pdb files. They arrive as native runtime
+       items, so AllowedReferenceRelatedFileExtensions does not reach them. -->
+  <Target Name="StripPdbsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 
 </Project>

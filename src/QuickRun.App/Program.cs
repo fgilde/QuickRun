@@ -3,6 +3,16 @@ using QuickRun.App.Commands;
 using QuickRun.Core;
 using Spectre.Console.Cli;
 
+// Double-clicking the binary must do something useful. Printing CLI help into a console window
+// that closes again is the worst possible front door, so no command means: start the daemon, put
+// an icon in the tray and open the dashboard.
+//
+// Options without a command take the same path - "quickrun --port 9999" is plainly a request to
+// start, not a usage error.
+string[] globalFlags = ["-h", "--help", "-v", "--version"];
+if (args.Length == 0 || (args[0].StartsWith('-') && !globalFlags.Contains(args[0], StringComparer.Ordinal)))
+    args = ["ui", .. args];
+
 var app = new CommandApp();
 
 app.Configure(config =>
@@ -25,6 +35,11 @@ app.Configure(config =>
         .WithDescription("Show how QuickRun would start a repository that has no config.")
         .WithExample("detect")
         .WithExample("detect", ".", "--save");
+
+    config.AddCommand<UiCommand>("ui")
+        .WithDescription("Start QuickRun with a tray icon and open the dashboard. The default.")
+        .WithExample("ui")
+        .WithExample("ui", "--no-browser");
 
     config.AddCommand<DaemonCommand>("daemon")
         .WithDescription("Run the localhost listener the browser extension talks to.")

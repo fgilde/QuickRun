@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickRun</title>
+<style>
+:root {
+  --bg: #ffffff; --panel: #f6f8fa; --fg: #1f2328; --muted: #59636e;
+  --line: #d1d9e0; --accent: #1f883d; --danger: #cf222e; --warn: #9a6700;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --panel: #161b22; --fg: #e6edf3; --muted: #9198a1;
+    --line: #3d444d; --accent: #3fb950; --danger: #f85149; --warn: #d29922;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 22px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--bg); z-index: 2;
+}
+header h1 { font-size: 17px; margin: 0; }
+header .version { color: var(--muted); font-size: 12px; }
+header .spacer { flex: 1; }
+nav { display: flex; gap: 4px; padding: 10px 18px 0; border-bottom: 1px solid var(--line); }
+nav button {
+  padding: 7px 14px; border: 1px solid transparent; border-bottom: none;
+  border-radius: 8px 8px 0 0; background: none; color: var(--muted);
+  font: inherit; cursor: pointer;
+}
+nav button[aria-selected="true"] {
+  border-color: var(--line); background: var(--panel); color: var(--fg); font-weight: 600;
+}
+main { padding: 22px; max-width: 1000px; }
+section[hidden] { display: none; }
+h2 { font-size: 15px; margin: 0 0 12px; }
+p { margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.card {
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); padding: 16px; margin-bottom: 14px;
+}
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.row + .row { margin-top: 10px; }
+.grow { flex: 1; min-width: 0; }
+.name { font-weight: 600; overflow-wrap: anywhere; }
+code, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px;
+}
+code { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+pre {
+  margin: 8px 0 0; padding: 10px 12px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px;
+  max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+button.action {
+  padding: 6px 13px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); color: var(--fg); font: inherit; cursor: pointer;
+}
+button.action:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.danger { color: var(--danger); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; min-width: 140px; }
+.bar > div { height: 100%; background: var(--accent); transition: width .25s; }
+.pill {
+  font-size: 11px; padding: 2px 8px; border-radius: 11px;
+  border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.pill.ok { color: var(--accent); border-color: var(--accent); }
+.pill.bad { color: var(--danger); border-color: var(--danger); }
+.pill.warn { color: var(--warn); border-color: var(--warn); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+ol.steps { padding-left: 22px; margin: 0; }
+ol.steps li { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/icon.png" alt="" width="26" height="26">
+  <h1>QuickRun</h1>
+  <span class="version">{{VERSION}}</span>
+  <span class="spacer"></span>
+  <span id="updateBadge"></span>
+</header>
+
+<nav>
+  <button data-tab="runs" aria-selected="true">Runs</button>
+  <button data-tab="workspaces" aria-selected="false">Workspaces</button>
+  <button data-tab="extension" aria-selected="false">Browser extension</button>
+  <button data-tab="about" aria-selected="false">About</button>
+</nav>
+
+<main>
+  <section id="runs">
+    <h2>Runs</h2>
+    <div id="runList"><p class="muted">Nothing has run yet.</p></div>
+  </section>
+
+  <section id="workspaces" hidden>
+    <h2>Workspaces</h2>
+    <p class="muted">
+      Checked-out repositories. A second run of the same repository and ref reuses its workspace,
+      so starting again takes seconds.
+    </p>
+    <div class="card">
+      <div class="row">
+        <span class="grow mono" id="workspaceRoot"></span>
+        <button class="action danger" id="cleanAll">Remove all</button>
+      </div>
+    </div>
+    <div id="workspaceList"></div>
+  </section>
+
+  <section id="extension" hidden>
+    <h2>Browser extension</h2>
+    <div class="card">
+      <div class="row">
+        <span class="grow">Pairing</span>
+        <span id="pairState" class="pill">checking…</span>
+        <button class="action primary" id="pairButton">Open pairing window</button>
+      </div>
+      <p class="muted" style="margin-top:10px">
+        A token is handed out only while a pairing window is open, and the window can only be opened
+        from this machine. That is what stops any web page from silently obtaining one.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li>
+          Install the extension. Until the store listings are live, download
+          <a href="https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-chromium.zip">the
+          Chromium build</a> or <a href="https://github.com/fgilde/QuickRun/releases/latest/download/quickrun-extension-firefox.zip">the
+          Firefox build</a> and load it unpacked.
+        </li>
+        <li>Click <strong>Open pairing window</strong> above, then <strong>Pair</strong> in the extension options within 60 seconds.</li>
+        <li>
+          Open any repository on GitHub. A <strong>Run this</strong> button appears next to the branch
+          dropdown, in pull request headers, and on every row of the branch list.
+        </li>
+        <li>
+          Clicking it does not start anything yet: QuickRun checks the repository out, then the
+          extension shows you the exact commands and waits for your confirmation.
+        </li>
+      </ol>
+      <p class="muted">
+        Full documentation: <a href="https://fgilde.github.io/QuickRun/extension" target="_blank" rel="noreferrer">fgilde.github.io/QuickRun</a>
+      </p>
+    </div>
+  </section>
+
+  <section id="about" hidden>
+    <h2>About</h2>
+    <div class="card">
+      <div class="row"><span class="grow">Version</span><span class="mono" id="aboutVersion"></span></div>
+      <div class="row"><span class="grow">Installed as</span><span class="mono" id="aboutSource"></span></div>
+      <div class="row"><span class="grow">Listening on</span><span class="mono">http://127.0.0.1:{{PORT}}</span></div>
+      <div class="row">
+        <span class="grow">Updates</span>
+        <span id="aboutUpdate" class="muted">checking…</span>
+        <button class="action" id="checkUpdate">Check now</button>
+      </div>
+    </div>
+    <div class="card">
+      <p class="muted">
+        QuickRun runs commands from the repositories you point it at, with your privileges and
+        outside any sandbox. Every run shows the exact commands first and waits for your
+        confirmation.
+      </p>
+      <p class="muted">
+        <a href="https://fgilde.github.io/QuickRun/security" target="_blank" rel="noreferrer">Security model</a> ·
+        <a href="https://github.com/fgilde/QuickRun" target="_blank" rel="noreferrer">Source</a>
+      </p>
+    </div>
+  </section>
+</main>
+
+<script>
+const TOKEN = '{{TOKEN}}';
+const streams = new Map();
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { 'X-QuickRun-Dashboard': TOKEN, ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
+  });
+  if (!response.ok) throw new Error(`${path} -> ${response.status}`);
+  return response.status === 204 ? null : response.json();
+}
+
+document.querySelectorAll('nav button').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
+    document.querySelectorAll('main section').forEach((s) => { s.hidden = s.id !== tab.dataset.tab; });
+  });
+});
+
+function pill(text, kind) {
+  return `<span class="pill ${kind ?? ''}">${text}</span>`;
+}
+
+function renderRuns(runs) {
+  const target = document.getElementById('runList');
+  if (!runs.length) {
+    target.innerHTML = '<p class="muted">Nothing has run yet. Start one from the browser extension, or with <code>quickrun run owner/repo</code>.</p>';
+    return;
+  }
+
+  target.innerHTML = runs.map((run) => {
+    const state = {
+      awaitingConfirmation: ['awaiting confirmation', 'warn'],
+      running: ['running', ''],
+      succeeded: ['succeeded', 'ok'],
+      failed: ['failed', 'bad'],
+      cancelled: ['cancelled', ''],
+    }[run.state] ?? [run.state, ''];
+
+    const percent = run.progress?.percent ?? (run.state === 'succeeded' ? 100 : 0);
+    const detail = run.progress?.detail ?? '';
+
+    return `<div class="card" data-run="${run.id}">
+      <div class="row">
+        <span class="grow name">${escapeHtml(run.displayName)}</span>
+        ${pill(state[0], state[1])}
+        ${run.state === 'running' ? `<button class="action danger" data-stop="${run.id}">Stop</button>` : ''}
+      </div>
+      <div class="row">
+        <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
+      </div>
+      <div class="row">
+        <div class="bar grow"><div style="width:${percent}%"></div></div>
+        <span class="muted" style="min-width:3.2em;text-align:right">${percent}%</span>
+      </div>
+      <div class="row"><span class="muted grow" data-detail>${escapeHtml(detail)}</span></div>
+      ${run.error ? `<div class="row"><span class="pill bad">${escapeHtml(run.error)}</span></div>` : ''}
+      <pre data-log="${run.id}" hidden></pre>
+    </div>`;
+  }).join('');
+
+  target.querySelectorAll('[data-stop]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await api(`/api/dashboard/runs/${button.dataset.stop}/stop`, { method: 'POST' });
+      refresh();
+    });
+  });
+
+  runs.filter((r) => r.state === 'running').forEach(follow);
+}
+
+/** Streams one run's events into its log block, so the dashboard shows the same output the CLI does. */
+function follow(run) {
+  if (streams.has(run.id)) return;
+
+  const source = new EventSource(`/api/dashboard/runs/${run.id}/events?token=${encodeURIComponent(TOKEN)}`);
+  streams.set(run.id, source);
+
+  source.onmessage = (message) => {
+    const event = JSON.parse(message.data);
+    const card = document.querySelector(`[data-run="${run.id}"]`);
+    if (!card) return;
+
+    if (event.progress) {
+      card.querySelector('.bar > div').style.width = `${event.progress.percent}%`;
+      card.querySelector('[data-detail]').textContent = event.progress.detail;
+      return;
+    }
+
+    const log = card.querySelector(`[data-log="${run.id}"]`);
+    if (!log) return;
+    log.hidden = false;
+    log.textContent += `${event.task ? '[' + event.task + '] ' : ''}${event.text}\n`;
+    log.scrollTop = log.scrollHeight;
+
+    if (event.kind === 'finished' || event.kind === 'failed') {
+      source.close();
+      streams.delete(run.id);
+      setTimeout(refresh, 400);
+    }
+  };
+
+  source.onerror = () => { source.close(); streams.delete(run.id); };
+}
+
+function renderWorkspaces(state) {
+  document.getElementById('workspaceRoot').textContent = state.workspaceRoot;
+  const target = document.getElementById('workspaceList');
+
+  if (!state.workspaces.length) {
+    target.innerHTML = '<p class="muted">No workspaces yet.</p>';
+    return;
+  }
+
+  target.innerHTML = `<div class="card"><table>
+    <thead><tr><th>Repository</th><th>Ref</th><th>Size</th><th>Last used</th><th>Last run</th><th></th></tr></thead>
+    <tbody>${state.workspaces.map((w) => `<tr>
+      <td class="mono">${escapeHtml(w.repo)}</td>
+      <td class="mono">${escapeHtml(w.ref)}</td>
+      <td>${w.size}</td>
+      <td class="muted">${new Date(w.lastUsed).toLocaleString()}</td>
+      <td>${w.lastOk === true ? pill('ok', 'ok') : w.lastOk === false ? pill('failed', 'bad') : '<span class="muted">-</span>'}</td>
+      <td><button class="action danger" data-remove="${escapeHtml(w.id)}">Remove</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+
+  target.querySelectorAll('[data-remove]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await api(`/api/dashboard/workspaces/${encodeURIComponent(button.dataset.remove)}`, { method: 'DELETE' });
+      refresh();
+    });
+  });
+}
+
+function renderAbout(state) {
+  document.getElementById('aboutVersion').textContent = state.version;
+  document.getElementById('aboutSource').textContent = state.installSource;
+
+  const pairState = document.getElementById('pairState');
+  pairState.textContent = state.paired ? 'paired' : state.pairingWindowOpen ? 'window open' : 'not paired';
+  pairState.className = `pill ${state.paired ? 'ok' : 'warn'}`;
+}
+
+function renderUpdate(update) {
+  const badge = document.getElementById('updateBadge');
+  const line = document.getElementById('aboutUpdate');
+
+  if (!update) {
+    line.textContent = 'could not check';
+    return;
+  }
+
+  line.textContent = update.advice;
+  badge.innerHTML = update.updateAvailable ? pill(`update ${update.latest}`, 'warn') : '';
+}
+
+function escapeHtml(value) {
+  // Repository names, refs and log lines are untrusted content.
+  return String(value ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function refresh() {
+  try {
+    const state = await api('/api/dashboard/state');
+    renderRuns(state.runs);
+    renderWorkspaces(state);
+    renderAbout(state);
+  } catch (error) {
+    document.getElementById('runList').innerHTML =
+      '<p class="muted">QuickRun is no longer running. Close this tab, or start it again.</p>';
+  }
+}
+
+document.getElementById('pairButton').addEventListener('click', async () => {
+  await api('/api/dashboard/pair/open', { method: 'POST' });
+  const pairState = document.getElementById('pairState');
+  pairState.textContent = 'window open — click Pair in the extension';
+  pairState.className = 'pill warn';
+  setTimeout(refresh, 2000);
+});
+
+document.getElementById('cleanAll').addEventListener('click', async () => {
+  if (!confirm('Remove every workspace? Repositories are checked out again on the next run.')) return;
+  await api('/api/dashboard/workspaces', { method: 'DELETE' });
+  refresh();
+});
+
+document.getElementById('checkUpdate').addEventListener('click', async () => {
+  document.getElementById('aboutUpdate').textContent = 'checking…';
+  renderUpdate(await api('/api/dashboard/update').catch(() => null));
+});
+
+refresh();
+setInterval(refresh, 4000);
+api('/api/dashboard/update').then(renderUpdate).catch(() => renderUpdate(null));
+</script>
+</body>
+</html>

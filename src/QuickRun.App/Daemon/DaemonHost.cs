@@ -50,6 +50,8 @@ public static class DaemonHost
         builder.Services.AddSingleton(store);
         builder.Services.AddSingleton(pairing);
         builder.Services.AddSingleton(new RunRegistry(store));
+        builder.Services.AddSingleton(new Dashboard());
+        builder.Services.AddSingleton(new ListenerPort(port));
 
         var app = builder.Build();
 
@@ -70,8 +72,123 @@ public static class DaemonHost
         });
 
         MapEndpoints(app);
+        MapDashboard(app);
         return app;
     }
+
+    /// <summary>
+    /// The local dashboard: what a user sees when they double-click the binary or open the tray
+    /// icon. Its endpoints are guarded by the page's own token rather than the extension's, because
+    /// CORS stops another origin reading a response but not sending a request.
+    /// </summary>
+    private static void MapDashboard(WebApplication app)
+    {
+        app.MapGet("/", (Dashboard dashboard, ListenerPort port) =>
+            Results.Content(dashboard.Render(port.Value), "text/html; charset=utf-8"));
+
+        app.MapGet("/icon.png", () =>
+        {
+            var stream = typeof(Dashboard).Assembly
+                .GetManifestResourceStream("QuickRun.App.Daemon.icon.png");
+            return stream is null ? Results.NotFound() : Results.Stream(stream, "image/png");
+        });
+
+        app.MapGet("/api/dashboard/state", (HttpContext context, Dashboard dashboard,
+            RunRegistry runs, WorkspaceStore store, Pairing pairing) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            return Results.Json(new
+            {
+                version = BuildInfo.Version,
+                installSource = InstallSources.DetectCurrent(store.Root).ToString().ToLowerInvariant(),
+                workspaceRoot = store.Root,
+                paired = pairing.HasToken,
+                pairingWindowOpen = pairing.WindowOpen,
+                runs = runs.All(),
+                workspaces = store.List().Select(w => new
+                {
+                    w.Id,
+                    w.Repo,
+                    w.Ref,
+                    size = Output.Size(w.Bytes),
+                    w.LastUsed,
+                    w.LastCommit,
+                    w.LastOk,
+                }),
+            }, Json);
+        });
+
+        app.MapPost("/api/dashboard/pair/open", (HttpContext context, Dashboard dashboard, Pairing pairing) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            pairing.OpenWindow();
+            return Results.Json(new { seconds = (int)Pairing.WindowLength.TotalSeconds }, Json);
+        });
+
+        app.MapGet("/api/dashboard/update", async (HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var source = InstallSources.DetectCurrent(store.Root);
+            return Results.Json(await new UpdateChecker().CheckAsync(BuildInfo.Version, source), Json);
+        });
+
+        app.MapPost("/api/dashboard/runs/{id}/stop", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+            !DashboardAuthorized(context, dashboard) ? Forbidden()
+                : runs.Stop(id) ? Results.NoContent() : Results.NotFound());
+
+        app.MapDelete("/api/dashboard/workspaces/{id}", (string id, HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            try { return store.Remove(id) ? Results.NoContent() : Results.NotFound(); }
+            catch (ArgumentException e) { return Results.BadRequest(new { error = e.Message }); }
+        });
+
+        app.MapDelete("/api/dashboard/workspaces", (HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
+            !DashboardAuthorized(context, dashboard) ? Forbidden()
+                : Results.Json(new { removed = store.RemoveAll() }, Json));
+
+        // EventSource cannot set headers, so the dashboard's stream takes its token in the query
+        // string. Same-origin only, and the token is not a bearer credential for anything else.
+        app.MapGet("/api/dashboard/runs/{id}/events", async (string id, string? token,
+            HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!dashboard.Authorized(token))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            await StreamEventsAsync(context, runs, id);
+        });
+    }
+
+    private static bool DashboardAuthorized(HttpContext context, Dashboard dashboard) =>
+        dashboard.Authorized(context.Request.Headers[Dashboard.TokenHeader].ToString());
+
+    private static IResult Forbidden() =>
+        Results.Json(new { error = "reload the dashboard" }, Json, statusCode: StatusCodes.Status403Forbidden);
+
+    /// <summary>Shared by the extension's stream and the dashboard's.</summary>
+    private static async Task StreamEventsAsync(HttpContext context, RunRegistry runs, string id)
+    {
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers["X-Accel-Buffering"] = "no";
+
+        await foreach (var e in runs.Subscribe(id, context.RequestAborted))
+        {
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(e, Json)}\n\n",
+                context.RequestAborted);
+            await context.Response.Body.FlushAsync(context.RequestAborted);
+        }
+    }
+
+    /// <summary>So the dashboard page can show where it is listening.</summary>
+    public sealed record ListenerPort(int Value);
 
     private static void ApplyCors(HttpContext context)
     {
@@ -160,16 +277,7 @@ public static class DaemonHost
                 return;
             }
 
-            context.Response.ContentType = "text/event-stream";
-            context.Response.Headers.CacheControl = "no-cache";
-            context.Response.Headers["X-Accel-Buffering"] = "no";
-
-            await foreach (var e in runs.Subscribe(id, context.RequestAborted))
-            {
-                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(e, Json)}\n\n",
-                    context.RequestAborted);
-                await context.Response.Body.FlushAsync(context.RequestAborted);
-            }
+            await StreamEventsAsync(context, runs, id);
         });
 
         app.MapGet("/api/update", async (HttpContext context, Pairing pairing, WorkspaceStore store) =>

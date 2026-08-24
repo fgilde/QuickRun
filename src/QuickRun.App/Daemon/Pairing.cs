@@ -37,6 +37,9 @@ public sealed class Pairing
 
     public bool WindowOpen => ReadWindow() is { } until && _now() < until;
 
+    /// <summary>Whether an extension has already been paired. Never exposes the token itself.</summary>
+    public bool HasToken => Load() is not null;
+
     public void OpenWindow() => WriteWindow(_now() + WindowLength);
 
     /// <summary>Returns the token if a window is open, otherwise null. Closes the window on success.</summary>

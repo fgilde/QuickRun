@@ -337,6 +337,12 @@ console for CLI runs), waits on `readyWhen` before starting dependants, and on
 stop kills the whole process tree (`Process.Kill(entireProcessTree: true)`)
 before running `stop` commands.
 
+Readiness describes the *service*, not the process: `docker compose up -d db`
+exits long before its port opens. A task that exits with code 0 therefore keeps
+its readiness watcher running until the condition is met or the timeout expires,
+so dependants still wait correctly. A non-zero exit cancels the watcher - nothing
+is going to come up.
+
 Failure handling: a failed `requires` check blocks with the `install` hint. A
 failed `setup` step aborts the run unless `continueOnError`. A task that exits
 non-zero is reported and, with `restart: onFailure`, retried with backoff up to

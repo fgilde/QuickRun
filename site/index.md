@@ -24,6 +24,10 @@ features:
     details: >
       quickrun run acme/app checks the repository out into a managed workspace, verifies the
       prerequisites, asks for whatever inputs the config declares, and starts it.
+  - title: A tray icon and a dashboard
+    details: >
+      Double-click the binary and QuickRun sits in the tray. The dashboard shows what is running
+      with live progress, the workspaces on disk, and how to pair the browser extension.
   - title: A button on GitHub
     details: >
       The browser extension puts a Run button next to the branch dropdown, in pull request headers

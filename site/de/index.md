@@ -24,6 +24,11 @@ features:
     details: >
       quickrun run acme/app checkt das Repository in einen verwalteten Workspace aus, prüft die
       Voraussetzungen, fragt die in der Config deklarierten Eingaben ab und startet es.
+  - title: Tray-Icon und Dashboard
+    details: >
+      Doppelklick auf die Binary, und QuickRun sitzt im Tray. Das Dashboard zeigt, was läuft —
+      mit Fortschritt in Echtzeit —, die Workspaces auf der Platte und wie das Pairing der
+      Browser-Erweiterung geht.
   - title: Ein Button auf GitHub
     details: >
       Die Browser-Erweiterung setzt einen Run-Button neben das Branch-Dropdown, in PR-Header und in

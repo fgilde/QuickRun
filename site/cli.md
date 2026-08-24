@@ -1,6 +1,23 @@
 # CLI
 
-QuickRun is fully usable without the browser extension or any UI.
+QuickRun is fully usable without the browser extension.
+
+## `quickrun` with no arguments
+
+Starts the listener, puts an icon in the tray and opens the dashboard. This is what a double-click
+does, and it is the entry point for everything else:
+
+- **Runs** — what is running, with live progress and log output
+- **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
+- **Browser extension** — the pairing button and how the extension works
+- **About** — version, install source, update check
+
+```bash
+quickrun                 # tray icon + dashboard
+quickrun --no-browser    # same, without opening a browser
+quickrun --no-tray       # dashboard only, no tray icon
+quickrun daemon          # listener only, no tray and no browser
+```
 
 ## `quickrun run`
 

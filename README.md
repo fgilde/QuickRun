@@ -23,6 +23,10 @@ QuickRun checks the repository out into a managed workspace, verifies the prereq
 asks for whatever inputs the config declares, shows you the exact commands it is about to
 execute, and supervises the resulting processes until you stop them.
 
+Run the binary with no arguments — or double-click it — and QuickRun puts an icon in the tray
+and opens a local dashboard: what is running with live progress, the workspaces on disk, and
+the pairing button for the browser extension.
+
 Repositories with no config still work: QuickRun scans for an entry point it recognises —
 compose files, `package.json` scripts, .NET projects, Python apps, Makefiles, Cargo, Go,
 Maven, Gradle — and offers what it found. It can write the generated `quickrun.yml` back for
@@ -66,7 +70,8 @@ repository that installs its own SDK.
 | `quickrun detect [path] [--save]` | Show how QuickRun would start a repository, optionally write the config |
 | `quickrun ls` | List workspaces with their size and last use |
 | `quickrun clean --all \| --older-than 30d \| <id>` | Remove workspaces |
-| `quickrun daemon` | Run the localhost listener the browser extension talks to |
+| `quickrun` (no arguments) | Start with a tray icon and open the dashboard |
+| `quickrun daemon` | Run the localhost listener without a tray icon |
 | `quickrun pair` | Open a pairing window for the extension |
 | `quickrun update` | Check for a newer QuickRun and install it when QuickRun owns the binary |
 
@@ -147,7 +152,9 @@ dotnet run --project src/QuickRun.App -- --help
 ```
 
 Requires the .NET 10 SDK. Releases ship as a self-contained single-file binary per platform, so
-users need no runtime installed. See [docs/publishing.md](docs/publishing.md) for how a release is
+users need no runtime installed. That single file is around 128 MB: it carries the .NET runtime
+and the native libraries the tray icon needs, and bundling them is what keeps the download to one
+file with nothing to install. See [docs/publishing.md](docs/publishing.md) for how a release is
 cut.
 
 ## License

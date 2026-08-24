@@ -69,6 +69,36 @@ wingetcreate update fgilde.QuickRun --version 0.1.0 `
 The first submission needs `wingetcreate new`. Review times are typically a day
 or two, so winget lags a release rather than tracking it.
 
+## Automatic distribution
+
+A tag pushes through four jobs: `build` (six targets), `release` (assets, checksums, manifests,
+the GitHub Release), then `distribute` and `winget`.
+
+Every distribution step **skips itself when its credential is missing** and says so in the log, so
+a release never fails because a store account is not set up. Add the secrets under
+*Settings → Secrets and variables → Actions* and the corresponding step starts working on the next
+tag; nothing else needs changing.
+
+| Target | Secrets | How to get them |
+|---|---|---|
+| Homebrew tap | `TAP_TOKEN` | Fine-grained PAT with `contents:write` on `fgilde/homebrew-tap`. `GITHUB_TOKEN` cannot push to another repository. |
+| winget | `WINGET_TOKEN` | Classic PAT with `public_repo`. Used to fork `microsoft/winget-pkgs` and open the pull request. |
+| Chrome Web Store | `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN` | Register at the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole) (one-off 5 USD fee), publish once by hand to get the extension id, then create an OAuth client per the [API docs](https://developer.chrome.com/docs/webstore/using-api). |
+| Firefox Add-ons | `AMO_JWT_ISSUER`, `AMO_JWT_SECRET` | [addons.mozilla.org API credentials](https://addons.mozilla.org/developers/addon/api/key/). Free. |
+| Edge Add-ons | `EDGE_PRODUCT_ID`, `EDGE_CLIENT_ID`, `EDGE_API_KEY` | [Partner Center](https://partner.microsoft.com/dashboard/microsoftedge), register once, then *Publish API* under the extension. Free. |
+
+### What still needs a human, once
+
+- **Developer accounts.** Chrome charges a one-off 5 USD registration fee; Edge and Firefox are
+  free. All three require accepting a developer agreement, which cannot be automated.
+- **The first store submission.** Chrome needs one manual upload to allocate an extension id, and
+  every store reviews the first listing by hand. After that the workflow updates them.
+- **The first winget submission.** `wingetcreate update` needs the package to exist in
+  `microsoft/winget-pkgs`. Run `wingetcreate new` once locally with the release URLs, or let the
+  first workflow run fall back to it.
+- **Store listing copy.** Description, category, screenshots and the privacy declaration live in
+  each store's dashboard, not in this repository.
+
 ## Signing
 
 Binaries are unsigned. Consequences, and what the docs tell users:

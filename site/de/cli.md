@@ -1,6 +1,23 @@
 # CLI
 
-QuickRun ist ohne Browser-Erweiterung und ohne UI vollständig benutzbar.
+QuickRun ist ohne Browser-Erweiterung vollständig benutzbar.
+
+## `quickrun` ohne Argumente
+
+Startet den Listener, legt ein Icon ins Tray und öffnet das Dashboard. Das macht ein Doppelklick,
+und es ist der Einstiegspunkt für alles andere:
+
+- **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
+- **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
+- **Browser extension** — der Pairing-Button und wie die Erweiterung funktioniert
+- **About** — Version, Installationsquelle, Update-Prüfung
+
+```bash
+quickrun                 # Tray-Icon + Dashboard
+quickrun --no-browser    # dasselbe, ohne Browser zu öffnen
+quickrun --no-tray       # nur Dashboard, kein Tray-Icon
+quickrun daemon          # nur Listener, kein Tray und kein Browser
+```
 
 ## `quickrun run`
 

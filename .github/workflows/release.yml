@@ -151,3 +151,157 @@ jobs:
             --title "QuickRun $GITHUB_REF_NAME" \
             --generate-notes \
             --verify-tag
+
+  # Everything downstream of a published release. Each step skips itself when its credential is
+  # absent, so a release never fails because a store account is not set up yet.
+  distribute:
+    needs: release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolve version
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: dist
+
+      # web-ext signs an unpacked directory, so the extension is rebuilt here rather than unzipped.
+      - name: Build the extension
+        run: |
+          cd extension
+          sh build.sh "${{ steps.version.outputs.value }}"
+
+      # --- Homebrew tap ---------------------------------------------------------------------
+      # Needs TAP_TOKEN: a fine-grained PAT with contents:write on fgilde/homebrew-tap.
+      # GITHUB_TOKEN cannot push to another repository.
+      - name: Update the Homebrew tap
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::notice::TAP_TOKEN not set - skipping the Homebrew tap"
+            exit 0
+          fi
+
+          git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/fgilde/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          cp dist/quickrun.rb tap/Formula/quickrun.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "::notice::formula unchanged"
+            exit 0
+          fi
+
+          git commit -am "feat: quickrun formula for QuickRun $VERSION"
+          git push
+
+      # --- Chrome Web Store -----------------------------------------------------------------
+      # Needs CHROME_EXTENSION_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN.
+      # Google still reviews every submission.
+      - name: Publish to the Chrome Web Store
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$EXTENSION_ID" ] || [ -z "$CLIENT_ID" ]; then
+            echo "::notice::Chrome Web Store credentials not set - skipping"
+            exit 0
+          fi
+
+          npx --yes chrome-webstore-upload-cli@3 upload \
+            --source dist/quickrun-extension-chromium.zip \
+            --extension-id "$EXTENSION_ID" \
+            --client-id "$CLIENT_ID" \
+            --client-secret "$CLIENT_SECRET" \
+            --refresh-token "$REFRESH_TOKEN" \
+            --auto-publish
+
+      # --- Firefox Add-ons ------------------------------------------------------------------
+      # Needs AMO_JWT_ISSUER and AMO_JWT_SECRET from the addons.mozilla.org API credentials page.
+      - name: Publish to Firefox Add-ons
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$AMO_JWT_ISSUER" ]; then
+            echo "::notice::AMO credentials not set - skipping Firefox"
+            exit 0
+          fi
+
+          npx --yes web-ext@8 sign \
+            --source-dir extension/dist/firefox \
+            --channel listed \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET"
+
+      # --- Edge Add-ons ---------------------------------------------------------------------
+      # Needs EDGE_PRODUCT_ID, EDGE_CLIENT_ID and EDGE_API_KEY from Partner Center.
+      - name: Publish to Edge Add-ons
+        env:
+          PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          API_KEY: ${{ secrets.EDGE_API_KEY }}
+        run: |
+          if [ -z "$PRODUCT_ID" ] || [ -z "$CLIENT_ID" ]; then
+            echo "::notice::Edge Add-ons credentials not set - skipping"
+            exit 0
+          fi
+
+          api="https://api.addons.microsoftedge.microsoft.com/v1/products/$PRODUCT_ID/submissions"
+
+          curl -fsS -X POST "$api/draft/package" \
+            -H "Authorization: ApiKey $API_KEY" \
+            -H "X-ClientID: $CLIENT_ID" \
+            -H "Content-Type: application/zip" \
+            --data-binary "@dist/quickrun-extension-chromium.zip"
+
+          curl -fsS -X POST "$api" \
+            -H "Authorization: ApiKey $API_KEY" \
+            -H "X-ClientID: $CLIENT_ID" \
+            -H "Content-Length: 0"
+
+  # wingetcreate is a Windows binary, so its submission is its own job.
+  # Needs WINGET_TOKEN: a PAT with public_repo, used to fork microsoft/winget-pkgs and open the
+  # pull request. Reviews take a day or two, so winget lags a release rather than tracking it.
+  winget:
+    needs: release
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    steps:
+      - name: Submit to winget
+        shell: pwsh
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if (-not $env:WINGET_TOKEN) {
+            Write-Host "::notice::WINGET_TOKEN not set - skipping winget"
+            exit 0
+          }
+
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          $base = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$version"
+
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+          # The package is a portable zip: winget unpacks it and exposes quickrun on the PATH.
+          ./wingetcreate.exe update fgilde.QuickRun `
+            --version $version `
+            --urls "$base/quickrun-win-x64.zip|x64" "$base/quickrun-win-arm64.zip|arm64" `
+            --token $env:WINGET_TOKEN `
+            --submit

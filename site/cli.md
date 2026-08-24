@@ -7,6 +7,7 @@ QuickRun is fully usable without the browser extension.
 Starts the listener, puts an icon in the tray and opens the dashboard. This is what a double-click
 does, and it is the entry point for everything else:
 
+- **Run a repository** — start any repository without the browser extension
 - **Runs** — what is running, with live progress and log output
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
 - **Browser extension** — the pairing button and how the extension works

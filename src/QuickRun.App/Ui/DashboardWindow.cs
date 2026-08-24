@@ -74,6 +74,7 @@ public sealed class DashboardWindow : Window
             Padding = new Thickness(0),
             Items =
             {
+                Tab("Run a repository", new RunPage(_runs, _store)),
                 Tab("Runs", Scroll(_runList)),
                 Tab("Workspaces", Scroll(WorkspacesPage())),
                 Tab("Browser extension", Scroll(ExtensionPage())),

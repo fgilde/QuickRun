@@ -11,8 +11,9 @@ quickrun
 ```
 
 QuickRun starts its listener on `127.0.0.1:9876`, puts an icon in the tray and opens its window.
-The window has four sections:
+The window has five sections:
 
+- **Run a repository** — start any repository without the browser extension
 - **Runs** — what is running, with live progress and log output
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
 - **Browser extension** — the pairing button and how the extension works

@@ -29,8 +29,13 @@ starting a daemon that is installed but not running.
 ## The confirmation window
 
 Clicking Run does not start anything. QuickRun checks the repository out, builds the plan, and the
-extension opens a small window listing the repository, ref, resolved commit and the **exact
-commands** that will run. Only the button in that window starts them.
+extension opens a window listing the repository, ref, resolved commit and the **exact commands**
+that will run. Only the button in that window starts them.
+
+After you approve, that window stays open and becomes the run's log: the checkout with its real
+progress counters, every setup step, and everything the repository's own commands print. The button
+on the page shows only a percentage and a coarse phase — a toolbar button is no place for a hundred
+lines of build output.
 
 That window is an extension page, not part of the GitHub page, and that is on purpose: a web page
 can draw a convincing fake panel over its own content, and nobody should ever approve one set of
@@ -56,7 +61,9 @@ extension storage; it is never given to a web page, and the content script never
 |---|---|
 | Port | 9876 |
 | Try `quickrun://` when QuickRun does not answer | on |
-| For pull requests, run the merge result instead of the head | off |
+
+Running a pull request means running the branch it comes from, fetched as `refs/pull/<n>/head`.
+That works for pull requests from forks too, and it is what the button on a pull request page does.
 
 ## Building it yourself
 

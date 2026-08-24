@@ -29,8 +29,13 @@ einen installierten, aber nicht laufenden Daemon zu starten.
 ## Das Bestätigungsfenster
 
 Ein Klick auf Run startet nichts. QuickRun checkt das Repository aus, baut den Plan, und die
-Erweiterung öffnet ein kleines Fenster mit Repository, Ref, aufgelöstem Commit und den **exakten
-Befehlen**, die laufen werden. Erst der Button in diesem Fenster startet sie.
+Erweiterung öffnet ein Fenster mit Repository, Ref, aufgelöstem Commit und den **exakten Befehlen**,
+die laufen werden. Erst der Button in diesem Fenster startet sie.
+
+Nach der Bestätigung bleibt das Fenster offen und wird zum Log des Laufs: der Checkout mit den
+echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des Repositories
+ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ein Toolbar-Button ist
+kein Ort für hundert Zeilen Build-Ausgabe.
 
 Dieses Fenster ist eine Extension-Seite und nicht Teil der GitHub-Seite — und das mit Absicht: eine
 Webseite kann über ihren eigenen Inhalt ein überzeugendes gefälschtes Panel zeichnen, und niemand
@@ -57,7 +62,10 @@ sieht ihn nie.
 |---|---|
 | Port | 9876 |
 | `quickrun://` versuchen, wenn QuickRun nicht antwortet | an |
-| Bei Pull Requests das Merge-Ergebnis statt des Head starten | aus |
+
+Einen Pull Request zu starten heißt, den Branch zu starten, aus dem er kommt — geholt als
+`refs/pull/<n>/head`. Das funktioniert auch bei Pull Requests aus Forks, und genau das macht der
+Button auf einer PR-Seite.
 
 ## Selbst bauen
 

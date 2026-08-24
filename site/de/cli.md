@@ -7,6 +7,7 @@ QuickRun ist ohne Browser-Erweiterung vollständig benutzbar.
 Startet den Listener, legt ein Icon ins Tray und öffnet das Dashboard. Das macht ein Doppelklick,
 und es ist der Einstiegspunkt für alles andere:
 
+- **Run a repository** — ein Repository ohne Browser-Erweiterung starten
 - **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
 - **Browser extension** — der Pairing-Button und wie die Erweiterung funktioniert

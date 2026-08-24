@@ -12,8 +12,9 @@ quickrun
 ```
 
 QuickRun startet seinen Listener auf `127.0.0.1:9876`, legt ein Icon ins Tray und öffnet sein
-Fenster. Das Fenster hat vier Bereiche:
+Fenster. Das Fenster hat fünf Bereiche:
 
+- **Run a repository** — ein Repository ohne Browser-Erweiterung starten
 - **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
 - **Browser extension** — der Pairing-Button und wie die Erweiterung funktioniert

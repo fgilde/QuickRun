@@ -1,4 +1,5 @@
 using QuickRun.Core.Process;
+using QuickRun.Core.Run;
 
 namespace QuickRun.Core.Git;
 
@@ -10,7 +11,8 @@ public sealed record GitOutcome(bool Ok, string? Error, string? Commit);
 /// </summary>
 public sealed class GitClient(
     CredentialResolver credentials,
-    Func<string, string[], string?, CommandResult>? runner = null)
+    Func<string, string[], string?, Action<string, bool>?, CommandResult>? runner = null,
+    Action<int, string>? onCheckoutProgress = null)
 {
     private const int CloneTimeoutMs = 300_000;
 
@@ -35,9 +37,10 @@ public sealed class GitClient(
     /// <summary>Prepended to every git invocation, for the same reason as <see cref="NonInteractive"/>.</summary>
     private static readonly string[] NonInteractiveArgs = { "-c", "credential.interactive=false" };
 
-    private readonly Func<string, string[], string?, CommandResult> _run =
-        runner ?? ((file, args, cwd) =>
-            CommandRunner.Capture(file, args, cwd, NonInteractive, timeoutMs: CloneTimeoutMs));
+    private readonly Func<string, string[], string?, Action<string, bool>?, CommandResult> _run =
+        runner ?? ((file, args, cwd, onLine) => onLine is null
+            ? CommandRunner.Capture(file, args, cwd, NonInteractive, timeoutMs: CloneTimeoutMs)
+            : CommandRunner.StreamCapture(file, args, cwd, NonInteractive, onLine, CloneTimeoutMs));
 
     /// <summary>
     /// Accepts <c>owner/repo</c>, <c>host/owner/repo</c>, an https URL, or an scp-style SSH URL.
@@ -151,7 +154,23 @@ public sealed class GitClient(
     // ---- internals ----------------------------------------------------------
 
     private CommandResult Git(string? cwd, params string[] args) =>
-        _run("git", NonInteractiveArgs.Concat(args).ToArray(), cwd);
+        _run("git", NonInteractiveArgs.Concat(args).ToArray(), cwd, null);
+
+    /// <summary>
+    /// Runs a transfer command with --progress and forwards git's own counters. These are the only
+    /// genuinely measured numbers a run has, so they are passed through rather than smoothed.
+    /// </summary>
+    private CommandResult GitWithProgress(string? cwd, params string[] args)
+    {
+        if (onCheckoutProgress is null) return Git(cwd, args);
+
+        var withProgress = NonInteractiveArgs.Concat(args).Append("--progress").ToArray();
+        return _run("git", withProgress, cwd, (line, _) =>
+        {
+            if (GitProgress.Parse(line) is { } update)
+                onCheckoutProgress(update.Percent, update.Detail);
+        });
+    }
 
     private GitOutcome Clone(string url, string @ref, int? pullRequest, string dir)
     {
@@ -163,11 +182,11 @@ public sealed class GitClient(
 
             if (pullRequest is { } number)
             {
-                var cloned = Git(null, "clone", "--depth", "1", candidate, dir);
+                var cloned = GitWithProgress(null, "clone", "--depth", "1", candidate, dir);
                 if (cloned.ExitCode != 0) { lastError = cloned.Output; continue; }
 
                 var spec = $"pull/{number}/head";
-                var fetched = Git(dir, "fetch", "--depth", "1", "origin", spec);
+                var fetched = GitWithProgress(dir, "fetch", "--depth", "1", "origin", spec);
                 if (fetched.ExitCode != 0) return new(false, Trim(fetched.Output), null);
 
                 var checkedOut = Git(dir, "checkout", "-q", "FETCH_HEAD");
@@ -176,7 +195,7 @@ public sealed class GitClient(
                     : new(false, Trim(checkedOut.Output), null);
             }
 
-            var result = Git(null, "clone", "--depth", "1", "--branch", @ref, candidate, dir);
+            var result = GitWithProgress(null, "clone", "--depth", "1", "--branch", @ref, candidate, dir);
             if (result.ExitCode == 0) return new(true, null, null);
             lastError = result.Output;
         }
@@ -195,7 +214,7 @@ public sealed class GitClient(
         var steps = new[]
         {
             new[] { "remote", "set-url", "origin", url },
-            new[] { "fetch", "--depth", "1", "origin", spec },
+            new[] { "fetch", "--depth", "1", "origin", spec, "--progress" },
             new[] { "reset", "--hard", "FETCH_HEAD" },
             CleanArgs(),
         };

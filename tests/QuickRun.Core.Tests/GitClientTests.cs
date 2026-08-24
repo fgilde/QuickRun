@@ -218,6 +218,44 @@ public class GitClientTests
     }
 
     [Fact]
+    public void CheckoutOrUpdate_reports_real_progress_from_git()
+    {
+        using var repo = new LocalRepo();
+        // Enough content that git bothers reporting counters at all.
+        for (var i = 0; i < 40; i++) repo.Write($"file{i}.txt", new string('x', 4096));
+        repo.Commit("bulk");
+
+        var updates = new List<(int Percent, string Detail)>();
+        var client = new GitClient(
+            new CredentialResolver(null, (_, _) => new CommandResult(1, "", false), _ => null),
+            onCheckoutProgress: (percent, detail) => { lock (updates) updates.Add((percent, detail)); });
+
+        var target = TempDir();
+        try
+        {
+            Assert.True(client.CheckoutOrUpdate(repo.Url, "main", null, target, false).Ok);
+
+            Assert.NotEmpty(updates);
+            Assert.All(updates, u => Assert.InRange(u.Percent, 0, 100));
+            Assert.All(updates, u => Assert.False(string.IsNullOrWhiteSpace(u.Detail)));
+        }
+        finally { LocalRepo.DeleteTree(target); }
+    }
+
+    [Fact]
+    public void Progress_is_optional_and_absent_by_default()
+    {
+        using var repo = new LocalRepo();
+        var target = TempDir();
+        try
+        {
+            // No callback: the plain capture path must still work.
+            Assert.True(Client().CheckoutOrUpdate(repo.Url, "main", null, target, false).Ok);
+        }
+        finally { LocalRepo.DeleteTree(target); }
+    }
+
+    [Fact]
     public void ListBranches_returns_the_branches_of_a_local_repository()
     {
         using var repo = new LocalRepo();

@@ -32,6 +32,13 @@ public static class Output
         }
     }
 
+    /// <summary>
+    /// One line per progress change. Deliberately not a Spectre progress bar: a live bar and a
+    /// streaming log fight over the same cursor, and a percent-prefixed line survives piping.
+    /// </summary>
+    public static void Progress(RunProgress progress) =>
+        AnsiConsole.MarkupLineInterpolated($"[blue][[{progress.Percent,3}%]][/] [grey]{progress.Detail}[/]");
+
     public static void Plan(RunPlan plan)
     {
         AnsiConsole.Write(new Rule($"[bold]{Markup.Escape(plan.DisplayName)}[/]").LeftJustified());

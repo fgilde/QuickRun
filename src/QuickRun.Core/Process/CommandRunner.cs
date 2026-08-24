@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using SysProcess = System.Diagnostics.Process;
 
 namespace QuickRun.Core.Process;
@@ -73,6 +74,61 @@ public static class CommandRunner
             await process.WaitForExitAsync(CancellationToken.None);
             return process.ExitCode;
         }
+    }
+
+    /// <summary>
+    /// Runs a process directly (no shell), forwarding every line as it arrives and also returning
+    /// the full output. Splits on CR as well as LF, so git's progress overwrites are seen live.
+    /// </summary>
+    public static CommandResult StreamCapture(string file, IEnumerable<string> args, string? cwd,
+        IReadOnlyDictionary<string, string>? env, Action<string, bool> onLine, int timeoutMs = 300_000)
+    {
+        var psi = Info(file, args, cwd, env);
+
+        SysProcess? process;
+        try { process = SysProcess.Start(psi); }
+        catch (Exception e) { return new(-1, e.Message, false); }
+
+        if (process is null) return new(-1, $"could not start {file}", false);
+
+        using (process)
+        {
+            var collected = new StringBuilder();
+
+            void Collect(string line, bool isError)
+            {
+                lock (collected) collected.AppendLine(line);
+                onLine(line, isError);
+            }
+
+            var readers = Task.WhenAll(
+                PumpAsync(process.StandardOutput, line => Collect(line, false)),
+                PumpAsync(process.StandardError, line => Collect(line, true)));
+
+            if (!process.WaitForExit(timeoutMs))
+            {
+                Kill(process);
+                return new(-1, $"{file} timed out after {timeoutMs} ms", true);
+            }
+
+            readers.Wait(TimeSpan.FromSeconds(5));
+            lock (collected) return new(process.ExitCode, collected.ToString().Trim(), false);
+        }
+    }
+
+    private static async Task PumpAsync(StreamReader reader, Action<string> onLine)
+    {
+        var splitter = new LineSplitter();
+        var buffer = new char[1024];
+
+        while (true)
+        {
+            var read = await reader.ReadAsync(buffer, 0, buffer.Length);
+            if (read == 0) break;
+            splitter.Push(new string(buffer, 0, read), onLine);
+        }
+
+        splitter.Flush(onLine);
     }
 
     private static ProcessStartInfo Info(string file, IEnumerable<string> args, string? cwd,

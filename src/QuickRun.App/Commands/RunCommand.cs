@@ -62,7 +62,11 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         var store = new WorkspaceStore();
-        var git = new GitClient(new CredentialResolver(settings.Token));
+        var reporter = new ProgressReporter();
+        var git = new GitClient(
+            new CredentialResolver(settings.Token),
+            onCheckoutProgress: (percent, detail) =>
+                reporter.Report(new RunProgress(RunPhase.Checkout, ProgressModel.Total(RunPhase.Checkout, percent), detail)));
         var args = settings.ToArgs();
 
         var preparation = RunPipeline.Prepare(args, store, git,
@@ -111,7 +115,7 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             cts.Cancel();
         };
 
-        await using var runner = new Runner(e => Report(e, settings.NoOpen));
+        await using var runner = new Runner(e => Report(e, settings.NoOpen, reporter));
         var outcome = await runner.ExecuteAsync(config, options, cts.Token);
         await runner.StopAsync();
 
@@ -122,12 +126,15 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
     }
 
     /// <summary>The one place in QuickRun that opens a browser. Core only ever reports the URL.</summary>
-    private static void Report(RunEvent e, bool noOpen)
+    private static void Report(RunEvent e, bool noOpen, ProgressReporter reporter)
     {
         var prefix = e.Task is null ? "" : $"[{e.Task}] ";
 
         switch (e.Kind)
         {
+            case RunEventKind.Progress when e.Progress is { } progress:
+                reporter.Report(progress);
+                break;
             case RunEventKind.Output:
                 Output.Line(prefix + e.Text);
                 break;
@@ -145,6 +152,25 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             default:
                 Output.Info(prefix + e.Text);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Prints one line per whole percent. Keying on the detail text instead would print every one
+    /// of git's hundred "Counting objects" updates while the total sat at 0%.
+    /// </summary>
+    private sealed class ProgressReporter
+    {
+        private int _last = -1;
+
+        public void Report(RunProgress progress)
+        {
+            lock (this)
+            {
+                if (progress.Percent == _last) return;
+                _last = progress.Percent;
+            }
+            Output.Progress(progress);
         }
     }
 

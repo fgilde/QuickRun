@@ -14,11 +14,17 @@ public enum RunEventKind
     TaskStarted,
     TaskReady,
     TaskExited,
+    Progress,
     Failed,
     Finished,
 }
 
-public sealed record RunEvent(RunEventKind Kind, string? Task, string Text);
+/// <summary>
+/// One thing that happened during a run. <see cref="Progress"/> is set only on
+/// <see cref="RunEventKind.Progress"/> events, so consumers can render a bar and a log from the
+/// same ordered stream.
+/// </summary>
+public sealed record RunEvent(RunEventKind Kind, string? Task, string Text, RunProgress? Progress = null);
 
 public sealed record RunOutcome(bool Ok, string? Error);
 
@@ -42,9 +48,12 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly ConcurrentDictionary<string, StringBuilder> _logs = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _ready = new();
+    private readonly ConcurrentDictionary<string, bool> _settled = new();
 
     private RunConfig? _config;
     private RunOptions? _options;
+    private int _taskCount;
+    private int _tasksSettled;
 
     public async Task<RunOutcome> ExecuteAsync(RunConfig config, RunOptions options, CancellationToken ct)
     {
@@ -59,21 +68,32 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             if (blockers.Length > 0) return Fail(string.Join("\n", blockers));
         }
 
-        foreach (var step in Applicable(config.Setup))
+        var steps = Applicable(config.Setup).ToList();
+        for (var i = 0; i < steps.Count; i++)
         {
+            var step = steps[i];
+            ReportProgress(RunPhase.Setup, ProgressModel.StepPercent(i, steps.Count),
+                $"setup {i + 1}/{steps.Count}: {Redact(step.Run, options)}");
+
             var code = await RunStepAsync(step, "setup", options, linked.Token);
             if (linked.IsCancellationRequested) return new(false, "run cancelled");
             if (code != 0 && !step.ContinueOnError)
                 return Fail($"setup step failed with exit code {code}: {Redact(step.Run, options)}");
         }
+        if (steps.Count > 0) ReportProgress(RunPhase.Setup, 100, "setup complete");
 
+        _taskCount = config.Tasks.Count;
         foreach (var task in config.Tasks)
             _ready[task.Name] = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        ReportProgress(RunPhase.Tasks, 0,
+            _taskCount == 0 ? "nothing to start" : $"starting {_taskCount} task(s)");
 
         await Task.WhenAll(config.Tasks.Select(t => RunTaskAsync(t, options, linked.Token)));
 
         if (linked.IsCancellationRequested) return new(false, "run cancelled");
 
+        ReportProgress(RunPhase.Tasks, 100, "finished");
         Emit(RunEventKind.Finished, null, "all tasks finished");
         return new(true, null);
     }
@@ -148,6 +168,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             }, ct);
 
             Emit(RunEventKind.TaskExited, task.Name, $"exited with code {code}");
+            SettleTask(task.Name, $"{task.Name} exited with code {code}");
 
             // Readiness describes the service, not the process. `docker compose up -d` exits long
             // before its port opens, so a clean exit keeps the watcher running to its own timeout.
@@ -193,6 +214,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
 
         Complete(task.Name);
         Emit(RunEventKind.TaskReady, task.Name, "ready");
+        SettleTask(task.Name, $"{task.Name} ready");
 
         if (OpenUrlFor(task) is { } url)
             Emit(RunEventKind.Info, task.Name, $"open {url}");
@@ -214,6 +236,22 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             _ => null,
         };
     }
+
+    /// <summary>
+    /// Counts a task as settled exactly once, whether it became ready or merely exited - a task
+    /// that does both must not count twice, and one that only exits must still count.
+    /// </summary>
+    private void SettleTask(string taskName, string detail)
+    {
+        if (!_settled.TryAdd(taskName, true)) return;
+
+        var settled = Interlocked.Increment(ref _tasksSettled);
+        ReportProgress(RunPhase.Tasks, ProgressModel.StepPercent(settled, _taskCount), detail);
+    }
+
+    private void ReportProgress(RunPhase phase, int phasePercent, string detail) =>
+        onEvent(new RunEvent(RunEventKind.Progress, null, detail,
+            new RunProgress(phase, ProgressModel.Total(phase, phasePercent), Redact(detail, _options))));
 
     private void Complete(string taskName)
     {

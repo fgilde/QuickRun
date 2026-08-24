@@ -24,6 +24,15 @@ app.Configure(config =>
         .WithExample("detect")
         .WithExample("detect", ".", "--save");
 
+    config.AddCommand<ListCommand>("ls")
+        .WithDescription("List checked-out workspaces with their size and last use.");
+
+    config.AddCommand<CleanCommand>("clean")
+        .WithDescription("Remove workspaces.")
+        .WithExample("clean", "--all")
+        .WithExample("clean", "--older-than", "30d")
+        .WithExample("clean", "acme__app__main-1a2b3c");
+
     // One handler, so a stack trace never reaches a user while the message still does.
     config.PropagateExceptions();
 });

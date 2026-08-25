@@ -2,6 +2,7 @@ using System.ComponentModel;
 using QuickRun.Core;
 using QuickRun.Core.Config;
 using QuickRun.Core.Detect;
+using QuickRun.Core.Foreign;
 using Spectre.Console.Cli;
 
 namespace QuickRun.App.Commands;
@@ -51,11 +52,25 @@ public sealed class DetectCommand : Command<DetectCommand.Settings>
         if (ConfigParser.FindConfigFile(path) is { } existing)
             Output.Info($"note: {existing} already exists, detection is only informational here");
 
-        var candidates = Detector.Detect(path, OSKinds.Current);
+        var candidates = Detector.Detect(path, OSKinds.Current).ToList();
+
+        // A repository written for another launcher already says how it starts, so it belongs at
+        // the top of the list rather than below whatever guessing found.
+        if (Pinokio.Load(path, OSKinds.Current) is { } foreign)
+            candidates.Insert(0, Foreign(foreign));
+
         return candidates.Count == 0
             ? new(1, candidates, $"nothing detectable in {path}")
             : new(0, candidates, null);
     }
+
+    private static Candidate Foreign(ForeignConfig foreign) => new(
+        foreign.Kind,
+        $"{foreign.Kind} scripts in the repository ({foreign.Config.Tasks.Count} task(s))",
+        "",
+        foreign.Config.Setup.Select(s => s.Run).ToList(),
+        foreign.Config.Tasks.Select(t => t.Run).ToList(),
+        98);
 
     public static (int ExitCode, string? Path, string? Error) Save(string directory, Candidate candidate)
     {

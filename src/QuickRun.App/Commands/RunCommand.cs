@@ -85,6 +85,9 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
 
         Output.Plan(plan);
 
+        foreach (var note in preparation.Notes)
+            Output.Info(note);
+
         foreach (var candidate in preparation.OtherCandidates)
             Output.Info($"also detected: {candidate.Label} - use --config or commit a quickrun.yml to choose");
 

@@ -29,10 +29,14 @@ opens a desktop window: what is running with live progress, the workspaces on di
 browser extension works. The same view is available in a browser at
 `http://127.0.0.1:9876` when you would rather have it there.
 
-Repositories with no config still work: QuickRun scans for an entry point it recognises —
-compose files, `package.json` scripts, .NET projects, Python apps, Makefiles, Cargo, Go,
-Maven, Gradle — and offers what it found. It can write the generated `quickrun.yml` back for
-you to commit.
+Repositories with no config still work. A repository written for [Pinokio](https://pinokio.co)
+runs from its own `install.js` and `start.js` — including the Python virtual environments, the
+`when` branches picking a CUDA, DirectML or CPU install, and the pattern that says the service is
+up. Everything else is detected: compose files, `package.json` scripts, .NET projects, Python apps
+(Django, Streamlit, Gradio, FastAPI), `Procfile`, `.replit`, Makefiles, Taskfile, justfile, Cargo,
+Go, Maven, Gradle — with the port worked out where possible, so you get a link rather than a log to
+search. `quickrun detect --save` writes the generated `quickrun.yml` back for you to commit. See
+[Repositories without a config](https://fgilde.github.io/QuickRun/no-config).
 
 ## What a config looks like
 

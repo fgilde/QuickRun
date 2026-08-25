@@ -69,8 +69,10 @@ quickrun detect
 quickrun detect . --save
 ```
 
-Zeigt, wie QuickRun ein Repository ohne Config starten würde. `--save` schreibt den
-höchstbewerteten Kandidaten in `quickrun.yml` und überschreibt eine vorhandene Datei nicht.
+Zeigt, wie QuickRun ein Repository ohne Config starten würde: zuerst die Skripte eines fremden
+Launchers (siehe [Repositories ohne Config](/de/no-config)), dann das Ergebnis der Erkennung.
+`--save` schreibt den höchstbewerteten Kandidaten in `quickrun.yml` und überschreibt eine vorhandene
+Datei nicht.
 
 ## `quickrun ls` und `quickrun clean`
 

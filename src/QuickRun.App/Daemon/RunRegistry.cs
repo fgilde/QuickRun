@@ -109,6 +109,12 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         }
 
         entry.Prepared(preparation);
+
+        // Where the plan came from, before the first command scrolls past: a config derived from
+        // another launcher's scripts, or from guessing, is not the same promise as a quickrun.yml.
+        foreach (var note in preparation.Notes)
+            entry.Publish(new RunEvent(RunEventKind.Info, null, note));
+
         return (entry.Summary, null);
     }
 

@@ -1,6 +1,7 @@
 using QuickRun.Core;
 using QuickRun.Core.Config;
 using QuickRun.Core.Detect;
+using QuickRun.Core.Foreign;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
 using QuickRun.Core.Run;
@@ -27,7 +28,8 @@ public sealed record RunPreparation(
     string? Workspace,
     IReadOnlyDictionary<string, string?>? Values,
     string? Error,
-    IReadOnlyList<Candidate> OtherCandidates);
+    IReadOnlyList<Candidate> OtherCandidates,
+    IReadOnlyList<string> Notes);
 
 /// <summary>
 /// Everything up to but not including execution: normalise, check out, load or detect a config,
@@ -100,7 +102,7 @@ public static class RunPipeline
             return Failed(e.Message);
         }
 
-        return new(0, plan, config, workspace, values, null, loaded.Others);
+        return new(0, plan, config, workspace, values, null, loaded.Others, loaded.Notes);
     }
 
     /// <summary>
@@ -136,7 +138,7 @@ public static class RunPipeline
         return resolved;
     }
 
-    private static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others) LoadConfig(
+    private static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others, IReadOnlyList<string> Notes) LoadConfig(
         string root, string? explicitPath, string repo)
     {
         var file = explicitPath is null
@@ -145,22 +147,35 @@ public static class RunPipeline
 
         if (file is not null)
         {
-            if (!File.Exists(file)) return (null, $"config '{explicitPath}' does not exist in {repo}", Empty);
-            try { return (ConfigParser.Parse(File.ReadAllText(file), OSKinds.Current), null, Empty); }
-            catch (ConfigException e) { return (null, $"{Path.GetFileName(file)}: {e.Message}", Empty); }
+            if (!File.Exists(file)) return (null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes);
+            try { return (ConfigParser.Parse(File.ReadAllText(file), OSKinds.Current), null, Empty, NoNotes); }
+            catch (ConfigException e) { return (null, $"{Path.GetFileName(file)}: {e.Message}", Empty, NoNotes); }
         }
+
+        // A repository written for another launcher says how to start itself, which beats anything
+        // guessing from file names: Pinokio's own scripts come before the detector.
+        if (Pinokio.Load(root, OSKinds.Current) is { } foreign)
+            return (foreign.Config, null, Empty,
+                foreign.Notes.Prepend($"no quickrun.yml - running this repository from its {foreign.Kind} scripts").ToList());
 
         // The detector already ranks a root run script highest, so there is no separate lookup.
         var candidates = Detector.Detect(root, OSKinds.Current);
         if (candidates.Count > 0)
         {
             var yaml = Detector.ToYaml(candidates[0], RepoName(repo));
-            return (ConfigParser.Parse(yaml, OSKinds.Current), null, candidates.Skip(1).ToList());
+            return (ConfigParser.Parse(yaml, OSKinds.Current), null, candidates.Skip(1).ToList(),
+                new[] { $"no quickrun.yml - detected {candidates[0].Label}" });
         }
 
+        // A Pinokio repository whose scripts are JavaScript functions is a real case, and "nothing
+        // detectable" would send the reader looking for a file that is right there.
+        var pinokio = Pinokio.Present(root)
+            ? " (its Pinokio scripts build their steps in JavaScript, which QuickRun cannot read)"
+            : "";
+
         return (null,
-            $"no quickrun.yml, no run script and nothing detectable in {repo} - see {ConfigDocs}",
-            Empty);
+            $"no quickrun.yml, no run script and nothing detectable in {repo}{pinokio} - see {ConfigDocs}",
+            Empty, NoNotes);
     }
 
     private static string Describe(ValidationIssue issue) =>
@@ -174,7 +189,9 @@ public static class RunPipeline
 
     private static IReadOnlyList<Candidate> Empty => Array.Empty<Candidate>();
 
-    private static RunPreparation Usage(string message) => new(2, null, null, null, null, message, Empty);
+    private static IReadOnlyList<string> NoNotes => Array.Empty<string>();
 
-    private static RunPreparation Failed(string message) => new(1, null, null, null, null, message, Empty);
+    private static RunPreparation Usage(string message) => new(2, null, null, null, null, message, Empty, NoNotes);
+
+    private static RunPreparation Failed(string message) => new(1, null, null, null, null, message, Empty, NoNotes);
 }

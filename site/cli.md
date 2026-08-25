@@ -68,8 +68,9 @@ quickrun detect
 quickrun detect . --save
 ```
 
-Shows how QuickRun would start a repository that has no config. `--save` writes the highest-ranked
-candidate to `quickrun.yml` and refuses to overwrite an existing file.
+Shows how QuickRun would start a repository that has no config: a foreign launcher's scripts first
+(see [Repositories without a config](/no-config)), then what detection found. `--save` writes the
+highest-ranked candidate to `quickrun.yml` and refuses to overwrite an existing file.
 
 ## `quickrun ls` and `quickrun clean`
 

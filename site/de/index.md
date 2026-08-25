@@ -35,8 +35,9 @@ features:
       jede Zeile der Branch-Liste. Der Fortschritt kommt in den Button zurück.
   - title: Funktioniert ohne Config
     details: >
-      Keine quickrun.yml? QuickRun erkennt Compose-Dateien, npm-Skripte, .NET-Projekte,
-      Python-Apps, Makefiles, Cargo, Go, Maven und Gradle und schlägt vor, was es gefunden hat.
+      Keine quickrun.yml? Eine Pinokio-App läuft aus ihren eigenen Skripten, alles andere wird
+      erkannt - Compose-Dateien, npm-Skripte, .NET-Projekte, Python-Apps, Procfile, .replit,
+      Makefiles, Cargo, Go, Maven, Gradle - samt Adresse, damit es einen Link gibt.
   - title: Nichts läuft unbesehen
     details: >
       Jeder Lauf zeigt Repository, Ref, aufgelösten Commit und die exakten Befehle und wartet auf
@@ -53,7 +54,8 @@ run: ./run.sh
 
 <<< @/../samples/npm-dev.yml{yaml}
 
-Jeder Block ist optional. Die [Config-Referenz](/de/config) beschreibt die vollständige Form, die
+Jeder Block ist optional. Die [Config-Referenz](/de/config) beschreibt die vollständige Form,
+[Repositories ohne Config](/de/no-config) erklärt den Fall ohne sie, die
 [Beispiele](/de/samples) zeigen acht ausgearbeitete Fälle — darunter ein Multi-Service-Stack, ein
 generiertes Eingabeformular mit validiertem Secret und ein Repository, das sich sein SDK selbst
 installiert.

@@ -9,13 +9,19 @@ namespace QuickRun.Core.Detect;
 /// One way a repository could be started. Nothing is executed to produce these - the commands are
 /// text the user sees and picks from.
 /// </summary>
+/// <param name="Port">
+/// Where this entry point is expected to listen, when that can be worked out. It is what turns a
+/// detected command into one QuickRun can wait for and open a browser on - without it the run is
+/// "started something, good luck finding it".
+/// </param>
 public sealed record Candidate(
     string Kind,
     string Label,
     string RelativeDir,
     IReadOnlyList<string> Setup,
     IReadOnlyList<string> Run,
-    int Confidence);
+    int Confidence,
+    int? Port = null);
 
 public static class Detector
 {
@@ -47,10 +53,14 @@ public static class Detector
                 Compose(dir, relative),
                 Node(dir, relative),
                 Python(dir, relative, os),
+                Procfile(dir, relative),
+                Replit(dir, relative),
                 Make(dir, relative),
+                Taskfile(dir, relative),
+                Just(dir, relative),
                 Simple(dir, relative, "Cargo.toml", "cargo", "cargo run", 60),
                 Simple(dir, relative, "go.mod", "go", "go run ./...", 60),
-                Simple(dir, relative, "pom.xml", "maven", "mvn spring-boot:run", 55),
+                Simple(dir, relative, "pom.xml", "maven", "mvn spring-boot:run", 55, 8080),
                 Gradle(dir, relative),
             }.Where(c => c is not null).Select(c => c!));
 
@@ -90,6 +100,14 @@ public static class Detector
             builder.AppendLine($"  - name: {(candidate.Run.Count == 1 ? "run" : $"task-{i + 1}")}");
             builder.AppendLine($"    run: {Quote(candidate.Run[i])}");
             if (cwd.Length > 0) builder.AppendLine($"    cwd: {Quote(cwd)}");
+
+            // Only the first task: in a Procfile the web process is the one to wait for, and a
+            // worker beside it never answers on a port.
+            if (i == 0 && candidate.Port is { } port)
+            {
+                builder.AppendLine($"    readyWhen: {{http: \"http://localhost:{port}\"}}");
+                builder.AppendLine("    open: true");
+            }
         }
 
         return builder.ToString();
@@ -106,11 +124,22 @@ public static class Detector
         return new("script", $"{name} in the repository root", "", Array.Empty<string>(), new[] { command }, 95);
     }
 
-    private static Candidate? Compose(string dir, string relative) =>
-        ComposeNames.Any(n => File.Exists(Path.Combine(dir, n)))
-            ? new("compose", Label("docker compose up", relative), relative,
-                Array.Empty<string>(), new[] { "docker compose up" }, 90)
-            : null;
+    private static Candidate? Compose(string dir, string relative)
+    {
+        var file = ComposeNames.Select(n => Path.Combine(dir, n)).FirstOrDefault(File.Exists);
+        if (file is null) return null;
+
+        return new("compose", Label("docker compose up", relative), relative,
+            Array.Empty<string>(), new[] { "docker compose up" }, 90, ComposePort(Read(file)));
+    }
+
+    /// <summary>The first published host port, which is the one a browser can reach.</summary>
+    private static int? ComposePort(string? text)
+    {
+        if (text is null) return null;
+        var match = Regex.Match(text, @"^\s*-\s*""?(?<host>\d{2,5}):\d{2,5}", RegexOptions.Multiline);
+        return match.Success && int.TryParse(match.Groups["host"].Value, out var port) ? port : null;
+    }
 
     private static Candidate? Node(string dir, string relative)
     {
@@ -118,11 +147,21 @@ public static class Detector
         if (!File.Exists(packageJson)) return null;
 
         string? script;
+        var body = "";
+        var dependencies = "";
+
         try
         {
             using var document = JsonDocument.Parse(File.ReadAllText(packageJson));
             if (!document.RootElement.TryGetProperty("scripts", out var scripts)) return null;
-            script = new[] { "dev", "start" }.FirstOrDefault(s => scripts.TryGetProperty(s, out _));
+
+            script = new[] { "dev", "start", "serve" }.FirstOrDefault(s => scripts.TryGetProperty(s, out _));
+            if (script is not null && scripts.TryGetProperty(script, out var command))
+                body = command.GetString() ?? "";
+
+            foreach (var section in new[] { "dependencies", "devDependencies" })
+                if (document.RootElement.TryGetProperty(section, out var listed))
+                    dependencies += string.Join(" ", listed.EnumerateObject().Select(p => p.Name)) + " ";
         }
         catch (JsonException)
         {
@@ -137,7 +176,37 @@ public static class Detector
 
         var (manager, install) = PackageManager(dir);
         return new("npm", Label($"{manager} run {script}", relative), relative,
-            new[] { $"{manager} {install}" }, new[] { $"{manager} run {script}" }, 80);
+            new[] { $"{manager} {install}" }, new[] { $"{manager} run {script}" }, 80,
+            DeclaredPort(body) ?? FrameworkPort(body + " " + dependencies));
+    }
+
+    /// <summary>A port the command already names beats any guess from the framework.</summary>
+    private static int? DeclaredPort(string command)
+    {
+        var match = Regex.Match(command, @"(?:--port[= ]|-p\s+|PORT=)(?<port>\d{2,5})");
+        return match.Success && int.TryParse(match.Groups["port"].Value, out var port) ? port : null;
+    }
+
+    /// <summary>
+    /// What the dev server of a given stack listens on by default. Wrong for a project that
+    /// overrides it silently, and in that case readiness times out and the run still works - which
+    /// is a better trade than never offering a link at all.
+    /// </summary>
+    private static readonly (string Marker, int Port)[] FrameworkPorts =
+    {
+        ("next", 3000), ("nuxt", 3000), ("remix", 3000), ("@nestjs", 3000), ("react-scripts", 3000),
+        ("@sveltejs/kit", 5173), ("vite", 5173), ("astro", 4321), ("@angular", 4200), ("ng serve", 4200),
+        ("gatsby", 8000), ("vue-cli-service", 8080), ("webpack-dev-server", 8080), ("parcel", 1234),
+        ("http-server", 8080), ("docusaurus", 3000), ("storybook", 6006),
+    };
+
+    private static int? FrameworkPort(string text)
+    {
+        foreach (var (marker, port) in FrameworkPorts)
+            if (text.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                return port;
+
+        return null;
     }
 
     private static (string Manager, string Install) PackageManager(string dir)
@@ -156,6 +225,12 @@ public static class Detector
             try { text = File.ReadAllText(project); } catch (IOException) { continue; }
 
             var name = Path.GetFileName(project);
+
+            // A test or benchmark project is runnable and never what someone wants started.
+            if (Regex.IsMatch(name, @"\.(Tests?|Benchmarks?|IntegrationTests)\.csproj$", RegexOptions.IgnoreCase)
+                || text.Contains("Microsoft.NET.Test.Sdk", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var projectPath = relative.Length == 0 ? name : $"{relative}/{name}";
             var command = $"dotnet run --project {projectPath}";
 
@@ -167,11 +242,30 @@ public static class Detector
                 continue;
             }
 
-            var isRunnable = text.Contains("Microsoft.NET.Sdk.Web", StringComparison.OrdinalIgnoreCase)
-                             || text.Contains("<OutputType>Exe", StringComparison.OrdinalIgnoreCase);
-            if (isRunnable)
+            if (text.Contains("Microsoft.NET.Sdk.Web", StringComparison.OrdinalIgnoreCase))
+            {
+                // launchSettings knows the port; without it the port is forced, because a web app
+                // whose address nobody knows is a web app nobody can open.
+                var port = LaunchSettingsPort(dir);
+                var web = port is null ? $"{command} --urls http://localhost:5000" : command;
+
+                yield return new("dotnet", Label(web, relative), "", Array.Empty<string>(),
+                    new[] { web }, 70, port ?? 5000);
+                continue;
+            }
+
+            if (text.Contains("<OutputType>Exe", StringComparison.OrdinalIgnoreCase))
                 yield return new("dotnet", Label(command, relative), "", Array.Empty<string>(), new[] { command }, 70);
         }
+    }
+
+    private static int? LaunchSettingsPort(string dir)
+    {
+        var text = Read(Path.Combine(dir, "Properties", "launchSettings.json"));
+        if (text is null) return null;
+
+        var match = Regex.Match(text, @"http://(?:localhost|127\.0\.0\.1):(?<port>\d{2,5})");
+        return match.Success && int.TryParse(match.Groups["port"].Value, out var port) ? port : null;
     }
 
     private static Candidate? Python(string dir, string relative, OSKind os)
@@ -180,18 +274,20 @@ public static class Detector
             .FirstOrDefault(f => File.Exists(Path.Combine(dir, f)));
         if (entry is null) return null;
 
-        var hasRequirements = File.Exists(Path.Combine(dir, "requirements.txt"));
-        var hasPyProject = File.Exists(Path.Combine(dir, "pyproject.toml"));
-        if (!hasRequirements && !hasPyProject) return null;
+        var requirements = Read(Path.Combine(dir, "requirements.txt"));
+        var pyproject = Read(Path.Combine(dir, "pyproject.toml"));
+        if (requirements is null && pyproject is null) return null;
 
-        if (!hasRequirements)
+        var (arguments, port) = PythonEntry(entry, (requirements ?? "") + (pyproject ?? ""));
+
+        if (requirements is null)
         {
             var usesUv = File.Exists(Path.Combine(dir, "uv.lock"));
             return usesUv
-                ? new("python", Label($"uv run {entry}", relative), relative,
-                    new[] { "uv sync" }, new[] { $"uv run {entry}" }, 75)
-                : new("python", Label($"poetry run python {entry}", relative), relative,
-                    new[] { "poetry install" }, new[] { $"poetry run python {entry}" }, 75);
+                ? new("python", Label($"uv run {arguments}", relative), relative,
+                    new[] { "uv sync" }, new[] { $"uv run {arguments}" }, 75, port)
+                : new("python", Label($"poetry run python {arguments}", relative), relative,
+                    new[] { "poetry install" }, new[] { $"poetry run python {arguments}" }, 75, port);
         }
 
         var windows = os == OSKind.Windows;
@@ -199,8 +295,91 @@ public static class Detector
         var pip = windows ? @".venv\Scripts\pip" : ".venv/bin/pip";
         var python = windows ? @".venv\Scripts\python" : ".venv/bin/python";
 
-        return new("python", Label($"{python} {entry}", relative), relative,
-            new[] { create, $"{pip} install -r requirements.txt" }, new[] { $"{python} {entry}" }, 75);
+        var run = $"{python} {arguments}";
+
+        return new("python", Label(run, relative), relative,
+            new[] { create, $"{pip} install -r requirements.txt" }, new[] { run }, 75, port);
+    }
+
+    /// <summary>
+    /// How a Python entry point is actually started, and where it then listens. <c>manage.py</c> on
+    /// its own prints Django's help rather than serving anything, and a Streamlit or Gradio app is
+    /// the whole point of a lot of repositories, so those get the command their framework needs.
+    /// </summary>
+    private static (string Arguments, int? Port) PythonEntry(string entry, string dependencies)
+    {
+        if (entry == "manage.py") return ("manage.py runserver", 8000);
+
+        if (dependencies.Contains("streamlit", StringComparison.OrdinalIgnoreCase))
+            return ($"-m streamlit run {entry}", 8501);
+
+        if (dependencies.Contains("gradio", StringComparison.OrdinalIgnoreCase)) return (entry, 7860);
+        if (dependencies.Contains("uvicorn", StringComparison.OrdinalIgnoreCase)
+            || dependencies.Contains("fastapi", StringComparison.OrdinalIgnoreCase)) return (entry, 8000);
+        if (dependencies.Contains("flask", StringComparison.OrdinalIgnoreCase)) return (entry, 5000);
+        if (dependencies.Contains("django", StringComparison.OrdinalIgnoreCase)) return (entry, 8000);
+
+        return (entry, null);
+    }
+
+    /// <summary>
+    /// A Procfile says what each process is, which is more than a file name ever does. Heroku hands
+    /// the process a <c>$PORT</c>; locally nobody does, so it is pinned to one QuickRun can wait on.
+    /// </summary>
+    private static Candidate? Procfile(string dir, string relative)
+    {
+        const int port = 8080;
+
+        var text = Read(Path.Combine(dir, "Procfile"));
+        if (text is null) return null;
+
+        var commands = Regex.Matches(text, @"^(?<name>[A-Za-z0-9_-]+):[ \t]*(?<command>\S.*)$", RegexOptions.Multiline)
+            .Where(m => !m.Groups["name"].Value.Equals("release", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(m => m.Groups["name"].Value.Equals("web", StringComparison.OrdinalIgnoreCase))
+            .Select(m => Regex.Replace(m.Groups["command"].Value.Trim(), @"\$\{?PORT\}?", port.ToString()))
+            .ToList();
+
+        if (commands.Count == 0) return null;
+
+        var web = commands[0].Contains(port.ToString(), StringComparison.Ordinal);
+        return new("procfile", Label(commands[0], relative), relative,
+            Array.Empty<string>(), commands, 74, web ? port : null);
+    }
+
+    /// <summary>Replit's own "run" line, which is the repository owner saying how to start it.</summary>
+    private static Candidate? Replit(string dir, string relative)
+    {
+        var text = Read(Path.Combine(dir, ".replit"));
+        if (text is null) return null;
+
+        var match = Regex.Match(text, @"^\s*run\s*=\s*""(?<command>[^""]+)""", RegexOptions.Multiline);
+        if (!match.Success) return null;
+
+        var command = match.Groups["command"].Value.Trim();
+        return new("replit", Label(command, relative), relative,
+            Array.Empty<string>(), new[] { command }, 72, DeclaredPort(command));
+    }
+
+    private static Candidate? Taskfile(string dir, string relative) =>
+        Runner(dir, relative, new[] { "Taskfile.yml", "Taskfile.yaml", "Taskfile.dist.yml" },
+            "task", @"^\s{2,4}(?<target>dev|run|start|serve):", 66);
+
+    private static Candidate? Just(string dir, string relative) =>
+        Runner(dir, relative, new[] { "justfile", "Justfile", ".justfile" },
+            "just", @"^(?<target>dev|run|start|serve)(\s+[^:]*)?:", 64);
+
+    /// <summary>A task runner's file, and the first of its usual targets that exists.</summary>
+    private static Candidate? Runner(
+        string dir, string relative, IEnumerable<string> names, string tool, string pattern, int confidence)
+    {
+        var text = names.Select(n => Read(Path.Combine(dir, n))).FirstOrDefault(t => t is not null);
+        if (text is null) return null;
+
+        var match = Regex.Match(text, pattern, RegexOptions.Multiline);
+        if (!match.Success) return null;
+
+        var command = $"{tool} {match.Groups["target"].Value}";
+        return new(tool, Label(command, relative), relative, Array.Empty<string>(), new[] { command }, confidence);
     }
 
     private static Candidate? Make(string dir, string relative)
@@ -221,12 +400,13 @@ public static class Detector
     private static Candidate? Gradle(string dir, string relative) =>
         File.Exists(Path.Combine(dir, "build.gradle")) || File.Exists(Path.Combine(dir, "build.gradle.kts"))
             ? new("gradle", Label("./gradlew bootRun", relative), relative,
-                Array.Empty<string>(), new[] { "./gradlew bootRun" }, 55)
+                Array.Empty<string>(), new[] { "./gradlew bootRun" }, 55, 8080)
             : null;
 
-    private static Candidate? Simple(string dir, string relative, string marker, string kind, string command, int confidence) =>
+    private static Candidate? Simple(
+        string dir, string relative, string marker, string kind, string command, int confidence, int? port = null) =>
         File.Exists(Path.Combine(dir, marker))
-            ? new(kind, Label(command, relative), relative, Array.Empty<string>(), new[] { command }, confidence)
+            ? new(kind, Label(command, relative), relative, Array.Empty<string>(), new[] { command }, confidence, port)
             : null;
 
     // ---- helpers ------------------------------------------------------------
@@ -251,6 +431,14 @@ public static class Detector
                 if (!SkipDirs.Contains(Path.GetFileName(child)))
                     queue.Enqueue((child, depth + 1));
         }
+    }
+
+    /// <summary>A file's text, or null when it is missing or unreadable - a detector never throws.</summary>
+    private static string? Read(string path)
+    {
+        try { return File.Exists(path) ? File.ReadAllText(path) : null; }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
     }
 
     private static IEnumerable<string> SafeFiles(string dir, string pattern)

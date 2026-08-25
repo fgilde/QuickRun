@@ -65,7 +65,36 @@ public sealed class DashboardWindow : Window
 
     // ---- layout -------------------------------------------------------------
 
+    /// <summary>
+    /// One interface where the system can render it: the window shows the page served on 127.0.0.1,
+    /// which is where features are built, rather than a second implementation of it. Without a
+    /// system WebView - Linux without WebKitGTK, a macOS build, an opt-out, a WebView that fails to
+    /// start - the native view appears instead, with the same data from the same registry.
+    /// </summary>
     private Control BuildLayout()
+    {
+        var shell = new ContentControl();
+
+        var browser = EmbeddedBrowser.TryCreate(_listenerUrl, reason =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                Output.Warn($"the embedded browser could not start ({reason}) - using the native view");
+                shell.Content = NativeLayout();
+            }));
+
+        shell.Content = browser is null ? NativeLayout() : browser;
+
+        return new DockPanel
+        {
+            Children =
+            {
+                Header().With(d => DockPanel.SetDock(d, Dock.Top)),
+                shell,
+            },
+        };
+    }
+
+    private Control NativeLayout()
     {
         var tabs = new TabControl
         {
@@ -80,14 +109,7 @@ public sealed class DashboardWindow : Window
             },
         };
 
-        return new DockPanel
-        {
-            Children =
-            {
-                Header().With(d => DockPanel.SetDock(d, Dock.Top)),
-                tabs,
-            },
-        };
+        return tabs;
     }
 
     private Control Header()

@@ -25,9 +25,10 @@ asks for whatever inputs the config declares, shows you the exact commands it is
 execute, and supervises the resulting processes until you stop them.
 
 Run the binary with no arguments — or double-click it — and QuickRun puts an icon in the tray and
-opens a desktop window: what is running with live progress, the workspaces on disk, and how the
-browser extension works. The same view is available in a browser at
-`http://127.0.0.1:9876` when you would rather have it there.
+opens a desktop window. On Windows that window shows the same page the listener serves, in the
+system's WebView, so there is one interface rather than two; where no system WebView exists it draws
+a native view of the same data. The page is also available in a browser at `http://127.0.0.1:9876`
+when you would rather have it there.
 
 Repositories with no config still work. A repository written for [Pinokio](https://pinokio.co)
 runs from its own `install.js` and `start.js` — including the Python virtual environments, the

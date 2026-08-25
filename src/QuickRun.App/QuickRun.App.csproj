@@ -8,6 +8,9 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Spectre.Console.Cli" />
+    <!-- The window hosts the local web UI where a system WebView exists. Managed wrappers only:
+         the native loader is a win-* runtime asset, so a Linux or macOS publish does not carry it. -->
+    <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
 
   <!-- Embedded rather than copied next to the binary: Blazor-style static web assets are published
@@ -42,6 +45,10 @@
          loose files next to the executable and the single-binary promise is gone. -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
+    <!-- The WebView2 package also carries WPF and WinForms wrappers, which reference a WindowsBase
+         this app never loads. Only the Core assembly is used, so the conflict is noise. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <!-- SkiaSharp and HarfBuzz ship 100 MB of native .pdb files. They arrive as native runtime

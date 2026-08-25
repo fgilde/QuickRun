@@ -11,13 +11,20 @@ quickrun
 ```
 
 QuickRun starts its listener on `127.0.0.1:9876`, puts an icon in the tray and opens its window.
-The window has five sections:
+
+On Windows the window shows the same page the listener serves, in the system's WebView - one
+interface rather than two, and the browser engine is the one Windows already ships. Elsewhere, and
+whenever no WebView is available or `QUICKRUN_NO_WEBVIEW` is set, the window draws its own native
+view of the same data.
+
+The window has these sections:
 
 - **Start a run** — a repository and a branch, without the browser extension. Type the repository
   and QuickRun lists its branches, putting the refs you have run before at the top and preselecting
   the one you would have picked. A pull request number, a token for a private repository and the
   config's inputs are behind *More*. Preparing shows the plan; nothing runs until you confirm it
 - **Runs** — what is running, with live progress and log output
+- **Config builder** — write, check and test a `quickrun.yml`, see [the config builder](/builder)
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
 - **Browser extension** — how the extension works
 - **About** — version, install source, update check

@@ -56,6 +56,9 @@
   <Target Name="StripPdbsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+      <!-- WebView2 ships XML documentation next to its assemblies, which would land beside the
+           binary and make a single-file publish three files. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.xml'" />
     </ItemGroup>
   </Target>
 

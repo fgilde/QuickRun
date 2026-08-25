@@ -32,18 +32,25 @@ public static class EmbeddedBrowser
         return WebView2Available();
     }
 
-    /// <summary>The control, or null when the machine cannot host one.</summary>
-    public static Control? TryCreate(string url, Action<string> onFailure)
+    /// <summary>
+    /// The control, or null when the machine cannot host one.
+    /// </summary>
+    /// <param name="background">
+    /// What the engine paints before the page has painted. Left at its default this is white, which
+    /// is a white flash on every resize of a dark window - the one thing that makes a hosted page
+    /// look like a web page rather than a program.
+    /// </param>
+    public static Control? TryCreate(string url, Action<string> onFailure, uint background)
     {
         if (!Available()) return null;
 
-        return OperatingSystem.IsWindows() ? Windows(url, onFailure) : null;
+        return OperatingSystem.IsWindows() ? Windows(url, onFailure, background) : null;
     }
 
     [SupportedOSPlatform("windows")]
-    private static Control? Windows(string url, Action<string> onFailure)
+    private static Control? Windows(string url, Action<string> onFailure, uint background)
     {
-        try { return new WebView2Host(url, onFailure); }
+        try { return new WebView2Host(url, onFailure, background); }
         catch (Exception e) when (e is DllNotFoundException or TypeInitializationException
                                      or PlatformNotSupportedException)
         {
@@ -82,15 +89,17 @@ internal sealed class WebView2Host : NativeControlHost
 {
     private readonly string _url;
     private readonly Action<string> _onFailure;
+    private readonly uint _background;
 
     private CoreWebView2Controller? _controller;
     private Window? _window;
     private nint _child;
 
-    public WebView2Host(string url, Action<string> onFailure)
+    public WebView2Host(string url, Action<string> onFailure, uint background)
     {
         _url = url;
         _onFailure = onFailure;
+        _background = background;
 
         // The control's size in device pixels is what WebView2 wants, and Avalonia reports it in
         // layout units - so the client rectangle of the child window is the honest source.
@@ -183,6 +192,10 @@ internal sealed class WebView2Host : NativeControlHost
                 }
 
                 _controller = controller;
+
+                // The colour behind the page, so growing the window shows the page's own
+                // background rather than a white band that catches up a frame later.
+                controller.DefaultBackgroundColor = System.Drawing.Color.FromArgb((int)_background);
 
                 var settings = controller.CoreWebView2.Settings;
                 settings.AreDefaultContextMenusEnabled = true;

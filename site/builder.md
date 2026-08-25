@@ -30,7 +30,13 @@ for a repository you do not.
 
 4. **Test against the repository** — prepares a real run from the text in the editor. The config
    being written wins over the repository's own and over any override, so what you see is what you
-   are testing. The command list appears, and nothing runs until you confirm it.
+   are testing. The command list appears, the form appears when the config declares inputs, and
+   nothing runs until you confirm it.
+
+   Once you do, the run stays right there: progress, the per-task states with their addresses and
+   process ids, the log as it arrives, and **Stop**. Writing a config means starting the same thing
+   ten times in a row, and none of that should mean leaving the tab you are working in. **Remove**
+   takes a finished attempt off the list; the checkout stays, so the next attempt is seconds.
 
 5. **Save as my config** — keeps it for that repository. Or, for your own repository, copy the text
    into `quickrun.yml` in the repository root and commit it.

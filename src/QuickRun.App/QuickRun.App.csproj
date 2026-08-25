@@ -46,6 +46,9 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The taskbar, Explorer and Alt-Tab all read this: without it the window carries a generic
+         .NET icon, which is the first thing anyone sees of the program. -->
+    <ApplicationIcon>../../assets/quickrun.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- SkiaSharp and HarfBuzz ship 100 MB of native .pdb files. They arrive as native runtime

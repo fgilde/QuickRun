@@ -60,6 +60,9 @@ public sealed class DashboardWindow : Window
         Icon = LoadIcon();
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
+        // Opens where it was left, at the size it was left at.
+        WindowPlacement.Remember(this, store.Root);
+
         Content = BuildLayout();
 
         _timer = new DispatcherTimer { Interval = RefreshInterval };
@@ -99,7 +102,7 @@ public sealed class DashboardWindow : Window
                 shell.Content = NativeLayout();
                 _timer.Start();
                 Refresh();
-            }));
+            }), PageBackground());
 
         // The page has its own header with the same logo and version in it. Two of them, one above
         // the other, is what made the window look wrong.
@@ -115,6 +118,20 @@ public sealed class DashboardWindow : Window
                 shell,
             },
         };
+    }
+
+    /// <summary>
+    /// The page's own background colour, which the window and the engine both paint. The page picks
+    /// its colours from the system theme, so this has to follow the same choice or a resize shows a
+    /// band of the wrong one.
+    /// </summary>
+    private uint PageBackground()
+    {
+        var dark = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark;
+        var colour = dark ? Color.FromRgb(0x0d, 0x11, 0x17) : Color.FromRgb(0xff, 0xff, 0xff);
+
+        Background = new SolidColorBrush(colour);
+        return colour.ToUInt32();
     }
 
     /// <summary>Reads the disk when the workspaces are looked at, not every two seconds.</summary>
@@ -135,6 +152,7 @@ public sealed class DashboardWindow : Window
                 Tab("Runs", Scroll(_runList)),
                 Tab("Workspaces", Scroll(WorkspacesPage())),
                 Tab("Browser extension", Scroll(ExtensionPage())),
+                Tab("Settings", Scroll(SettingsPage())),
                 Tab("About", Scroll(AboutPage())),
             },
         };
@@ -443,6 +461,113 @@ public sealed class DashboardWindow : Window
 
             _workspaceList.Children.Add(Card(row));
         }
+    }
+
+    /// <summary>The port the listener is on, which the autostart entry has to name.</summary>
+    private int Port()
+    {
+        try { return new Uri(_listenerUrl).Port; }
+        catch (UriFormatException) { return DaemonHost.DefaultPort; }
+    }
+
+    /// <summary>
+    /// The two things that make QuickRun an installed program rather than a downloaded file: coming
+    /// back after a reboot, and being a command in a terminal. The same switches the page has, so
+    /// they are reachable on a system with no WebView as well - which is every Linux and macOS one.
+    /// </summary>
+    private Control SettingsPage()
+    {
+        var rows = Rows();
+
+        var autostartDetail = Muted("");
+        var autostart = new CheckBox { Content = "Start QuickRun when I sign in" };
+
+        var pathDetail = Muted("");
+        var path = new CheckBox { Content = "Make quickrun work in a terminal" };
+
+        // Show() sets the boxes, which raises the same event a click does - so a flag says which of
+        // the two is happening.
+        var showing = false;
+
+        void Show()
+        {
+            showing = true;
+
+            var state = SystemIntegration.Autostart();
+            autostart.IsChecked = state.Enabled;
+            autostartDetail.Text = state.Stale
+                ? $"{state.Detail} - but it points at a different executable"
+                : state.Detail;
+
+            var terminal = SystemIntegration.PathState();
+            path.IsChecked = terminal.Available;
+            pathDetail.Text = terminal.Detail;
+
+            showing = false;
+        }
+
+        void Apply(Func<bool, IntegrationStep> change, CheckBox box, TextBlock detail)
+        {
+            var step = change(box.IsChecked == true);
+            if (!step.Ok) detail.Text = $"{step.What} failed: {step.Detail}";
+            Show();
+        }
+
+        autostart.IsCheckedChanged += (_, _) =>
+        {
+            if (showing) return;
+            Apply(on => SystemIntegration.SetAutostart(on, Environment.ProcessPath ?? "", Port()),
+                autostart, autostartDetail);
+        };
+
+        path.IsCheckedChanged += (_, _) =>
+        {
+            if (showing) return;
+            Apply(on => SystemIntegration.SetPath(on, Environment.ProcessPath ?? ""),
+                path, pathDetail);
+        };
+
+        Show();
+
+        rows.Children.Add(Card(new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                autostart,
+                Muted("A per-user entry - no administrator rights, nothing system-wide."),
+                autostartDetail,
+            },
+        }));
+
+        rows.Children.Add(Card(new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                path,
+                Muted(OSKinds.Current == OSKind.Windows
+                    ? "Adds this program's directory to your own PATH. Open a new terminal afterwards."
+                    : "Links quickrun into a bin directory that is already on the PATH."),
+                pathDetail,
+            },
+        }));
+
+        rows.Children.Add(Card(new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                Heading("From a terminal"),
+                Mono("quickrun run owner/repo\nquickrun validate\nquickrun detect . --save\n"
+                     + "quickrun ls\nquickrun clean --older-than 30d\nquickrun --help"),
+                Link("https://fgilde.github.io/QuickRun/cli",
+                    () => Open("https://fgilde.github.io/QuickRun/cli")),
+                Mono($"running from {Environment.ProcessPath}"),
+            },
+        }));
+
+        return rows;
     }
 
     private void RemoveAllWorkspaces()

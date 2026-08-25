@@ -39,6 +39,9 @@ public sealed record ConfigOverrideRequest(string? Repo, string? Text, string? A
 /// <summary>What the local UI asks for to fill its branch picker.</summary>
 public sealed record BranchRequest(string? Repo, string? Token);
 
+/// <summary>Turning one of the two system settings on or off.</summary>
+public sealed record SettingRequest(bool Enabled);
+
 /// <summary>
 /// A run started from the local UI. Unlike the extension's request this one may carry a token: the
 /// page asking is QuickRun's own, and a private repository has to come from somewhere.
@@ -336,6 +339,57 @@ public static class DaemonHost
                 detail = step.Detail,
                 status.Registered,
                 status.Stale,
+            }, Json);
+        });
+
+        // The two settings that decide how QuickRun feels like an installed program rather than a
+        // downloaded file: whether it comes back after a reboot, and whether `quickrun` works in a
+        // terminal. Both are per-user and need no administrator.
+        app.MapGet("/api/dashboard/settings", (HttpContext context, Dashboard dashboard) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var autostart = SystemIntegration.Autostart();
+            var path = SystemIntegration.PathState();
+
+            return Results.Json(new
+            {
+                executable = Environment.ProcessPath,
+                platform = OSKinds.Current.Key(),
+                autostart = new { autostart.Enabled, autostart.Detail, autostart.Stale },
+                path = new { path.Available, path.Detail, path.Directory },
+            }, Json);
+        });
+
+        app.MapPost("/api/dashboard/settings/{setting}", (string setting, SettingRequest request,
+            HttpContext context, Dashboard dashboard, ListenerPort port) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var executable = Environment.ProcessPath;
+            if (executable is null)
+                return Results.Json(new { error = "cannot determine the running executable" },
+                    Json, statusCode: StatusCodes.Status500InternalServerError);
+
+            var step = setting switch
+            {
+                "autostart" => SystemIntegration.SetAutostart(request.Enabled, executable, port.Value),
+                "path" => SystemIntegration.SetPath(request.Enabled, executable),
+                _ => null,
+            };
+
+            if (step is null) return Results.NotFound();
+
+            var autostart = SystemIntegration.Autostart();
+            var path = SystemIntegration.PathState();
+
+            return Results.Json(new
+            {
+                ok = step.Ok,
+                what = step.What,
+                detail = step.Detail,
+                autostart = new { autostart.Enabled, autostart.Detail, autostart.Stale },
+                path = new { path.Available, path.Detail, path.Directory },
             }, Json);
         });
 

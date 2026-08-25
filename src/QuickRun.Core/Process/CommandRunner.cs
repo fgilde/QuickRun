@@ -70,6 +70,11 @@ public static class CommandRunner
 
         using (process)
         {
+            // Everything this command starts, killable as a unit: a stop that only kills the tree
+            // leaves behind whatever was re-parented on the way, which is how a stopped run kept
+            // answering on its port.
+            using var group = ProcessGroup.Adopt(process);
+
             onStarted?.Invoke(process.Id);
 
             // Waiting on the process itself, not on its pipes. WaitForExitAsync also waits for the
@@ -86,7 +91,13 @@ public static class CommandRunner
                 PumpAsync(process.StandardOutput, line => onLine(line, false)),
                 PumpAsync(process.StandardError, line => onLine(line, true)));
 
-            await using var registration = ct.Register(() => Kill(process));
+            // Said out loud, because "stop did not stop" is otherwise unfalsifiable from a log.
+            await using var registration = ct.Register(() =>
+            {
+                onLine($"stopping - killing pid {process.Id} and everything it started"
+                       + (group.Grouped ? "" : " (tree only: no job object)"), false);
+                group.Terminate();
+            });
             await finished.Task;
 
             // The last lines are still in flight, so the output gets a moment to arrive - but only

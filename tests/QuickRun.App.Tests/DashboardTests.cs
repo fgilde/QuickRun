@@ -167,4 +167,43 @@ public class DashboardTests
         Assert.Contains("/forget`", html);
         Assert.Contains("Remove", html);
     }
+
+    /// <summary>
+    /// The settings a program is expected to have: coming back after a reboot, being a command in a
+    /// terminal, and saying what that command can do.
+    /// </summary>
+    [Fact]
+    public void The_page_offers_the_system_settings_and_the_cli()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("data-tab=\"settings\"", html);
+        Assert.Contains("autostartToggle", html);
+        Assert.Contains("pathToggle", html);
+        Assert.Contains("/api/dashboard/settings", html);
+        Assert.Contains("quickrun run acme/app", html);
+    }
+
+    /// <summary>
+    /// A Stop rendered while nothing was running yet stayed disabled for the rest of the run, which
+    /// made a run unstoppable from the page. The buttons follow the live task count as well.
+    /// </summary>
+    [Fact]
+    public void The_buttons_follow_whether_anything_is_still_running()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("${run.state}:${(run.liveTasks ?? 0) > 0}", html);
+        Assert.Contains("seen.actions", html);
+    }
+
+    /// <summary>A test run in the config builder is watched and stopped where it was started.</summary>
+    [Fact]
+    public void A_builder_test_run_stays_in_the_builder()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("function mountRun(", html);
+        Assert.Contains("mountRun(run.id, panel)", html);
+    }
 }

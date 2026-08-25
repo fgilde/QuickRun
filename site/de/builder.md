@@ -32,7 +32,13 @@ fremdes Repository eine eigene Config behalten.
 
 4. **Test against the repository** — bereitet einen echten Lauf aus dem Editor-Text vor. Die Config
    in Arbeit gewinnt gegen die des Repositories und gegen jede Override-Config, du testest also
-   genau das, was du siehst. Die Befehlsliste erscheint, und es läuft nichts ohne Bestätigung.
+   genau das, was du siehst. Die Befehlsliste erscheint, bei deklarierten Inputs auch das Formular,
+   und es läuft nichts ohne Bestätigung.
+
+   Nach der Bestätigung bleibt der Lauf genau dort: Fortschritt, die Task-Zustände mit Adresse und
+   Prozess-ID, das Log im Zulauf und **Stop**. Eine Config zu schreiben heißt, dasselbe zehnmal
+   hintereinander zu starten — und dafür soll man den Tab nicht verlassen müssen. **Remove** nimmt
+   einen beendeten Versuch aus der Liste; der Checkout bleibt, der nächste Versuch dauert Sekunden.
 
 5. **Save as my config** — behält sie für dieses Repository. Oder, beim eigenen Repository: den Text
    als `quickrun.yml` in die Repository-Wurzel legen und committen.

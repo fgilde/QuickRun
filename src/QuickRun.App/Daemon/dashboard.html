@@ -137,6 +137,7 @@ ol.plan .phase {
   <button data-tab="builder" aria-selected="false">Config builder</button>
   <button data-tab="workspaces" aria-selected="false">Workspaces</button>
   <button data-tab="extension" aria-selected="false">Browser extension</button>
+  <button data-tab="settings" aria-selected="false">Settings</button>
   <button data-tab="about" aria-selected="false">About</button>
 </nav>
 
@@ -267,6 +268,64 @@ ol.plan .phase {
     <div id="workspaceList"></div>
   </section>
 
+  <section id="settings" hidden>
+    <h2>Settings</h2>
+
+    <div class="card">
+      <div class="row">
+        <label class="grow" for="autostartToggle">Start QuickRun when I sign in</label>
+        <span id="autostartState" class="pill">checking…</span>
+        <input type="checkbox" id="autostartToggle">
+      </div>
+      <p class="muted" style="margin:10px 0 0">
+        QuickRun has to be running for the browser button to reach it. This is a per-user entry -
+        no administrator rights, and nothing is installed system-wide.
+      </p>
+      <p id="autostartDetail" class="muted mono" style="margin:0"></p>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label class="grow" for="pathToggle">Make <span class="mono">quickrun</span> work in a terminal</label>
+        <span id="pathState" class="pill">checking…</span>
+        <input type="checkbox" id="pathToggle">
+      </div>
+      <p class="muted" style="margin:10px 0 0" id="pathHow"></p>
+      <p id="pathDetail" class="muted mono" style="margin:0"></p>
+    </div>
+
+    <div class="card">
+      <h2>From a terminal</h2>
+      <p class="muted">
+        Everything the window does, the command line does too - and a few things it does not.
+      </p>
+      <pre id="cliHelp">quickrun                       the tray icon and this window
+quickrun --browser             open this page in your browser instead
+quickrun --no-tray             no tray icon; the browser is the UI
+
+quickrun run acme/app          clone, check the tools, run it
+quickrun run acme/app --ref feature/login
+quickrun run acme/app --pr 42
+quickrun run acme/app --input apiKey=sk-1 --input port=3000
+
+quickrun validate              check a quickrun.yml
+quickrun detect                what it would run without a config
+quickrun detect . --save       write that as a quickrun.yml
+
+quickrun ls                    the workspaces on disk
+quickrun clean --older-than 30d
+
+quickrun install               autostart and the quickrun:// handler
+quickrun update                update in place
+quickrun --help                every command and flag</pre>
+      <p class="muted" style="margin:10px 0 0">
+        The full reference is in
+        <a href="https://fgilde.github.io/QuickRun/cli" target="_blank" rel="noreferrer">the CLI documentation</a>.
+      </p>
+      <p class="muted mono" style="margin:0" id="exePath"></p>
+    </div>
+  </section>
+
   <section id="extension" hidden>
     <h2>Browser extension</h2>
     <div class="card">
@@ -363,6 +422,7 @@ async function api(path, options = {}) {
 document.querySelectorAll('nav button').forEach((tab) => {
   tab.addEventListener('click', () => {
     if (tab.dataset.tab === 'workspaces') loadWorkspaces();
+    if (tab.dataset.tab === 'settings') loadSettings();
     document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
     document.querySelectorAll('main section').forEach((s) => { s.hidden = s.id !== tab.dataset.tab; });
     history.replaceState(null, '', `#${tab.dataset.tab}`);
@@ -675,8 +735,18 @@ function renderPlan(run, panel = starter.plan) {
 
     primary.disabled = true;
     await api(`/api/dashboard/runs/${run.id}/confirm`, { method: 'POST' });
-    panel.hidden = true;
-    say('started');
+
+    // In the builder the run has to stay in sight: that tab is where a config is tried out, over
+    // and over, and the whole point is watching what it does and stopping it again.
+    if (panel === builder.plan) {
+      panel.textContent = '';
+      mountRun(run.id, panel);
+      builderSay('running - the log and Stop are below');
+    } else {
+      panel.hidden = true;
+      say('started');
+    }
+
     refresh();
   });
 
@@ -809,6 +879,25 @@ function renderRuns(runs) {
   runs.filter((run) => run.state === 'running' || run.state === 'stopping').forEach(follow);
 }
 
+/**
+ * Puts a run's card into <paramref>host</paramref> - used by the config builder, which starts test
+ * runs and needs to watch and stop them without leaving the tab it is working in.
+ *
+ * The card is the same object the run list uses, so the state poll and the event stream keep it up
+ * to date wherever it hangs.
+ */
+function mountRun(id, host) {
+  let entry = cards.get(id);
+
+  if (!entry) {
+    entry = buildCard({ id });
+    cards.set(id, entry);
+  }
+
+  host.append(entry.root);
+  return entry;
+}
+
 /** The parts of a card that never change, built once. */
 function buildCard(run) {
   const root = document.createElement('div');
@@ -876,11 +965,15 @@ function updateCard(entry, run) {
     seen.description = run.description;
   }
 
-  if (seen.state !== run.state) {
+  // Both the state and whether anything is still alive decide what the buttons are: right after a
+  // run starts nothing is running yet, and a Stop rendered once at that moment stayed disabled for
+  // the rest of the run.
+  const actionable = `${run.state}:${(run.liveTasks ?? 0) > 0}`;
+  if (seen.actions !== actionable) {
     const [label, kind] = RUN_STATES[run.state] ?? [run.state, ''];
     entry.state.innerHTML = pill(label, kind);
     renderActions(entry, run);
-    seen.state = run.state;
+    seen.actions = actionable;
   }
 
   const percent = run.progress?.percent ?? (run.state === 'succeeded' ? 100 : 0);
@@ -1056,6 +1149,69 @@ function flushLog(entry) {
   entry.log.hidden = false;
   if (atBottom) entry.log.scrollTop = entry.log.scrollHeight;
 }
+
+/* ---- settings ----------------------------------------------------------------------------- */
+
+const settings = {
+  autostart: document.getElementById('autostartToggle'),
+  autostartState: document.getElementById('autostartState'),
+  autostartDetail: document.getElementById('autostartDetail'),
+  path: document.getElementById('pathToggle'),
+  pathState: document.getElementById('pathState'),
+  pathDetail: document.getElementById('pathDetail'),
+  pathHow: document.getElementById('pathHow'),
+  exe: document.getElementById('exePath'),
+};
+
+/** Reads the two system settings when that tab is opened. */
+async function loadSettings() {
+  const state = await api('/api/dashboard/settings').catch(() => null);
+  if (state) renderSettings(state);
+}
+
+function renderSettings(state) {
+  settings.autostart.checked = state.autostart.enabled;
+  settings.autostartState.textContent = state.autostart.stale
+    ? 'points elsewhere'
+    : state.autostart.enabled ? 'on' : 'off';
+  settings.autostartState.className = `pill ${state.autostart.stale ? 'warn' : state.autostart.enabled ? 'ok' : ''}`;
+  settings.autostartDetail.textContent = state.autostart.detail ?? '';
+
+  settings.path.checked = state.path.available;
+  settings.pathState.textContent = state.path.available ? 'on' : 'off';
+  settings.pathState.className = `pill ${state.path.available ? 'ok' : ''}`;
+  settings.pathDetail.textContent = state.path.detail ?? '';
+
+  settings.pathHow.textContent = state.platform === 'windows'
+    ? `This adds ${state.path.directory} to your own PATH. A terminal that is already open keeps the environment it started with, so open a new one.`
+    : `This links quickrun into ${state.path.directory}, which is on the PATH of a normal shell. No profile file is edited.`;
+
+  if (state.executable) settings.exe.textContent = `running from ${state.executable}`;
+}
+
+async function setSetting(name, enabled, toggle) {
+  toggle.disabled = true;
+
+  try {
+    const result = await api(`/api/dashboard/settings/${name}`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    });
+
+    if (!result.ok) say(`${result.what} failed: ${result.detail}`);
+  } catch (failure) {
+    say(failure.message);
+  } finally {
+    toggle.disabled = false;
+    loadSettings();
+  }
+}
+
+settings.autostart.addEventListener('change', (event) =>
+  setSetting('autostart', event.currentTarget.checked, settings.autostart));
+
+settings.path.addEventListener('change', (event) =>
+  setSetting('path', event.currentTarget.checked, settings.path));
 
 /** Reads the workspaces when that tab is opened, not on every poll. */
 async function loadWorkspaces() {
@@ -1484,7 +1640,8 @@ async function testConfig() {
     });
 
     renderPlan(run, builder.plan);
-    builderSay('this run would use the config in the editor, not the repository’s');
+    builderSay('this run would use the config in the editor, not the repository’s'
+               + ' - press Run to try it, and Stop when you have seen enough');
   } catch (failure) {
     builderSay(failure.message);
   } finally {

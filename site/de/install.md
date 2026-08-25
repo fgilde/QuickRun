@@ -35,8 +35,14 @@ Das Fenster hat diese Bereiche:
   gestartet hat, nicht nur das, was noch eine ununterbrochene Linie zurück hat: `dotnet run` startet
   die Anwendung, der Prozess dazwischen ist oft schon weg, und so eine Anwendung hat ein Stop früher
   überlebt und weiter auf ihrem Port geantwortet. Der Run verlässt diesen Zustand
-  immer. Ein beendeter Run lässt sich mit **Remove** aus der Liste nehmen; das löscht nichts, der
-  Checkout bleibt unter Workspaces
+  immer.
+
+  Ein beendeter Run kann weiterhin Prozesse besitzen: ein Task, der einen Server im Hintergrund
+  startet und sich beendet, ist als Task fertig — der Server läuft weiter. So ein Run zeigt *still
+  running* und behält ein **Stop**, das diese Prozesse beendet; genau dieser Fall war es, in dem
+  „stopped" gelogen hat. **Remove** nimmt einen beendeten Run aus der Liste und löscht nichts, der
+  Checkout bleibt unter Workspaces; solange noch Prozesse leben, wird es abgelehnt, weil der Eintrag
+  der letzte Griff an ihnen ist
 - **Config builder** — eine `quickrun.yml` schreiben, prüfen und testen, siehe [Config-Builder](/de/builder)
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
 - **Browser extension** — wie die Erweiterung funktioniert

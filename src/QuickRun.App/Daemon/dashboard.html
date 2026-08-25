@@ -917,6 +917,7 @@ function buildCard(run) {
       <span class="muted" style="min-width:3.2em;text-align:right" data-percent>0%</span>
     </div>
     <div class="row"><span class="muted grow" data-detail></span></div>
+    <div class="row" data-leftovers hidden></div>
     <div data-tasks></div>
     <div class="row" data-address hidden></div>
     <div class="row" data-workspace hidden></div>
@@ -933,6 +934,7 @@ function buildCard(run) {
     fill: root.querySelector('.bar > div'),
     percent: root.querySelector('[data-percent]'),
     detail: root.querySelector('[data-detail]'),
+    leftovers: root.querySelector('[data-leftovers]'),
     tasks: root.querySelector('[data-tasks]'),
     address: root.querySelector('[data-address]'),
     workspace: root.querySelector('[data-workspace]'),
@@ -965,10 +967,24 @@ function updateCard(entry, run) {
     seen.description = run.description;
   }
 
+  // A finished run can still own processes: a task that launches a server and exits leaves it
+  // running, and calling that "stopped" is how a run kept answering on its port after Stop.
+  const leftovers = run.leftovers ?? 0;
+  const stillRunning = TERMINAL_STATES.includes(run.state) && leftovers > 0;
+
+  if (seen.leftovers !== stillRunning) {
+    entry.leftovers.innerHTML = stillRunning
+      ? `<span class="pill warn">still running</span>
+         <span class="muted grow">this run left processes running - Stop ends them</span>`
+      : '';
+    entry.leftovers.hidden = !stillRunning;
+    seen.leftovers = stillRunning;
+  }
+
   // Both the state and whether anything is still alive decide what the buttons are: right after a
   // run starts nothing is running yet, and a Stop rendered once at that moment stayed disabled for
   // the rest of the run.
-  const actionable = `${run.state}:${(run.liveTasks ?? 0) > 0}`;
+  const actionable = `${run.state}:${(run.liveTasks ?? 0) > 0}:${stillRunning}`;
   if (seen.actions !== actionable) {
     const [label, kind] = RUN_STATES[run.state] ?? [run.state, ''];
     entry.state.innerHTML = pill(label, kind);
@@ -1067,6 +1083,25 @@ function renderActions(entry, run) {
   }
 
   if (!TERMINAL_STATES.includes(run.state)) return;
+
+  // Finished, but something it started is still alive: the only useful button is the one that ends
+  // it, and removing the run would drop the last handle on those processes.
+  if ((run.leftovers ?? 0) > 0) {
+    const kill = document.createElement('button');
+    kill.className = 'action danger';
+    kill.textContent = 'Stop';
+    kill.title = 'ends the processes this run left running';
+
+    kill.addEventListener('click', async () => {
+      kill.disabled = true;
+      kill.textContent = 'Stopping…';
+      await api(`/api/dashboard/runs/${run.id}/stop`, { method: 'POST' }).catch(() => null);
+      refresh();
+    });
+
+    entry.actions.append(kill);
+    return;
+  }
 
   const forget = document.createElement('button');
   forget.className = 'action';
@@ -1618,9 +1653,43 @@ async function loadSuggestion() {
   }
 }
 
+/**
+ * Ends the run whose card is in a panel, if it is still going.
+ *
+ * The builder replaces its panel on every test, and a run that was still running would have gone on
+ * running with nowhere left to see or stop it. Testing again means the last attempt is over.
+ */
+async function endMountedRun(panel) {
+  const id = panel.querySelector('[data-run]')?.dataset.run;
+  if (!id) return false;
+
+  const state = await api('/api/dashboard/state').catch(() => null);
+  const run = state?.runs?.find((candidate) => candidate.id === id);
+  if (!run) return false;
+
+  const busy = !TERMINAL_STATES.includes(run.state) || (run.leftovers ?? 0) > 0;
+  if (!busy) return false;
+
+  await api(`/api/dashboard/runs/${id}/stop`, { method: 'POST' }).catch(() => null);
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const now = await api('/api/dashboard/state').catch(() => null);
+    const current = now?.runs?.find((candidate) => candidate.id === id);
+    if (!current) return true;
+    if (TERMINAL_STATES.includes(current.state) && (current.leftovers ?? 0) === 0) return true;
+    await new Promise((done) => setTimeout(done, 500));
+  }
+
+  return true;
+}
+
 async function testConfig() {
   const repo = builder.repo.value.trim();
   if (!repo) { builderSay('a repository is needed'); return; }
+
+  builder.test.disabled = true;
+  if (await endMountedRun(builder.plan)) builderSay('stopped the previous test run');
+  builder.test.disabled = false;
 
   const checked = await checkConfig();
   if (checked && !checked.ok) return;

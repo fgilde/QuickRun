@@ -38,6 +38,10 @@ for a repository you do not.
    ten times in a row, and none of that should mean leaving the tab you are working in. **Remove**
    takes a finished attempt off the list; the checkout stays, so the next attempt is seconds.
 
+   Pressing **Test** again ends the previous test run first, including anything it left running in
+   the background. A test you have moved on from should not still be holding the port the next one
+   needs.
+
 5. **Save as my config** — keeps it for that repository. Or, for your own repository, copy the text
    into `quickrun.yml` in the repository root and commit it.
 

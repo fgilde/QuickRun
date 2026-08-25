@@ -4,6 +4,7 @@ using QuickRun.App.Commands;
 using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
+using QuickRun.Core.Process;
 using QuickRun.Core.Run;
 using QuickRun.Core.Workspace;
 
@@ -62,7 +63,13 @@ public sealed record RunSummary(
     /// </summary>
     IReadOnlyDictionary<string, string?>? Values = null,
     /// <summary>Every task of the run, in the order the config declares them.</summary>
-    IReadOnlyList<RunTaskStatus>? Tasks = null);
+    IReadOnlyList<RunTaskStatus>? Tasks = null,
+    /// <summary>
+    /// Processes of this run that are still alive - including ones a task left behind when it
+    /// exited. A finished run with leftovers is exactly the case where "stopped" was a lie, so it is
+    /// reported rather than assumed away, and stopping stays on offer.
+    /// </summary>
+    int Leftovers = 0);
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -90,9 +97,17 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         e.Summary.State is RunState.Running or RunState.Stopping
             or RunState.AwaitingConfirmation or RunState.AwaitingInput);
 
-    public IReadOnlyList<RunSummary> All() => _runs.Values.Select(e => e.Summary).ToList();
+    public IReadOnlyList<RunSummary> All() => _runs.Values.Select(Reported).ToList();
 
-    public RunSummary? Get(string id) => _runs.TryGetValue(id, out var entry) ? entry.Summary : null;
+    public RunSummary? Get(string id) => _runs.TryGetValue(id, out var entry) ? Reported(entry) : null;
+
+    /// <summary>
+    /// A run as the outside sees it: its own state plus how many of its processes are still alive.
+    /// Asked at read time, because a task that exited leaving a server behind changes nothing about
+    /// the run's state and everything about whether there is still something to stop.
+    /// </summary>
+    private static RunSummary Reported(Entry entry) =>
+        entry.Summary with { Leftovers = entry.Group.LiveCount() };
 
     /// <summary>Checks out and plans, without running anything.</summary>
     public async Task<(RunSummary? Summary, string? Error)> PrepareAsync(RunArgs args)
@@ -187,7 +202,15 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         if (entry.Summary.State is RunState.Running or RunState.Stopping
             or RunState.AwaitingConfirmation or RunState.AwaitingInput) return false;
 
-        return _runs.TryRemove(id, out _);
+        // A finished run whose processes are still alive keeps its place: taking it off the list
+        // would drop the only handle left on them.
+        if (entry.Group.LiveCount() > 0) return false;
+        if (!_runs.TryRemove(id, out var removed)) return false;
+
+        // Closed only here. While the run is on the list, what it started stays killable - which is
+        // the whole reason the group is kept.
+        removed.Group.Dispose();
+        return true;
     }
 
     /// <summary>
@@ -235,7 +258,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                 && e.Text.StartsWith("open ", StringComparison.Ordinal)
                 && opened.Add(e.Text))
                 openUrl(e.Text[5..].Trim());
-        });
+        }, entry.Group);
         var outcome = await runner.ExecuteAsync(config, options, entry.StopToken);
 
         // The stop commands are the repository's code, and a run has to reach a final state even
@@ -263,6 +286,13 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
     private sealed class Entry(string id)
     {
         private readonly CancellationTokenSource _stop = new();
+
+        /// <summary>
+        /// Every process this run started, for as long as the run is on the list. Not the runner's,
+        /// because it has to outlive the runner: a task that launches a server and exits leaves that
+        /// server running, and stopping afterwards has to be able to reach it.
+        /// </summary>
+        public ProcessGroup Group { get; } = ProcessGroup.Create();
         private int _live;
         private readonly List<RunEvent> _history = new();
         private readonly List<Channel<RunEvent>> _subscribers = new();
@@ -384,7 +414,9 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
         public bool RequestStop()
         {
-            if (_stop.IsCancellationRequested) return false;
+            // Already asked once. The run is winding down, but a task may have left something behind
+            // - and that is what a second Stop is for: killing what is still alive.
+            if (_stop.IsCancellationRequested) return KillLeftovers();
 
             lock (_gate)
                 if (Summary.State == RunState.Running)
@@ -392,6 +424,26 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
             Publish(new RunEvent(RunEventKind.Info, null, "stopping"));
             _stop.Cancel();
+
+            // The commands take themselves down through their own cancellation. This also takes down
+            // what they started and then stopped watching - a server launched in the background by a
+            // task that has already exited used to survive a stop and keep answering.
+            Group.Terminate();
+            return true;
+        }
+
+        /// <summary>
+        /// Kills what a finished run left running. A run whose tasks exited can still own processes,
+        /// and until they are gone "stopped" is not true.
+        /// </summary>
+        private bool KillLeftovers()
+        {
+            var alive = Group.LiveCount();
+            if (alive == 0) return false;
+
+            Publish(new RunEvent(RunEventKind.Info, null,
+                $"killing {alive} process(es) this run left running"));
+            Group.Terminate();
             return true;
         }
 

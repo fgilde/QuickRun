@@ -534,4 +534,50 @@ public class RunRegistryTests
         Assert.NotNull(task.Pid);
         Assert.True(task.Pid > 0);
     }
+
+    /// <summary>
+    /// The failure this exists for: a task launches something in the background and exits, so the
+    /// run reads as finished while the thing keeps running. Stop said stopped and killed nothing.
+    /// </summary>
+    [Fact]
+    public async Task A_finished_run_still_owning_processes_can_be_stopped()
+    {
+        // The group behind this is a Windows job object; elsewhere a run has no handle on what a
+        // finished task left behind, so there is nothing here to assert.
+        if (!OperatingSystem.IsWindows()) return;
+
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        repo.Write("linger.cmd", """
+            @echo off
+            start "" /b powershell -NoProfile -Command "Start-Sleep -Seconds 120"
+            echo launched
+            """);
+        repo.Write("quickrun.yml", "tasks:\n  - name: app\n    run: .\\linger.cmd\n");
+        repo.Commit("a task that leaves something running");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.True(registry.Confirm(summary!.Id));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        while (registry.Get(summary.Id)!.State == RunState.Running && !cts.IsCancellationRequested)
+            await Task.Delay(100, cts.Token);
+
+        // Finished, and still running: both true at once, and both reported.
+        Assert.Equal(RunState.Succeeded, registry.Get(summary.Id)!.State);
+        Assert.True(registry.Get(summary.Id)!.Leftovers > 0, "nothing was left running to stop");
+
+        // Removing it would drop the only handle left on those processes.
+        Assert.False(registry.Forget(summary.Id));
+
+        Assert.True(registry.Stop(summary.Id));
+
+        while (registry.Get(summary.Id)!.Leftovers > 0 && !cts.IsCancellationRequested)
+            await Task.Delay(100, cts.Token);
+
+        Assert.Equal(0, registry.Get(summary.Id)!.Leftovers);
+        Assert.True(registry.Forget(summary.Id));
+    }
 }

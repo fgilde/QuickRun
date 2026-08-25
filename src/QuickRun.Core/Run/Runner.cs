@@ -44,7 +44,7 @@ public sealed record RunOptions(
 /// Every string handed to the caller passes through <see cref="Emit"/>, which redacts secrets -
 /// that is the one invariant this class must not let anything bypass.
 /// </summary>
-public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
+public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null) : IAsyncDisposable
 {
     private const int MaxRestarts = 3;
 
@@ -55,6 +55,12 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
 
     /// <summary>The process each task is currently running as, for the window probe and the log.</summary>
     private readonly ConcurrentDictionary<string, int> _pids = new();
+
+    /// <summary>
+    /// Everything this run starts. Given from outside so it can outlive the run: a task that
+    /// launches a server and exits leaves it running, and stopping has to reach it afterwards.
+    /// </summary>
+    private readonly ProcessGroup? _group = group;
 
     private RunConfig? _config;
     private RunOptions? _options;
@@ -149,7 +155,8 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             EnvironmentFor(null, options));
 
         return await CommandRunner.StreamAsync(spec,
-            (line, isError) => Emit(isError ? RunEventKind.Error : RunEventKind.Output, phase, line), ct);
+            (line, isError) => Emit(isError ? RunEventKind.Error : RunEventKind.Output, phase, line),
+            ct, group: _group);
     }
 
     private async Task RunTaskAsync(TaskDef task, RunOptions options, CancellationToken ct)
@@ -192,7 +199,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             {
                 lock (log) log.AppendLine(line);
                 Emit(isError ? RunEventKind.Error : RunEventKind.Output, task.Name, line);
-            }, ct, raiseWindow);
+            }, ct, raiseWindow, _group);
 
             Emit(RunEventKind.TaskExited, task.Name, $"exited with code {code}");
             SettleTask(task.Name, $"{task.Name} exited with code {code}");

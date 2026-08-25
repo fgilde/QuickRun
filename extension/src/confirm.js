@@ -229,6 +229,14 @@ async function watchUntilDone() {
     const state = answer?.run?.state;
 
     if (state && TERMINAL.includes(state)) {
+      // A task that launches something in the background and exits leaves it running, so a run can
+      // read as finished with its processes still there. Stop again, and only then call it stopped.
+      if ((answer?.run?.leftovers ?? 0) > 0) {
+        append(`${answer.run.leftovers} process(es) are still running - ending them`, 'err');
+        await chrome.runtime.sendMessage({ type: 'stop', runId: run.id }).catch(() => null);
+        continue;
+      }
+
       conclude(state === 'succeeded' ? 'finished' : state === 'failed' ? 'failed' : 'cancelled');
       return;
     }

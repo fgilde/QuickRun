@@ -31,8 +31,13 @@ The window has these sections:
   is left. That means everything the command started, not only what still has an unbroken line back
   to it: `dotnet run` launches the application and the process in between is often already gone, and
   such an application used to survive being stopped and keep answering on its port. The run always
-  leaves that state. A finished run can be taken off the list with
-  **Remove**, which deletes nothing: the checkout stays in Workspaces
+  leaves that state.
+
+  A finished run can still own processes: a task that launches a server in the background and exits
+  is finished as a task, and the server is still there. Such a run reads *still running* and keeps a
+  **Stop** that ends those processes - that case is why "stopped" used to be a lie. **Remove** takes
+  a finished run off the list and deletes nothing, the checkout stays in Workspaces; it is refused
+  while processes are still alive, because the entry is the only handle left on them
 - **Config builder** — write, check and test a `quickrun.yml`, see [the config builder](/builder)
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
 - **Browser extension** — how the extension works

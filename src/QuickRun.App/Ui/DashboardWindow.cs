@@ -392,14 +392,19 @@ public sealed class DashboardWindow : Window
             if (run.State == RunState.Stopping)
                 card.Children.Add(Muted("stopping..."));
 
-            if (run.State == RunState.Running)
+            // A finished run can still own processes - a task that launches a server and exits
+            // leaves it running - and calling that stopped is how one kept answering after Stop.
+            if (run.Leftovers > 0 && run.State is not (RunState.Running or RunState.Stopping))
+                card.Children.Add(Muted($"still running: {run.Leftovers} process(es) this run left behind"));
+
+            if (run.State == RunState.Running || run.Leftovers > 0)
             {
                 var id = run.Id;
                 var stop = Button("Stop", () => { _runs.Stop(id); Refresh(); });
 
                 // Nothing left to stop: the run is winding down, and a button that does nothing is
                 // worse than one that is visibly unavailable.
-                stop.IsEnabled = run.LiveTasks > 0;
+                stop.IsEnabled = run.LiveTasks > 0 || run.Leftovers > 0;
                 card.Children.Add(stop);
             }
 

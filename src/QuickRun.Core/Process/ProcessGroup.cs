@@ -1,82 +1,128 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using SysProcess = System.Diagnostics.Process;
 
 namespace QuickRun.Core.Process;
 
 /// <summary>
-/// Everything one command started, killable as a unit.
+/// Everything a run started, killable as a unit and for as long as the run is remembered.
 /// <para>
-/// Killing a process tree is not enough. <c>dotnet run</c> builds, launches the application, and
-/// the shell in between is gone by the time anyone asks to stop: the application has been orphaned,
-/// its parent chain no longer leads back to the command, and it keeps serving. That is exactly what
-/// happened to a stopped run whose port stayed answering.
+/// Killing a process tree is not enough, and killing it only while the command is alive is not
+/// either. Two failures, both seen in the wild: an application whose intermediate process went away
+/// is orphaned, so the parent chain no longer leads to it; and a task that launches something in the
+/// background and exits leaves a server running under a command that has already finished. In both
+/// cases the run reported itself stopped while the thing kept answering on its port.
 /// </para>
 /// <para>
-/// On Windows the command is put into a job object, which every process it starts inherits and no
-/// re-parenting can escape, and the job is terminated as a whole. Elsewhere this falls back to
-/// killing the tree, which is what .NET offers.
+/// On Windows a job object holds every process the run starts. Processes inherit it, no re-parenting
+/// escapes it, it can be asked how many members are still alive, and terminating it kills them all -
+/// including what a finished task left behind. Elsewhere this falls back to killing the trees of the
+/// processes it was given, which is what .NET offers.
 /// </para>
 /// </summary>
 public sealed class ProcessGroup : IDisposable
 {
-    private readonly SysProcess _process;
     private readonly nint _job;
 
-    private ProcessGroup(SysProcess process, nint job)
-    {
-        _process = process;
-        _job = job;
-    }
+    /// <summary>
+    /// The processes handed to this group, by id. Ids rather than <c>Process</c> objects: the caller
+    /// owns and disposes those, and a disposed one can no longer be asked anything.
+    /// </summary>
+    private readonly ConcurrentBag<int> _members = new();
 
-    /// <summary>Whether the job could be created and the process put into it.</summary>
+    private ProcessGroup(nint job) => _job = job;
+
+    /// <summary>Whether a job object is behind this group, or only the tree fallback.</summary>
     public bool Grouped => _job != nint.Zero;
 
-    /// <summary>
-    /// Puts <paramref name="process"/> and everything it will start into one group. Called right
-    /// after the process starts: a child born before this point is not in the job.
-    /// </summary>
-    public static ProcessGroup Adopt(SysProcess process)
+    /// <summary>One group, for one run.</summary>
+    public static ProcessGroup Create()
     {
-        if (!OperatingSystem.IsWindows()) return new(process, nint.Zero);
+        if (!OperatingSystem.IsWindows()) return new(nint.Zero);
 
         try
         {
-            var job = CreateJobObject(nint.Zero, null);
-            if (job == nint.Zero) return new(process, nint.Zero);
-
-            // No kill-on-close: closing this handle when QuickRun exits must not take a running
-            // application with it. Stopping is something the user asks for, explicitly.
-            if (!AssignProcessToJobObject(job, process.Handle))
-            {
-                CloseHandle(job);
-                return new(process, nint.Zero);
-            }
-
-            return new(process, job);
+            // No kill-on-close: closing the handle when QuickRun exits must not take a running
+            // application with it. Stopping is something a user asks for, explicitly.
+            return new(CreateJobObject(nint.Zero, null));
         }
-        catch
+        catch (DllNotFoundException)
         {
-            // A process that exited between starting and being adopted, or a platform that refuses
-            // the job. Either way the tree kill below is still there.
-            return new(process, nint.Zero);
+            return new(nint.Zero);
         }
     }
 
-    /// <summary>Kills the group, and then the tree as well - whichever finds more.</summary>
+    /// <summary>
+    /// Puts a process, and everything it goes on to start, into the group. Called immediately after
+    /// the process starts: a child born before this point is not a member.
+    /// </summary>
+    public void Add(SysProcess process)
+    {
+        try { _members.Add(process.Id); }
+        catch (InvalidOperationException) { return; }
+
+        if (_job == nint.Zero) return;
+
+        try { AssignProcessToJobObject(_job, process.Handle); }
+        catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException
+                                     or EntryPointNotFoundException or DllNotFoundException)
+        {
+            // Exited between starting and being adopted, or no job to put it in. The tree fallback
+            // in Terminate still applies.
+        }
+    }
+
+    /// <summary>
+    /// How many processes of this run are still alive - including ones a finished task left behind,
+    /// which is what makes "it says stopped but it is still running" answerable rather than a claim.
+    /// </summary>
+    public int LiveCount()
+    {
+        if (_job == nint.Zero) return 0;
+
+        // JOBOBJECT_BASIC_PROCESS_ID_LIST is two counts followed by as many ids as fit, so the
+        // buffer sets the ceiling. A few hundred is far more than a run ever has.
+        const int capacity = 512;
+        var size = (sizeof(uint) * 2) + (nint.Size * capacity);
+        var buffer = Marshal.AllocHGlobal(size);
+
+        try
+        {
+            return QueryInformationJobObject(_job, JobObjectBasicProcessIdList, buffer, size, out _)
+                ? Marshal.ReadInt32(buffer, sizeof(uint))
+                : 0;
+        }
+        catch (Exception e) when (e is EntryPointNotFoundException or DllNotFoundException)
+        {
+            return 0;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    /// <summary>Kills the group, and the trees of what it was given - whichever finds more.</summary>
     public void Terminate()
     {
         if (_job != nint.Zero)
         {
-            try { TerminateJobObject(_job, 1); } catch { /* already gone */ }
+            try { TerminateJobObject(_job, 1); }
+            catch (Exception e) when (e is EntryPointNotFoundException or DllNotFoundException) { }
         }
 
-        try
+        foreach (var pid in _members)
         {
-            if (!_process.HasExited) _process.Kill(entireProcessTree: true);
-        }
-        catch
-        {
-            // The process exited between the check and the kill, or we lost the right to signal it.
+            try
+            {
+                using var process = SysProcess.GetProcessById(pid);
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+                // Already gone, its id reused, or we lost the right to signal it. The job above is
+                // the reliable half of this; the tree walk is the fallback where there is no job.
+            }
         }
     }
 
@@ -84,6 +130,8 @@ public sealed class ProcessGroup : IDisposable
     {
         if (_job != nint.Zero) CloseHandle(_job);
     }
+
+    private const int JobObjectBasicProcessIdList = 3;
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern nint CreateJobObject(nint attributes, string? name);
@@ -93,6 +141,10 @@ public sealed class ProcessGroup : IDisposable
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool TerminateJobObject(nint job, uint exitCode);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObject(nint job, int infoClass, nint info,
+        int length, out int returned);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(nint handle);

@@ -57,7 +57,8 @@ of five services came up.
 
 **Stop** stops the run and says so: the button turns to *Stopping…* with a spinner the moment it is
 clicked, the banner turns to *Stopped* when the processes are gone, and the window closes itself a
-moment later - you asked for it to stop, not for a window to tidy up. It is only clickable while
+moment later. "When the processes are gone" is meant literally: if the run left something running in
+the background, the window says how many and stops again rather than calling it stopped - you asked for it to stop, not for a window to tidy up. It is only clickable while
 something is actually running: a run whose processes have all exited has nothing left to stop.
 
 That window is an extension page, not part of the GitHub page, and that is on purpose: a web page

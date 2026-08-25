@@ -40,6 +40,10 @@ fremdes Repository eine eigene Config behalten.
    hintereinander zu starten — und dafür soll man den Tab nicht verlassen müssen. **Remove** nimmt
    einen beendeten Versuch aus der Liste; der Checkout bleibt, der nächste Versuch dauert Sekunden.
 
+   Ein weiterer Klick auf **Test** beendet zuerst den vorigen Testlauf — samt allem, was er im
+   Hintergrund laufen ließ. Ein Versuch, über den du hinweg bist, soll nicht den Port halten, den
+   der nächste braucht.
+
 5. **Save as my config** — behält sie für dieses Repository. Oder, beim eigenen Repository: den Text
    als `quickrun.yml` in die Repository-Wurzel legen und committen.
 

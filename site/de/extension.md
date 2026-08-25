@@ -57,7 +57,8 @@ darüber, welcher von fünf Diensten oben ist.
 
 **Stop** stoppt den Lauf und sagt es: der Button wechselt beim Klick sofort auf *Stopping…* mit
 Spinner, das Banner auf *Stopped*, sobald die Prozesse weg sind, und das Fenster schließt sich kurz
-danach selbst — du wolltest stoppen, nicht ein Fenster aufräumen. Klickbar ist es nur, solange
+danach selbst. „Sobald die Prozesse weg sind" ist wörtlich gemeint: hat der Lauf etwas im Hintergrund
+laufen lassen, sagt das Fenster wie viele und stoppt erneut, statt es stopped zu nennen — du wolltest stoppen, nicht ein Fenster aufräumen. Klickbar ist es nur, solange
 wirklich etwas läuft: ein Lauf, dessen Prozesse alle beendet sind, hat nichts mehr zu stoppen.
 
 Dieses Fenster ist eine Extension-Seite und nicht Teil der GitHub-Seite — und das mit Absicht: eine

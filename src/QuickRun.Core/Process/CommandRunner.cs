@@ -45,8 +45,13 @@ public static class CommandRunner
     /// The process id, as soon as there is one. A caller that wants to do something with the tree
     /// the command starts - raise its window, say - has no other way to find it.
     /// </param>
+    /// <param name="group">
+    /// The run's process group. Passing the run's own group is what lets a stop reach a server a
+    /// task launched in the background before exiting: the group outlives this command. Without one,
+    /// a group is made for this command alone.
+    /// </param>
     public static async Task<int> StreamAsync(ProcessSpec spec, Action<string, bool> onLine,
-        CancellationToken ct, Action<int>? onStarted = null)
+        CancellationToken ct, Action<int>? onStarted = null, ProcessGroup? group = null)
     {
         var (file, args) = ShellCommand.Resolve(spec.Command);
         var psi = Info(file, args, spec.Cwd, spec.Env);
@@ -73,7 +78,9 @@ public static class CommandRunner
             // Everything this command starts, killable as a unit: a stop that only kills the tree
             // leaves behind whatever was re-parented on the way, which is how a stopped run kept
             // answering on its port.
-            using var group = ProcessGroup.Adopt(process);
+            var owned = group is null ? ProcessGroup.Create() : null;
+            var members = group ?? owned!;
+            members.Add(process);
 
             onStarted?.Invoke(process.Id);
 
@@ -95,14 +102,18 @@ public static class CommandRunner
             await using var registration = ct.Register(() =>
             {
                 onLine($"stopping - killing pid {process.Id} and everything it started"
-                       + (group.Grouped ? "" : " (tree only: no job object)"), false);
-                group.Terminate();
+                       + (members.Grouped ? "" : " (tree only: no job object)"), false);
+                members.Terminate();
             });
             await finished.Task;
 
             // The last lines are still in flight, so the output gets a moment to arrive - but only
             // a moment, because whatever is still holding the pipe is not this process any more.
             await Task.WhenAny(reading, Task.Delay(OutputDrain, CancellationToken.None));
+
+            // A group made here belongs to this command only, so it goes when the command does. The
+            // run's own group is not disposed here: what the command left behind is still in it.
+            owned?.Dispose();
 
             return process.ExitCode;
         }

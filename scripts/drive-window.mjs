@@ -242,6 +242,44 @@ const PROBES = {
     return out;
   `,
 
+  // Testing again while the last test still runs: the previous run has to be ended, not lost.
+  builderTwice: `
+    tab('builder');
+    $('bRepo').value = REPO;
+    $('bLoad').click();
+    if (!await until(() => $('bSource').textContent.length > 0)) {
+      return { error: 'never loaded: ' + $('bState').textContent };
+    }
+
+    const panel = $('bPlan');
+    const start = async () => {
+      $('bTest').click();
+      if (!await until(() => panel.querySelector('[data-confirm]'))) return null;
+      panel.querySelector('[data-confirm]').click();
+      const card = await until(() => panel.querySelector('.card'));
+      return card?.dataset.run ?? null;
+    };
+
+    const first = await start();
+    if (!first) return { error: 'the first test never started: ' + $('bState').textContent };
+
+    // Wait until it is really running, then start another one without stopping it.
+    await until(() => [...panel.querySelectorAll('button')]
+      .some((button) => button.textContent === 'Stop' && !button.disabled), 60000);
+
+    const second = await start();
+    const out = { first, second, note: $('bState').textContent };
+
+    const state = await fetch('/api/dashboard/state', { headers: { 'X-QuickRun-Dashboard': TOKEN } })
+      .then((answer) => answer.json());
+    const before = state.runs.find((run) => run.id === first);
+
+    out.firstState = before?.state;
+    out.firstLeftovers = before?.leftovers;
+    out.cardsInTheBuilder = panel.querySelectorAll('.card').length;
+    return out;
+  `,
+
   // The settings tab reads the machine rather than showing placeholders.
   settings: `
     tab('settings');

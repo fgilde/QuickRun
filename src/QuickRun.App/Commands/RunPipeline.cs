@@ -92,7 +92,10 @@ public static class RunPipeline
             values = InputResolver.ApplyDefaults(config.Inputs, collectInputs(config.Inputs, values));
             errors = InputResolver.Validate(config.Inputs, values);
             if (errors.Count > 0)
-                return Failed(string.Join("\n", errors.Select(e => e.Message)));
+                // Not a dead end: the caller may be a window that can ask for the missing values.
+                // The config travels with the failure, so whoever asked knows which fields to show.
+                return new(1, null, config, workspace, values,
+                    string.Join("\n", errors.Select(e => e.Message)), Empty, loaded.Notes);
         }
 
         var context = new InterpolationContext(values, workspace, RepoName(repo), reference);

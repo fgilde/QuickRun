@@ -24,6 +24,8 @@ async function handle(message, sender) {
       return status();
     case 'run':
       return startRun(message.target, sender?.tab?.id);
+    case 'inputs':
+      return supplyInputs(message.runId, message.values);
     case 'stop':
       return stopRun(message.runId);
     case 'reveal':
@@ -78,7 +80,11 @@ async function startRun(target, tabId) {
   const { port } = await api.settings();
 
   const prepared = await api.prepare(target, { port });
-  if (prepared.error) return { error: prepared.error };
+
+  // A config whose inputs have no values is not a failure: it is a form to fill in, and the window
+  // is where that happens - so the window opens with it instead of the click ending in an error.
+  const needsInput = prepared.run?.state === 'awaitingInput';
+  if (prepared.error && !needsInput) return { error: prepared.error };
 
   const run = prepared.run;
 
@@ -92,6 +98,12 @@ async function startRun(target, tabId) {
 
   follow(run.id, tabId, { port });
   return { runId: run.id, state: 'running' };
+}
+
+/** The values for a config's inputs, and the plan they produce. */
+async function supplyInputs(runId, values) {
+  const { port } = await api.settings();
+  return api.supplyInputs(runId, values ?? {}, { port });
 }
 
 async function stopRun(runId) {

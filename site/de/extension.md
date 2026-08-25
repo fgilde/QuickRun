@@ -35,6 +35,20 @@ die laufen werden. Erst der Button in diesem Fenster startet sie.
 Das Fenster zeigt außerdem die `description` aus der Config, wenn es eine gibt, das Verzeichnis, in
 das ausgecheckt wurde, und — sobald ein Task eine meldet — die Adresse, auf der es läuft, als Link.
 
+Deklariert die Config [Inputs](/de/config#inputs), fragt das Fenster sie ab, bevor es überhaupt
+etwas zu bestätigen gibt: Label, Beschreibung, Default, ein Dropdown für `select`, eine Checkbox für
+`bool`, ein maskiertes Feld für `password`. **Continue** übernimmt die Werte, und die Befehlsliste
+wird daraus neu gebaut — du bestätigst also genau das, was diese Werte ergeben, und wer danach einen
+Wert ändert, bekommt wieder Continue statt Run. Werte mit `env` gehen als diese
+Umgebungsvariable in den Lauf, und ein Secret wird nie ans Fenster zurückgeschickt.
+
+Deklariert die Config [Inputs](/de/config#inputs), fragt das Fenster sie ab, bevor es überhaupt
+etwas zu bestätigen gibt: Label, Beschreibung, Default, ein Dropdown für `select`, eine Checkbox für
+`bool`, ein maskiertes Feld für `password`. **Continue** übernimmt die Werte, und die Befehlsliste
+wird daraus neu gebaut — du bestätigst also genau das, was diese Werte ergeben, und wer danach einen
+Wert ändert, bekommt wieder Continue statt Run. Werte mit `env` gehen als diese
+Umgebungsvariable in den Lauf, und ein Secret wird nie ans Fenster zurückgeschickt.
+
 Nach der Bestätigung bleibt das Fenster offen und wird zum Log des Laufs: der Checkout mit den
 echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des Repositories
 ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ein Toolbar-Button ist

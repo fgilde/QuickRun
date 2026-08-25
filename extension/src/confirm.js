@@ -5,8 +5,14 @@
 // everything QuickRun does, so the log has somewhere to live that is not a 200px toolbar button.
 
 import { httpUrl } from './safeurl.js';
+import { inputForm } from './inputs.js';
 
-const { pendingRun: run } = await chrome.storage.session.get('pendingRun');
+const { pendingRun } = await chrome.storage.session.get('pendingRun');
+
+// The run is replaced when values are supplied: the plan is rebuilt from them, and what gets
+// approved has to be the rebuilt one.
+let run = pendingRun;
+let form = null;
 
 const review = document.getElementById('review');
 const progress = document.getElementById('progress');
@@ -34,7 +40,9 @@ if (!run) {
 
 function render(run) {
   text('name', run.displayName || run.repo);
-  text('subtitle', `${run.commands.length} command(s)`);
+  text('subtitle', run.commands.length === 0
+    ? 'fill in the values below to see what would run'
+    : `${run.commands.length} command(s)`);
   text('repo', run.repo);
   text('ref', run.ref);
   text('commit', run.commit ? run.commit.slice(0, 10) : 'unknown');
@@ -50,7 +58,36 @@ function render(run) {
 
   if (run.url) showAddress(run.url);
 
+  renderInputs(run);
+  renderCommands(run);
+}
+
+/** The form the config asks for, and the button that applies it. */
+function renderInputs(run) {
+  const section = document.getElementById('inputSection');
+  form = inputForm(run);
+
+  if (!form) {
+    section.hidden = true;
+    return;
+  }
+
+  const host = document.getElementById('inputs');
+  host.textContent = '';
+  host.append(form.element);
+  section.hidden = false;
+
+  // The error from the daemon names the fields that are missing, which is exactly what to show.
+  text('inputError', run.state === 'awaitingInput' ? run.error ?? '' : '');
+  updateApprove();
+}
+
+function renderCommands(run) {
   const list = document.getElementById('commands');
+  list.textContent = '';
+
+  document.getElementById('commandsHeading').hidden = run.commands.length === 0;
+
   for (const command of run.commands) {
     const item = document.createElement('li');
 
@@ -67,11 +104,62 @@ function render(run) {
   }
 }
 
+/**
+ * What the button does next.
+ *
+ * With no plan, or with values that have been changed since the plan was built, it applies the
+ * values first - the command list has to be the one those values produced, because that list is
+ * what the user is approving.
+ */
+function updateApprove() {
+  const needsValues = run.state === 'awaitingInput' || (form?.dirty() ?? false);
+  approve.textContent = needsValues ? 'Continue' : 'Run';
+}
+
 function text(id, value) {
   document.getElementById(id).textContent = value ?? '';
 }
 
-approve.addEventListener('click', () => decide(true));
+approve.addEventListener('click', async () => {
+  if (run.state === 'awaitingInput' || (form?.dirty() ?? false)) {
+    await applyValues();
+    return;
+  }
+
+  decide(true);
+});
+
+/** Sends the values, then shows the plan they produced. */
+async function applyValues() {
+  approve.disabled = true;
+  text('inputError', 'applying…');
+
+  const result = await chrome.runtime.sendMessage({
+    type: 'inputs',
+    runId: run.id,
+    values: form?.values() ?? {},
+  });
+
+  approve.disabled = false;
+
+  if (result?.run) {
+    run = result.run;
+    render(run);
+  }
+
+  if (result?.error) {
+    text('inputError', result.error);
+    return;
+  }
+
+  text('inputError', run.commands.length > 0
+    ? 'this is what those values would run - check it and press Run'
+    : '');
+  updateApprove();
+}
+
+document.getElementById('inputs').addEventListener('input', updateApprove);
+document.getElementById('inputs').addEventListener('change', updateApprove);
 cancel.addEventListener('click', () => decide(false));
 close.addEventListener('click', () => window.close());
 

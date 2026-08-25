@@ -84,6 +84,24 @@ public class DashboardTests
         Assert.Contains("Stopping", html);
     }
 
+    /// <summary>
+    /// The form a config declares has to be on the page, and built as text: a label or an option
+    /// comes out of someone's repository.
+    /// </summary>
+    [Fact]
+    public void The_page_can_ask_for_a_configs_inputs()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("function inputForm(run)", html);
+        Assert.Contains("/inputs`", html);
+        Assert.Contains("awaitingInput", html);
+
+        // A secret must not be put back into a field.
+        Assert.Contains("def.type === 'password' ? '' :", html);
+        Assert.DoesNotContain("innerHTML = def.label", html);
+    }
+
     /// <summary>A run can be started from this page, which is what makes the extension optional.</summary>
     [Fact]
     public void The_page_can_start_a_run_itself()

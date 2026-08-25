@@ -69,6 +69,22 @@ export async function prepare(request_, { port }) {
   return { error: payload?.error ?? `could not prepare the run (${status})`, run: payload?.run };
 }
 
+/**
+ * Supplies the values a config's inputs were missing. The daemon plans again with them, so the
+ * command list that comes back is the one those values produced.
+ */
+export async function supplyInputs(runId, inputs, { port }) {
+  const { ok, payload, status } = await request(`/api/runs/${runId}/inputs`, {
+    method: 'POST',
+    body: { inputs },
+    port,
+    timeoutMs: 120000,
+  });
+
+  if (ok && payload) return { run: payload };
+  return { error: payload?.error ?? `could not apply the values (${status})`, run: payload?.run };
+}
+
 export async function confirm(runId, { port }) {
   const { ok, payload, status } = await request(`/api/runs/${runId}/confirm`, {
     method: 'POST',

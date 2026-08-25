@@ -22,8 +22,9 @@ The window has these sections:
 
 - **Start a run** — a repository and a branch, without the browser extension. Type the repository
   and QuickRun lists its branches, putting the refs you have run before at the top and preselecting
-  the one you would have picked. A pull request number, a token for a private repository and the
-  config's inputs are behind *More*. Preparing shows the plan; nothing runs until you confirm it
+  the one you would have picked. A pull request number and a token for a private repository are
+  behind *More*. Preparing shows the plan - and, when the config declares inputs, a form for them
+  first; nothing runs until you confirm it
 - **Runs** — what is running, with live progress and log output
 - **Config builder** — write, check and test a `quickrun.yml`, see [the config builder](/builder)
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it

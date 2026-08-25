@@ -35,6 +35,20 @@ that will run. Only the button in that window starts them.
 The window also shows the `description` from the config when it has one, the folder the repository
 was checked out into, and — once a task reports one — the address it is listening on, as a link.
 
+If the config declares [inputs](/config#inputs), the window asks for them before there is anything
+to approve: labels, descriptions, defaults, a dropdown for a `select`, a checkbox for a `bool`, a
+masked field for a `password`. **Continue** applies the values and the command list is rebuilt from
+them — so what you approve is what those values produce, and changing a value afterwards makes the
+button say Continue again rather than Run. Values marked with an `env` are passed to the run as that
+environment variable, and a secret is never sent back to the window.
+
+If the config declares [inputs](/config#inputs), the window asks for them before there is anything
+to approve: labels, descriptions, defaults, a dropdown for a `select`, a checkbox for a `bool`, a
+masked field for a `password`. **Continue** applies the values and the command list is rebuilt from
+them — so what you approve is what those values produce, and changing a value afterwards makes the
+button say Continue again rather than Run. Values marked with an `env` are passed to the run as that
+environment variable, and a secret is never sent back to the window.
+
 After you approve, that window stays open and becomes the run's log: the checkout with its real
 progress counters, every setup step, and everything the repository's own commands print. The button
 on the page shows only a percentage and a coarse phase — a toolbar button is no place for a hundred

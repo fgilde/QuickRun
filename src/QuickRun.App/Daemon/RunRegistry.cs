@@ -11,6 +11,9 @@ namespace QuickRun.App.Daemon;
 
 public enum RunState
 {
+    /// <summary>The config declares inputs whose values nobody has supplied yet.</summary>
+    AwaitingInput,
+
     /// <summary>Prepared and waiting for someone to approve the command list.</summary>
     AwaitingConfirmation,
     Running,
@@ -34,7 +37,14 @@ public sealed record RunSummary(
     string? Url,
     int LiveTasks,
     /// <summary>What the config says this repository is, when it says anything.</summary>
-    string? Description = null);
+    string? Description = null,
+    /// <summary>The form the config declares, so a window can ask for the values it needs.</summary>
+    IReadOnlyList<InputDef>? Inputs = null,
+    /// <summary>
+    /// What those inputs currently hold. A secret is listed with a null value: the form has to know
+    /// the field exists, and the value must not travel back out of the process that holds it.
+    /// </summary>
+    IReadOnlyDictionary<string, string?>? Values = null);
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -68,6 +78,37 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         var entry = new Entry(id);
         _runs[id] = entry;
 
+        return await PlanAsync(entry, args);
+    }
+
+    /// <summary>
+    /// Supplies the values a config's inputs were missing and plans again.
+    /// <para>
+    /// The same run rather than a new one: the repository is already checked out, and a window that
+    /// asked for a password should not leave a trail of abandoned runs behind. The plan is rebuilt
+    /// with the values, so what the user approves is what those values produced.
+    /// </para>
+    /// </summary>
+    public async Task<(RunSummary? Summary, string? Error)> SupplyInputsAsync(
+        string id, IReadOnlyDictionary<string, string?> values)
+    {
+        if (!_runs.TryGetValue(id, out var entry)) return (null, "unknown run");
+        if (entry.Args is not { } args) return (null, "this run cannot take inputs");
+        if (entry.Summary.State is not (RunState.AwaitingInput or RunState.AwaitingConfirmation))
+            return (entry.Summary, "this run has already started");
+
+        // Later assignments win, so the supplied values override whatever was passed originally.
+        var merged = args.Inputs
+            .Concat(values.Select(v => $"{v.Key}={v.Value}"))
+            .ToList();
+
+        return await PlanAsync(entry, args with { Inputs = merged });
+    }
+
+    private async Task<(RunSummary? Summary, string? Error)> PlanAsync(Entry entry, RunArgs args)
+    {
+        entry.Remember(args);
+
         var git = new GitClient(
             new CredentialResolver(args.Token),
             onCheckoutProgress: (percent, detail) => entry.Publish(new RunEvent(
@@ -78,6 +119,14 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
         if (preparation.ExitCode != 0 || preparation.Plan is null)
         {
+            // A config whose inputs have no values is not a broken config: it is a form waiting to
+            // be filled in, and the caller gets the fields rather than a dead end.
+            if (preparation.Config is { Inputs.Count: > 0 } config)
+            {
+                entry.NeedsInput(config, preparation.Values, preparation.Error ?? "values are missing");
+                return (entry.Summary, preparation.Error);
+            }
+
             entry.Fail(preparation.Error ?? "preparation failed");
             return (entry.Summary, preparation.Error);
         }
@@ -178,6 +227,32 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
         public RunPreparation? Preparation { get; private set; }
 
+        /// <summary>What this run was asked for, so it can be planned again with more values.</summary>
+        public RunArgs? Args { get; private set; }
+
+        public void Remember(RunArgs args) => Args = args;
+
+        /// <summary>
+        /// The config declares inputs and the values are not there yet. Secrets are listed without
+        /// their value: the form needs the field, and a password must not travel back out.
+        /// </summary>
+        public void NeedsInput(RunConfig config, IReadOnlyDictionary<string, string?>? values, string error)
+        {
+            var secrets = InputResolver.SecretIds(config.Inputs);
+            var safe = (values ?? new Dictionary<string, string?>())
+                .ToDictionary(v => v.Key, v => secrets.Contains(v.Key) ? null : v.Value, StringComparer.Ordinal);
+
+            lock (_gate)
+                Summary = Summary with
+                {
+                    State = RunState.AwaitingInput,
+                    Error = error,
+                    Description = config.Description,
+                    Inputs = config.Inputs,
+                    Values = safe,
+                };
+        }
+
         public CancellationToken StopToken => _stop.Token;
 
         public void Prepared(RunPreparation preparation)
@@ -196,7 +271,20 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     State = RunState.AwaitingConfirmation,
                     Workspace = preparation.Workspace,
                     Description = preparation.Config?.Description,
+                    Error = null,
+                    Inputs = preparation.Config?.Inputs,
+                    Values = Safe(preparation),
                 };
+        }
+
+        /// <summary>The values as they may be shown again, with secrets left out.</summary>
+        private static IReadOnlyDictionary<string, string?>? Safe(RunPreparation preparation)
+        {
+            if (preparation.Values is not { } values || preparation.Config is not { } config) return null;
+
+            var secrets = InputResolver.SecretIds(config.Inputs);
+            return values.ToDictionary(v => v.Key, v => secrets.Contains(v.Key) ? null : v.Value,
+                StringComparer.Ordinal);
         }
 
         public void Begin()

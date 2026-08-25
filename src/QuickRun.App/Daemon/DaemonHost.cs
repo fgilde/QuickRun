@@ -24,6 +24,9 @@ public sealed record RunRequest(
     string? Config,
     Dictionary<string, string?>? Inputs);
 
+/// <summary>Values for the inputs a config declares.</summary>
+public sealed record InputsRequest(Dictionary<string, string?>? Inputs);
+
 /// <summary>A config being edited, checked without running anything.</summary>
 public sealed record ConfigTextRequest(string? Text);
 
@@ -378,6 +381,20 @@ public static class DaemonHost
                 : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
+        app.MapPost("/api/dashboard/runs/{id}/inputs", async (string id, InputsRequest request,
+            HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var (summary, error) = await runs.SupplyInputsAsync(id, request.Inputs ?? new());
+
+            if (summary is null) return Results.NotFound(new { error });
+
+            return error is null
+                ? Results.Json(summary, Json)
+                : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);
+        });
+
         app.MapPost("/api/dashboard/runs/{id}/confirm", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
@@ -517,6 +534,22 @@ public static class DaemonHost
             var (summary, error) = await runs.PrepareAsync(args);
 
             // Nothing has executed yet. The caller must confirm the command list first.
+            return error is null
+                ? Results.Json(summary, Json)
+                : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);
+        });
+
+        // The values for a config's inputs. The plan is rebuilt with them, so the command list the
+        // user approves is the one those values produced.
+        app.MapPost("/api/runs/{id}/inputs", async (string id, InputsRequest request,
+            HttpContext context, RunRegistry runs) =>
+        {
+            if (!Authorized(context)) return Unauthorized();
+
+            var (summary, error) = await runs.SupplyInputsAsync(id, request.Inputs ?? new());
+
+            if (summary is null) return Results.NotFound(new { error });
+
             return error is null
                 ? Results.Json(summary, Json)
                 : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);

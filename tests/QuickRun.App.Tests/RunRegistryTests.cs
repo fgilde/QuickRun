@@ -1,5 +1,6 @@
 using QuickRun.App.Commands;
 using QuickRun.App.Daemon;
+using QuickRun.Core.Config;
 using QuickRun.Core;
 using QuickRun.Core.Run;
 using QuickRun.Core.Tests;
@@ -301,5 +302,108 @@ public class RunRegistryTests
         Assert.Contains(collected, e => e.Kind == RunEventKind.Cancelled);
         Assert.Equal(RunState.Cancelled, registry.Get(summary.Id)!.State);
         Assert.Equal(0, registry.Get(summary.Id)!.LiveTasks);
+    }
+
+    /// <summary>
+    /// A config whose inputs have no values is a form to fill in, not a broken config: the run
+    /// waits, and says which fields it needs.
+    /// </summary>
+    [Fact]
+    public async Task Missing_input_values_leave_the_run_waiting_with_its_form()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml",
+            "inputs:\n  - id: apiKey\n    label: API key\n    type: password\n    required: true\n"
+            + "  - id: mode\n    type: select\n    options: [fast, slow]\n    default: fast\n"
+            + "tasks:\n  - name: t\n    run: echo ${inputs.mode}\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, error) = await registry.PrepareAsync(Args(repo.Url));
+
+        Assert.Contains("apiKey", error);
+        Assert.Equal(RunState.AwaitingInput, summary!.State);
+        Assert.Equal(new[] { "apiKey", "mode" }, summary.Inputs!.Select(i => i.Id));
+        Assert.Equal(InputType.Select, summary.Inputs![1].Type);
+        Assert.Empty(summary.Commands);
+
+        // The default is offered back, the secret is not: a password must not travel out again.
+        Assert.Equal("fast", summary.Values!["mode"]);
+        Assert.Null(summary.Values["apiKey"]);
+    }
+
+    [Fact]
+    public async Task Supplying_the_values_plans_the_same_run_with_them()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml",
+            "inputs:\n  - id: apiKey\n    type: password\n    required: true\n    env: API_KEY\n"
+            + "  - id: mode\n    type: select\n    options: [fast, slow]\n    default: fast\n"
+            + "tasks:\n  - name: t\n    run: echo ${inputs.mode}\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (prepared, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        var (summary, error) = await registry.SupplyInputsAsync(prepared!.Id,
+            new Dictionary<string, string?> { ["apiKey"] = "sk-secret", ["mode"] = "slow" });
+
+        Assert.Null(error);
+        Assert.Equal(prepared.Id, summary!.Id);
+        Assert.Equal(RunState.AwaitingConfirmation, summary.State);
+        Assert.Equal("echo slow", Assert.Single(summary.Commands).Command);
+        Assert.Null(summary.Values!["apiKey"]);
+        Assert.Null(summary.Error);
+    }
+
+    [Fact]
+    public async Task Supplying_values_that_are_still_wrong_keeps_the_run_waiting()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml",
+            "inputs:\n  - id: apiKey\n    type: password\n    required: true\n"
+            + "tasks:\n  - name: t\n    run: echo hi\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (prepared, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        var (summary, error) = await registry.SupplyInputsAsync(prepared!.Id,
+            new Dictionary<string, string?> { ["apiKey"] = "" });
+
+        Assert.NotNull(error);
+        Assert.Equal(RunState.AwaitingInput, summary!.State);
+    }
+
+    [Fact]
+    public async Task Inputs_cannot_be_supplied_to_a_run_that_has_started()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (prepared, _) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.True(registry.Confirm(prepared!.Id));
+
+        var (_, error) = await registry.SupplyInputsAsync(prepared.Id,
+            new Dictionary<string, string?> { ["x"] = "y" });
+
+        Assert.Equal("this run has already started", error);
+    }
+
+    [Fact]
+    public async Task Inputs_for_an_unknown_run_are_refused()
+    {
+        using var home = new TempHome();
+        var (summary, error) = await new RunRegistry(new WorkspaceStore(home.Path))
+            .SupplyInputsAsync("nope", new Dictionary<string, string?>());
+
+        Assert.Null(summary);
+        Assert.Equal("unknown run", error);
     }
 }

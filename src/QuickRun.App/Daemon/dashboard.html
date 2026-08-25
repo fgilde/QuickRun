@@ -106,6 +106,12 @@ textarea.editor { padding: 10px 12px; background: var(--bg); resize: vertical; }
   margin: 10px 0 0; padding: 9px 11px; background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.inputs { display: grid; gap: 12px; margin: 12px 0 4px; }
+.field { display: grid; gap: 3px; }
+.field-label { font-weight: 600; }
+.field .required { font-weight: 400; font-size: 11px; color: var(--warn); }
+.field .hint { font-size: 12px; color: var(--muted); }
+.field input[type="checkbox"] { justify-self: start; }
 .issue { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; }
 .issue .where { color: var(--muted); font-size: 12px; min-width: 8em; }
 ol.plan .phase {
@@ -336,9 +342,13 @@ async function api(path, options = {}) {
   if (!response.ok) {
     // The reason a run could not be prepared is the whole point of the response - "422" is not.
     let detail = '';
-    try { detail = (await response.json())?.error ?? ''; } catch { /* not every failure is JSON */ }
+    let body = null;
+    try { body = await response.json(); detail = body?.error ?? ''; } catch { /* not every failure is JSON */ }
+
     const failure = new Error(detail || `${path} -> ${response.status}`);
     failure.status = response.status;
+    // A 422 for missing input values carries the run, and that run is a form to render.
+    failure.run = body?.run;
     throw failure;
   }
 
@@ -484,31 +494,155 @@ function parseInputs(text) {
 }
 
 /**
+ * The form a config's `inputs` block asks for, built with DOM calls so that a label, a hint or the
+ * options of a select cannot become markup.
+ */
+function inputForm(run) {
+  const defs = run.inputs ?? [];
+  if (defs.length === 0) return null;
+
+  const supplied = run.values ?? {};
+  const element = document.createElement('div');
+  element.className = 'inputs';
+
+  const controls = new Map();
+  const initial = new Map();
+  const read = (control) => (control.type === 'checkbox' ? String(control.checked) : control.value);
+
+  for (const def of defs) {
+    const field = document.createElement('label');
+    field.className = 'field';
+
+    const name = document.createElement('span');
+    name.className = 'field-label';
+    name.textContent = def.label || def.id;
+    if (def.required) {
+      const required = document.createElement('span');
+      required.className = 'required';
+      required.textContent = 'required';
+      name.append(' ', required);
+    }
+    field.append(name);
+
+    const control = inputControl(def, supplied[def.id]);
+    controls.set(def.id, control);
+    initial.set(def.id, read(control));
+    field.append(control);
+
+    for (const note of [def.description, def.env ? `passed to the run as ${def.env}` : null]) {
+      if (!note) continue;
+      const hint = document.createElement('span');
+      hint.className = 'hint';
+      hint.textContent = note;
+      field.append(hint);
+    }
+
+    element.append(field);
+  }
+
+  return {
+    element,
+    values: () => Object.fromEntries([...controls].map(([id, control]) => [id, read(control)])),
+    dirty: () => [...controls].some(([id, control]) => read(control) !== initial.get(id)),
+  };
+}
+
+function inputControl(def, value) {
+  if (def.type === 'select') {
+    const select = document.createElement('select');
+    for (const option of def.options ?? []) {
+      const item = document.createElement('option');
+      item.value = option.value;
+      item.textContent = option.label || option.value;
+      select.append(item);
+    }
+    select.value = value ?? def.default ?? def.options?.[0]?.value ?? '';
+    return select;
+  }
+
+  if (def.type === 'bool') {
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = (value ?? def.default ?? '') === 'true';
+    return box;
+  }
+
+  const input = document.createElement('input');
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.type = def.type === 'password' ? 'password' : def.type === 'number' ? 'number' : 'text';
+  // A secret never travels back to the page, so its field starts empty.
+  input.value = def.type === 'password' ? '' : value ?? def.default ?? '';
+  if (def.pattern) input.pattern = def.pattern;
+  return input;
+}
+
+/**
  * The plan, and nothing else: this is the confirmation gate, so it shows the commands that would
  * run before anything has run. Every command is repository content and is escaped as such.
  */
 function renderPlan(run, panel = starter.plan) {
+  const waiting = run.state === 'awaitingInput';
+
   panel.hidden = false;
   panel.innerHTML = `
     <div class="row" style="margin-top:14px">
       <span class="grow name">${escapeHtml(run.displayName)}</span>
-      ${pill('awaiting your confirmation', 'warn')}
+      ${pill(waiting ? 'waiting for values' : 'awaiting your confirmation', 'warn')}
     </div>
     <div class="row">
       <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
     </div>
     ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
     ${run.workspace ? `<div class="row"><code class="grow mono">${escapeHtml(run.workspace)}</code></div>` : ''}
-    <p class="muted" style="margin:10px 0 0">These commands will run on your machine, with your privileges:</p>
-    <ol class="plan">
-      ${run.commands.map((command) => `<li><span class="phase">${escapeHtml(command.phase)}</span><code>${escapeHtml(command.command)}${command.cwd ? ' (in ' + escapeHtml(command.cwd) + ')' : ''}</code></li>`).join('')}
-    </ol>
+    <div data-inputs></div>
+    ${run.commands.length > 0
+      ? `<p class="muted" style="margin:10px 0 0">These commands will run on your machine, with your privileges:</p>
+         <ol class="plan">
+           ${run.commands.map((command) => `<li><span class="phase">${escapeHtml(command.phase)}</span><code>${escapeHtml(command.command)}${command.cwd ? ' (in ' + escapeHtml(command.cwd) + ')' : ''}</code></li>`).join('')}
+         </ol>`
+      : ''}
+    <p class="muted" data-plan-state style="margin:10px 0 0">${waiting ? escapeHtml(run.error ?? '') : ''}</p>
     <div class="row" style="margin-top:12px">
-      <button class="action primary" data-confirm="${run.id}">Run</button>
+      <button class="action primary" data-confirm="${run.id}">${waiting ? 'Continue' : 'Run'}</button>
       <button class="action" data-cancel="${run.id}">Cancel</button>
     </div>`;
 
-  panel.querySelector('[data-confirm]').addEventListener('click', async (event) => {
+  // The form the config asks for, and the rule behind the two-step button: what gets approved has
+  // to be the command list those values produced, so a changed value is applied first.
+  const form = inputForm(run);
+  const primary = panel.querySelector('[data-confirm]');
+  const note = panel.querySelector('[data-plan-state]');
+
+  if (form) {
+    panel.querySelector('[data-inputs]').append(form.element);
+    const update = () => { primary.textContent = waiting || form.dirty() ? 'Continue' : 'Run'; };
+    form.element.addEventListener('input', update);
+    form.element.addEventListener('change', update);
+  }
+
+  primary.addEventListener('click', async (event) => {
+    if (form && (waiting || form.dirty())) {
+      event.currentTarget.disabled = true;
+      note.textContent = 'applying...';
+
+      try {
+        const updated = await api(`/api/dashboard/runs/${run.id}/inputs`, {
+          method: 'POST',
+          body: JSON.stringify({ inputs: form.values() }),
+        });
+
+        renderPlan(updated, panel);
+        panel.querySelector('[data-plan-state]').textContent =
+          'this is what those values would run - check it and press Run';
+      } catch (failure) {
+        if (failure.run) renderPlan(failure.run, panel);
+        panel.querySelector('[data-plan-state]').textContent = failure.message;
+      }
+
+      return;
+    }
+
     event.currentTarget.disabled = true;
     await api(`/api/dashboard/runs/${run.id}/confirm`, { method: 'POST' });
     panel.hidden = true;
@@ -547,7 +681,13 @@ async function prepareRun() {
     }));
     say('');
   } catch (failure) {
-    say(failure.message);
+    // A config whose inputs have no values is a form to fill in, not a failure.
+    if (failure.run?.state === 'awaitingInput') {
+      renderPlan(failure.run);
+      say('this repository asks for a few values first');
+    } else {
+      say(failure.message);
+    }
   } finally {
     starter.prepare.disabled = false;
   }

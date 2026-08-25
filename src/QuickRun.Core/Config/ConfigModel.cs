@@ -41,8 +41,15 @@ public sealed record InputDef(
 /// <summary>A sequential command, used by both <c>setup</c> and <c>stop</c>.</summary>
 public sealed record Step(string Run, string? Cwd, IReadOnlyList<string> When, bool ContinueOnError);
 
-/// <summary>Exactly one of these is set; all null means "ready once the process started".</summary>
-public sealed record ReadyWhen(int? Port, string? Http, string? Log, TimeSpan? Delay);
+/// <summary>
+/// Exactly one of these is set; all unset means "ready once the process started".
+/// </summary>
+/// <param name="Window">
+/// Ready when the process, or something it started, has a window. What a desktop application means
+/// by "up": there is no port to probe and nothing useful printed, and the moment the window exists
+/// is the moment the user can use it.
+/// </param>
+public sealed record ReadyWhen(int? Port, string? Http, string? Log, TimeSpan? Delay, bool Window = false);
 
 /// <summary>A long-running process.</summary>
 public sealed record TaskDef(

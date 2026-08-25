@@ -86,6 +86,7 @@ anderen wählen kann.
 | `package.json` mit `dev`, `start` oder `serve` | `npm run …` (`pnpm`, `yarn`, `bun`, wenn ein Lockfile das sagt) | `--port` im Skript, sonst der Standard des Frameworks |
 | `.csproj` (`Microsoft.NET.Sdk.Web`) | `dotnet run --project …` | `launchSettings.json`, sonst fest auf 5000 |
 | `.csproj` (Aspire, `OutputType Exe`) | `dotnet run --project …` | — |
+| `.csproj` (WPF, WinForms, Avalonia, `WinExe`) | `dotnet run --project …` | keine — es wartet auf das Fenster |
 | `manage.py` | `python manage.py runserver` | 8000 |
 | `app.py` mit `streamlit` | `python -m streamlit run app.py` | 8501 |
 | `app.py`/`main.py` mit `gradio` | `python app.py` | 7860 |
@@ -96,6 +97,11 @@ anderen wählen kann.
 | `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle` | `cargo run`, `go run ./...`, `mvn spring-boot:run`, `./gradlew bootRun` | Spring 8080 |
 
 Ein Test- oder Benchmark-Projekt wird nie als etwas zum Starten angeboten.
+
+Eine Desktop-Anwendung hat keine Adresse, auf die man warten kann, deshalb bekommt eine erkannte
+[`readyWhen: {window: true}`](/de/config#readywhen): der Lauf gilt als bereit, wenn das Fenster da
+ist, holt es in den Vordergrund und zeigt die Prozess-ID. Ohne das meldet `dotnet run` Erfolg,
+während die Anwendung noch baut und vom Fenster nichts zu sehen ist.
 
 Die Adresse ist es, die einen erkannten Lauf brauchbar macht: sie wird zu einer
 `readyWhen`-Prüfung und einem `open`. QuickRun wartet damit auf die Anwendung und liefert den Link,

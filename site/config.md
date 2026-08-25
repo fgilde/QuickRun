@@ -94,6 +94,14 @@ Exactly one of these, or omit the block to mean "ready as soon as the process st
 | `{http: "http://localhost:5000/health"}` | an HTTP response below 500 — a dev server answering 404 is up |
 | `{log: 'Now listening on: (?<url>\S+)'}` | the pattern to appear in the task's output |
 | `{delay: 5s}` | a fixed wait — `500ms`, `5s`, `2m`, or a bare number of seconds |
+| `{window: true}` | a window of the task's process — for desktop applications |
+
+A desktop application has no port and no URL, so `{window: true}` waits for the thing a user
+actually waits for: its window. QuickRun watches the process and everything it starts - `dotnet run`
+launches the app as a child - and counts the task as ready when one of them has a window. It then
+brings that window to the front, and the log and the status show the process id. Detection puts this
+on desktop projects by itself (WPF, WinForms, Avalonia, `WinExe`), so most repositories need no
+config for it at all. Windows only for now; elsewhere the task counts as started.
 
 Readiness describes the *service*, not the process. `docker compose up -d db` exits long before its
 port opens, so a task that exits cleanly keeps its readiness watcher running.

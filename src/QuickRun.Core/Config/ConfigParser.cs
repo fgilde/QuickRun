@@ -28,7 +28,7 @@ public static partial class ConfigParser
     internal static readonly string[] InputKeys =
         { "id", "label", "type", "description", "default", "required", "pattern", "min", "max", "options", "env", "persist" };
 
-    internal static readonly string[] ReadyWhenKeys = { "port", "http", "log", "delay" };
+    internal static readonly string[] ReadyWhenKeys = { "port", "http", "log", "delay", "window" };
 
     public static RunConfig Parse(string yaml, OSKind os)
     {
@@ -241,7 +241,8 @@ public static partial class ConfigParser
             Port: ParseInt(map.GetValueOrDefault("port"), $"{path}.port"),
             Http: Str(map.GetValueOrDefault("http")),
             Log: Str(map.GetValueOrDefault("log")),
-            Delay: map.TryGetValue("delay", out var delay) ? ParseDuration(Str(delay) ?? "", $"{path}.delay") : null);
+            Delay: map.TryGetValue("delay", out var delay) ? ParseDuration(Str(delay) ?? "", $"{path}.delay") : null,
+            Window: ParseBool(map.GetValueOrDefault("window"), $"{path}.window"));
     }
 
     private static TimeSpan ParseDuration(string text, string path)

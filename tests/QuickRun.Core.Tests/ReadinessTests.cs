@@ -91,4 +91,34 @@ public class ReadinessTests
         var readyWhen = new ReadyWhen(null, null, "[unclosed", null);
         Assert.False(await Readiness.WaitAsync(readyWhen, () => "anything", Short, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task A_window_that_appears_on_the_third_attempt_succeeds()
+    {
+        var attempts = 0;
+        var readyWhen = new ReadyWhen(null, null, null, null, Window: true);
+
+        var ready = await Readiness.WaitAsync(readyWhen, () => "", TimeSpan.FromSeconds(5), CancellationToken.None,
+            windowProbe: () => ++attempts >= 3);
+
+        Assert.True(ready);
+        Assert.True(attempts >= 3);
+    }
+
+    /// <summary>
+    /// A desktop app that never puts a window up is not ready, no matter that its process is alive -
+    /// which is exactly the case that used to be reported as running far too early.
+    /// </summary>
+    [Fact]
+    public async Task A_window_that_never_appears_times_out()
+    {
+        var readyWhen = new ReadyWhen(null, null, null, null, Window: true);
+        Assert.False(await Readiness.WaitAsync(readyWhen, () => "", Short, CancellationToken.None,
+            windowProbe: () => false));
+    }
+
+    [Fact]
+    public async Task A_window_condition_without_a_probe_cannot_be_ready()
+        => Assert.False(await Readiness.WaitAsync(new ReadyWhen(null, null, null, null, Window: true),
+            () => "", Short, CancellationToken.None));
 }

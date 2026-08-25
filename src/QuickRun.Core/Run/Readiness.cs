@@ -13,6 +13,10 @@ public static class Readiness
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(3) };
 
     /// <param name="logSoFar">Reads the task's output so far, for log-pattern conditions.</param>
+    /// <param name="windowProbe">
+    /// Whether the task's process has a window yet. Injectable, and absent means "no window will
+    /// ever appear" - which is the right answer everywhere a window is not a thing.
+    /// </param>
     /// <param name="portProbe">Injectable so tests need not bind ports.</param>
     /// <param name="httpProbe">Injectable so tests need not start a server.</param>
     public static async Task<bool> WaitAsync(
@@ -21,7 +25,8 @@ public static class Readiness
         TimeSpan timeout,
         CancellationToken ct,
         Func<int, Task<bool>>? portProbe = null,
-        Func<string, Task<bool>>? httpProbe = null)
+        Func<string, Task<bool>>? httpProbe = null,
+        Func<bool>? windowProbe = null)
     {
         if (readyWhen is null) return true;
 
@@ -48,6 +53,7 @@ public static class Readiness
             {
                 { Port: { } port } => await Safe(() => portProbe(port)),
                 { Http: { } url } => await Safe(() => httpProbe(url)),
+                { Window: true } => windowProbe?.Invoke() ?? false,
                 _ when logPattern is not null => logPattern.IsMatch(logSoFar()),
                 _ => true,
             };

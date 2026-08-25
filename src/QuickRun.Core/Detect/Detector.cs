@@ -21,7 +21,12 @@ public sealed record Candidate(
     IReadOnlyList<string> Setup,
     IReadOnlyList<string> Run,
     int Confidence,
-    int? Port = null);
+    int? Port = null,
+    /// <summary>
+    /// A desktop application: nothing to probe, but a window that appears when it is up. Waiting
+    /// for that is the difference between "started" and "you can use it".
+    /// </summary>
+    bool WaitsForWindow = false);
 
 public static class Detector
 {
@@ -107,6 +112,10 @@ public static class Detector
             {
                 builder.AppendLine($"    readyWhen: {{http: \"http://localhost:{port}\"}}");
                 builder.AppendLine("    open: true");
+            }
+            else if (i == 0 && candidate.WaitsForWindow)
+            {
+                builder.AppendLine("    readyWhen: {window: true}");
             }
         }
 
@@ -254,8 +263,17 @@ public static class Detector
                 continue;
             }
 
-            if (text.Contains("<OutputType>Exe", StringComparison.OrdinalIgnoreCase))
-                yield return new("dotnet", Label(command, relative), "", Array.Empty<string>(), new[] { command }, 70);
+            // A GUI application has no port and prints nothing useful: it is up when its window
+            // is there, which is also the moment worth bringing to the front.
+            var isDesktop = text.Contains("<UseWPF>true", StringComparison.OrdinalIgnoreCase)
+                            || text.Contains("<UseWindowsForms>true", StringComparison.OrdinalIgnoreCase)
+                            || text.Contains("<OutputType>WinExe", StringComparison.OrdinalIgnoreCase)
+                            || Regex.IsMatch(text, @"<TargetFramework[^>]*>[^<]*-windows", RegexOptions.IgnoreCase)
+                            || text.Contains("Avalonia", StringComparison.OrdinalIgnoreCase);
+
+            if (text.Contains("<OutputType>Exe", StringComparison.OrdinalIgnoreCase) || isDesktop)
+                yield return new("dotnet", Label(command, relative), "", Array.Empty<string>(),
+                    new[] { command }, 70, null, isDesktop);
         }
     }
 

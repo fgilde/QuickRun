@@ -83,6 +83,7 @@ listed so you can pick another with `--config` or a committed `quickrun.yml`.
 | `package.json` with `dev`, `start` or `serve` | `npm run …` (`pnpm`, `yarn`, `bun` when a lockfile says so) | `--port` in the script, else the framework's default |
 | `.csproj` (`Microsoft.NET.Sdk.Web`) | `dotnet run --project …` | `launchSettings.json`, else pinned to 5000 |
 | `.csproj` (Aspire, `OutputType Exe`) | `dotnet run --project …` | — |
+| `.csproj` (WPF, WinForms, Avalonia, `WinExe`) | `dotnet run --project …` | none - it waits for the window |
 | `manage.py` | `python manage.py runserver` | 8000 |
 | `app.py` with `streamlit` | `python -m streamlit run app.py` | 8501 |
 | `app.py`/`main.py` with `gradio` | `python app.py` | 7860 |
@@ -93,6 +94,11 @@ listed so you can pick another with `--config` or a committed `quickrun.yml`.
 | `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle` | `cargo run`, `go run ./...`, `mvn spring-boot:run`, `./gradlew bootRun` | Spring 8080 |
 
 A test or benchmark project is never offered as something to start.
+
+A desktop application has no address to wait for, so a detected one gets
+[`readyWhen: {window: true}`](/config#readywhen) instead: the run counts as ready when the window is
+there, brings it to the front, and shows the process id. Without that, `dotnet run` reports success
+while the app is still building and the window is nowhere to be seen.
 
 The address is what makes a detected run useful: it becomes a `readyWhen` check and an `open`, so
 QuickRun waits for the app and hands you the link instead of leaving you to find it in the log. A

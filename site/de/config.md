@@ -94,6 +94,15 @@ Genau eine dieser Formen, oder den Block weglassen für „fertig, sobald der Pr
 | `{http: "http://localhost:5000/health"}` | HTTP-Antwort unter 500 — ein Dev-Server mit 404 läuft |
 | `{log: 'Now listening on: (?<url>\S+)'}` | Auftreten des Musters in der Ausgabe des Tasks |
 | `{delay: 5s}` | feste Wartezeit — `500ms`, `5s`, `2m`, oder eine Zahl in Sekunden |
+| `{window: true}` | ein Fenster des Task-Prozesses — für Desktop-Anwendungen |
+
+Eine Desktop-Anwendung hat keinen Port und keine URL, deshalb wartet `{window: true}` auf das,
+worauf ein Mensch wirklich wartet: ihr Fenster. QuickRun beobachtet den Prozess und alles, was er
+startet — `dotnet run` startet die Anwendung als Kindprozess — und zählt den Task als bereit, sobald
+einer davon ein Fenster hat. Danach holt QuickRun dieses Fenster in den Vordergrund, und Log und
+Status zeigen die Prozess-ID. Die Erkennung setzt das bei Desktop-Projekten von selbst (WPF,
+WinForms, Avalonia, `WinExe`), die meisten Repositories brauchen dafür also gar keine Config.
+Bisher nur unter Windows; anderswo zählt der Task als gestartet.
 
 Readiness beschreibt den *Dienst*, nicht den Prozess. `docker compose up -d db` beendet sich lange
 bevor der Port offen ist, deshalb läuft der Readiness-Watcher weiter, wenn ein Task sauber beendet.

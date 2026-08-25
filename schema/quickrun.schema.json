@@ -98,6 +98,10 @@
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "http": { "type": "string" },
         "log": { "type": "string", "description": "Regular expression matched against the task's output." },
+        "window": {
+          "type": "boolean",
+          "description": "Ready when the process, or something it started, has a window. For desktop applications; Windows only."
+        },
         "delay": {
           "description": "500ms, 5s, 2m, or a number of seconds.",
           "oneOf": [

@@ -229,4 +229,26 @@ public class ConfigParserTests
     {
         Assert.Throws<ConfigException>(() => ConfigParser.Parse("tasks:\n  - run: a\n    restart: always", OSKind.Linux));
     }
+
+    [Fact]
+    public void ReadyWhen_can_wait_for_a_window()
+    {
+        var config = ConfigParser.Parse("""
+            tasks:
+              - name: app
+                run: dotnet run
+                readyWhen: {window: true}
+            """, OSKind.Linux);
+
+        Assert.True(config.Tasks[0].ReadyWhen!.Window);
+    }
+
+    [Fact]
+    public void An_unknown_readyWhen_key_is_still_refused()
+        => Assert.Throws<ConfigException>(() => ConfigParser.Parse("""
+            tasks:
+              - name: app
+                run: dotnet run
+                readyWhen: {windows: true}
+            """, OSKind.Linux));
 }

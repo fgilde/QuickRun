@@ -135,6 +135,7 @@ public static class ConfigWriter
         { Port: { } port } => $"{{port: {port}}}",
         { Http: { } http } => $"{{http: {Scalar(http)}}}",
         { Log: { } log } => $"{{log: {Single(log)}}}",
+        { Window: true } => "{window: true}",
         { Delay: { } delay } => $"{{delay: {(int)delay.TotalMilliseconds}ms}}",
         _ => "{}",
     };

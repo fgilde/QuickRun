@@ -64,6 +64,15 @@ public static class Foreground
         return 0;
     }
 
+    /// <summary>Whether the tree under <paramref name="rootPid"/> has a window yet.</summary>
+    public static bool HasWindow(int rootPid)
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+
+        try { return PickWindow(Snapshot(), rootPid) != 0; }
+        catch { return false; }
+    }
+
     /// <summary>
     /// Watches the tree under <paramref name="rootPid"/> and raises the first window it finds.
     /// Returns when a window was raised, when the token is cancelled, or when patience runs out.
@@ -147,11 +156,33 @@ public static class Foreground
 
     private static void Raise(nint window)
     {
-        // A minimised window has to be restored before it can be focused, and Windows only grants
-        // the foreground to a process that has been allowed it.
+        // A minimised window has to be restored before it can be focused.
         if (IsIconic(window)) ShowWindow(window, SW_RESTORE);
+
         AllowSetForegroundWindow(ASFW_ANY);
         SetForegroundWindow(window);
+        if (GetForegroundWindow() == window) return;
+
+        // Windows refuses the foreground to a process that is not in the foreground itself - which
+        // QuickRun usually is not by the time a build finishes and the window finally appears.
+        // Sharing the input queue of whatever holds the foreground lifts that refusal.
+        var holder = GetWindowThreadProcessId(GetForegroundWindow(), out _);
+        var owner = GetWindowThreadProcessId(window, out _);
+
+        if (holder != 0 && owner != 0 && holder != owner && AttachThreadInput(holder, owner, true))
+        {
+            BringWindowToTop(window);
+            SetForegroundWindow(window);
+            AttachThreadInput(holder, owner, false);
+        }
+
+        if (GetForegroundWindow() == window) return;
+
+        SwitchToThisWindow(window, true);
+
+        // Some group policies forbid the foreground outright. Then the taskbar entry flashes, which
+        // is still better than the window appearing behind everything with nothing to say it did.
+        if (GetForegroundWindow() != window) FlashWindow(window, true);
     }
 
     private const uint TH32CS_SNAPPROCESS = 0x00000002;
@@ -201,4 +232,22 @@ public static class Foreground
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint window);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint from, uint to, bool attach);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(nint window);
+
+    [DllImport("user32.dll")]
+    private static extern void SwitchToThisWindow(nint window, bool altTab);
+
+    [DllImport("user32.dll")]
+    private static extern bool FlashWindow(nint window, bool invert);
 }

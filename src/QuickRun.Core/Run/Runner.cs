@@ -53,6 +53,9 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _ready = new();
     private readonly ConcurrentDictionary<string, bool> _settled = new();
 
+    /// <summary>The process each task is currently running as, for the window probe and the log.</summary>
+    private readonly ConcurrentDictionary<string, int> _pids = new();
+
     private RunConfig? _config;
     private RunOptions? _options;
     private int _taskCount;
@@ -171,9 +174,19 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             // A desktop application's window is the only thing the user is waiting for, and it
             // opens behind whatever they were looking at. Web tasks announce a URL instead, and
             // the browser raises itself when that is opened, so they are left alone.
-            var raiseWindow = task.OpenReady || task.OpenUrl is not null
-                ? null
-                : new Action<int>(pid => _ = Foreground.RaiseAsync(pid, watcher.Token));
+            var wantsWindow = task.ReadyWhen is { Window: true }
+                              || (!task.OpenReady && task.OpenUrl is null);
+
+            var raiseWindow = new Action<int>(pid =>
+            {
+                _pids[task.Name] = pid;
+
+                // The process id, said out loud: it is what a user needs to find the thing in a task
+                // manager, and what makes "it is still starting" checkable rather than a claim.
+                Emit(RunEventKind.Info, task.Name, $"pid {pid}");
+
+                if (wantsWindow) _ = Foreground.RaiseAsync(pid, watcher.Token);
+            });
 
             var code = await CommandRunner.StreamAsync(spec, (line, isError) =>
             {
@@ -223,7 +236,8 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
     {
         string Snapshot() { lock (log) return log.ToString(); }
 
-        var ready = await Readiness.WaitAsync(task.ReadyWhen, Snapshot, options.ReadyTimeout, ct);
+        var ready = await Readiness.WaitAsync(task.ReadyWhen, Snapshot, options.ReadyTimeout, ct,
+            windowProbe: () => _pids.TryGetValue(task.Name, out var pid) && Foreground.HasWindow(pid));
 
         if (!ready && !ct.IsCancellationRequested)
         {
@@ -305,6 +319,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
     {
         { Port: { } port } => $"port {port}",
         { Http: { } url } => url,
+        { Window: true } => "its window",
         { Log: { } pattern } => $"'{pattern}' in the output",
         { Delay: { } delay } => $"{delay.TotalSeconds:0}s",
         _ => "the process to start",

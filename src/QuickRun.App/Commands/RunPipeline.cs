@@ -19,7 +19,12 @@ public sealed record RunArgs(
     bool Fresh,
     bool Yes,
     bool NoOpen,
-    string? ConfigPath);
+    string? ConfigPath,
+    /// <summary>
+    /// A config supplied by the caller rather than read from anywhere. This is what the builder
+    /// tests with: the config being written must win, even over the repository's own.
+    /// </summary>
+    string? ConfigText = null);
 
 public sealed record RunPreparation(
     int ExitCode,
@@ -72,7 +77,7 @@ public static class RunPipeline
         catch (ArgumentException e) { return Usage(e.Message); }
         if (!Directory.Exists(root)) return Failed($"subdir '{args.Subdir}' does not exist in {repo}");
 
-        var loaded = LoadConfig(root, args.ConfigPath, repo);
+        var loaded = LoadConfig(root, args, repo, new ConfigOverrides(store.Root));
         if (loaded.Error is { } loadError) return Failed(loadError);
 
         var config = loaded.Config!;
@@ -118,7 +123,7 @@ public static class RunPipeline
         return GitClient.NormalizeRepoUrl(input);
     }
 
-    private static string DefaultRef(GitClient git, string repo)
+    public static string DefaultRef(GitClient git, string repo)
     {
         var (branches, _) = git.ListBranches(repo);
         if (branches is null || branches.Count == 0) return "HEAD";
@@ -138,11 +143,31 @@ public static class RunPipeline
         return resolved;
     }
 
+    /// <summary>
+    /// Where the config comes from, most specific first: the text the caller handed over, a config
+    /// named on the command line, your own override for this repository, the repository's own
+    /// quickrun.yml, another launcher's scripts, and only then detection.
+    /// </summary>
     private static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others, IReadOnlyList<string> Notes) LoadConfig(
-        string root, string? explicitPath, string repo)
+        string root, RunArgs args, string repo, ConfigOverrides overrides)
     {
+        var explicitPath = args.ConfigPath;
+
+        if (args.ConfigText is { } supplied)
+        {
+            try
+            {
+                return (ConfigParser.Parse(supplied, OSKinds.Current), null, Empty,
+                    new[] { "using the config you supplied, not the one in the repository" });
+            }
+            catch (ConfigException e)
+            {
+                return (null, $"the config you supplied: {e.Message}", Empty, NoNotes);
+            }
+        }
+
         var file = explicitPath is null
-            ? ConfigParser.FindConfigFile(root)
+            ? null
             : Path.Combine(root, explicitPath);
 
         if (file is not null)
@@ -150,6 +175,27 @@ public static class RunPipeline
             if (!File.Exists(file)) return (null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes);
             try { return (ConfigParser.Parse(File.ReadAllText(file), OSKinds.Current), null, Empty, NoNotes); }
             catch (ConfigException e) { return (null, $"{Path.GetFileName(file)}: {e.Message}", Empty, NoNotes); }
+        }
+
+        // Your own config for this repository. It beats the repository's, which is the point - but
+        // that has to be said out loud, or a run that ignores a committed quickrun.yml is a mystery.
+        if (overrides.Read(repo) is { } mine)
+        {
+            var note = ConfigParser.FindConfigFile(root) is null
+                ? "using your local config for this repository"
+                : "using your local config for this repository, not the quickrun.yml it ships";
+
+            try { return (ConfigParser.Parse(mine, OSKinds.Current), null, Empty, new[] { note }); }
+            catch (ConfigException e)
+            {
+                return (null, $"your local config for {repo}: {e.Message}", Empty, NoNotes);
+            }
+        }
+
+        if (ConfigParser.FindConfigFile(root) is { } own)
+        {
+            try { return (ConfigParser.Parse(File.ReadAllText(own), OSKinds.Current), null, Empty, NoNotes); }
+            catch (ConfigException e) { return (null, $"{Path.GetFileName(own)}: {e.Message}", Empty, NoNotes); }
         }
 
         // A repository written for another launcher says how to start itself, which beats anything

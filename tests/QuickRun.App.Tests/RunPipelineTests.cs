@@ -269,4 +269,72 @@ public class RunPipelineTests
         Assert.Contains("docker compose up", preparation.Plan!.Commands[0].Command);
         Assert.NotEmpty(preparation.OtherCandidates);
     }
+
+    /// <summary>
+    /// Your own config for a repository beats the one the repository ships, and the run says so -
+    /// otherwise a run that ignores a committed quickrun.yml is a mystery.
+    /// </summary>
+    [Fact]
+    public void A_saved_override_wins_over_the_repositorys_own_config()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "name: Theirs\nrun: echo theirs\n");
+        repo.Commit("add config");
+
+        new ConfigOverrides(home.Path).Write(repo.Url, "name: Mine\nrun: echo mine\n");
+
+        var preparation = Prepare(Args(repo.Url), home);
+
+        Assert.Equal(0, preparation.ExitCode);
+        Assert.Equal("Mine", preparation.Plan!.DisplayName);
+        Assert.Equal("echo mine", Assert.Single(preparation.Plan.Commands).Command);
+        Assert.Contains(preparation.Notes, n => n.Contains("your local config"));
+        Assert.Contains(preparation.Notes, n => n.Contains("quickrun.yml it ships"));
+    }
+
+    [Fact]
+    public void A_config_from_the_editor_wins_over_everything()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "name: Theirs\nrun: echo theirs\n");
+        repo.Commit("add config");
+
+        new ConfigOverrides(home.Path).Write(repo.Url, "name: Mine\nrun: echo mine\n");
+
+        var args = Args(repo.Url) with { ConfigText = "name: Editing\nrun: echo editing\n" };
+        var preparation = Prepare(args, home);
+
+        Assert.Equal("Editing", preparation.Plan!.DisplayName);
+        Assert.Equal("echo editing", Assert.Single(preparation.Plan.Commands).Command);
+    }
+
+    [Fact]
+    public void A_broken_config_from_the_editor_fails_with_the_reason()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("readme.md", "nothing to run");
+        repo.Commit("init");
+
+        var preparation = Prepare(Args(repo.Url) with { ConfigText = "tasks: [" }, home);
+
+        Assert.NotEqual(0, preparation.ExitCode);
+        Assert.Contains("the config you supplied", preparation.Error);
+    }
+
+    /// <summary>An override for another repository must not leak into this one.</summary>
+    [Fact]
+    public void An_override_for_a_different_repository_is_ignored()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "name: Theirs\nrun: echo theirs\n");
+        repo.Commit("add config");
+
+        new ConfigOverrides(home.Path).Write("https://github.com/someone/else", "run: echo wrong\n");
+
+        Assert.Equal("Theirs", Prepare(Args(repo.Url), home).Plan!.DisplayName);
+    }
 }

@@ -38,6 +38,12 @@ Go, Maven, Gradle — with the port worked out where possible, so you get a link
 search. `quickrun detect --save` writes the generated `quickrun.yml` back for you to commit. See
 [Repositories without a config](https://fgilde.github.io/QuickRun/no-config).
 
+A config builder comes with the tool: the local UI writes a `quickrun.yml` with completion from the
+published schema, checks it with the same validator a run uses, tests it against the repository
+before anything is committed, and keeps your own config for repositories you do not own - stored in
+QuickRun's own directory, not in someone else's checkout. See
+[the config builder](https://fgilde.github.io/QuickRun/builder).
+
 ## What a config looks like
 
 ```yaml

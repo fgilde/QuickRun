@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using QuickRun.App.Commands;
+using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
 using QuickRun.Core;
@@ -23,6 +24,15 @@ public sealed record RunRequest(
     string? Config,
     Dictionary<string, string?>? Inputs);
 
+/// <summary>A config being edited, checked without running anything.</summary>
+public sealed record ConfigTextRequest(string? Text);
+
+/// <param name="Action">
+/// Omitted or unknown reads the override, <c>save</c> writes it, <c>delete</c> removes it. One
+/// endpoint because the local UI does all three from the same panel.
+/// </param>
+public sealed record ConfigOverrideRequest(string? Repo, string? Text, string? Action);
+
 /// <summary>What the local UI asks for to fill its branch picker.</summary>
 public sealed record BranchRequest(string? Repo, string? Token);
 
@@ -38,7 +48,9 @@ public sealed record DashboardRunRequest(
     string? Config,
     Dictionary<string, string?>? Inputs,
     string? Token,
-    bool? Fresh);
+    bool? Fresh,
+    /// <summary>A config from the builder, tested before it is saved anywhere.</summary>
+    string? ConfigText = null);
 
 /// <summary>
 /// The localhost listener the browser extension talks to. Loopback only, and every endpoint that
@@ -125,6 +137,12 @@ public static class DaemonHost
             return stream is null ? Results.NotFound() : Results.Stream(stream, "image/png");
         });
 
+        // The editor and the schema. No token: these are the same bytes for everyone and reveal
+        // nothing about this machine, and the editor loads dozens of chunks lazily.
+        app.MapGet("/monaco/{**path}", (string path) => Asset($"monaco/{path}"));
+
+        app.MapGet("/quickrun.schema.json", () => Asset("quickrun.schema.json"));
+
         app.MapGet("/api/dashboard/state", (HttpContext context, Dashboard dashboard,
             RunRegistry runs, WorkspaceStore store) =>
         {
@@ -157,6 +175,115 @@ public static class DaemonHost
             var source = InstallSources.DetectCurrent(store.Root);
             return Results.Json(await new UpdateChecker().CheckAsync(BuildInfo.Version, source), Json);
         });
+
+        // ---- the config builder ---------------------------------------------------------------
+
+        // Checks a config without running it, with the same parser and validator a run uses. A
+        // JSON-schema approximation in the browser would disagree with the real thing sooner or later.
+        app.MapPost("/api/dashboard/config/check", (ConfigTextRequest request, HttpContext context, Dashboard dashboard) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            try
+            {
+                var config = ConfigParser.Parse(request.Text ?? "", OSKinds.Current);
+                var issues = ConfigValidator.Validate(config);
+
+                return Results.Json(new
+                {
+                    ok = !issues.Any(i => i.IsError),
+                    name = config.Name,
+                    tasks = config.Tasks.Select(t => t.Name),
+                    issues = issues.Select(i => new { i.Path, i.Message, i.IsError }),
+                }, Json);
+            }
+            catch (ConfigException e)
+            {
+                return Results.Json(new
+                {
+                    ok = false,
+                    issues = new[] { new { Path = "", Message = e.Message, IsError = true } },
+                }, Json);
+            }
+        });
+
+        // The config this repository would run with, as a starting point for editing: your own
+        // override, else what it ships, else what its foreign scripts or the detector give.
+        app.MapPost("/api/dashboard/config/suggest", async (DashboardRunRequest request, HttpContext context,
+            Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
+
+            var suggestion = await Task.Run(() => ConfigSuggestion.For(
+                request.Repo!.Trim(),
+                string.IsNullOrWhiteSpace(request.Ref) ? null : request.Ref!.Trim(),
+                string.IsNullOrWhiteSpace(request.Token) ? null : request.Token,
+                store));
+
+            return suggestion.Error is { } error
+                ? Results.Json(new { error }, Json, statusCode: StatusCodes.Status422UnprocessableEntity)
+                : Results.Json(suggestion, Json);
+        });
+
+        // Your own config for a repository, kept in QuickRun's own directory rather than in the
+        // checkout: --fresh deletes that, and it is not your repository to leave files in.
+        app.MapPost("/api/dashboard/config/mine", (ConfigOverrideRequest request, HttpContext context,
+            Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
+
+            string repo;
+            try { repo = RunPipeline.Normalize(request.Repo!.Trim()); }
+            catch (ArgumentException e) { return Results.BadRequest(new { error = e.Message }); }
+
+            var overrides = new ConfigOverrides(store.Root);
+
+            switch (request.Action?.ToLowerInvariant())
+            {
+                case "save":
+                    if (string.IsNullOrWhiteSpace(request.Text))
+                        return Results.BadRequest(new { error = "there is nothing to save" });
+
+                    try
+                    {
+                        var parsed = ConfigParser.Parse(request.Text!, OSKinds.Current);
+                        var errors = ConfigValidator.Validate(parsed).Where(i => i.IsError).ToList();
+                        if (errors.Count > 0)
+                            return Results.Json(new { error = string.Join("; ", errors.Select(i => i.Message)) },
+                                Json, statusCode: StatusCodes.Status422UnprocessableEntity);
+                    }
+                    catch (ConfigException e)
+                    {
+                        return Results.Json(new { error = e.Message }, Json,
+                            statusCode: StatusCodes.Status422UnprocessableEntity);
+                    }
+
+                    overrides.Remember(repo);
+                    return Results.Json(new { repo, path = overrides.Write(repo, request.Text!) }, Json);
+
+                case "delete":
+                    return overrides.Delete(repo)
+                        ? Results.Json(new { repo, deleted = true }, Json)
+                        : Results.NotFound();
+
+                default:
+                    return Results.Json(new
+                    {
+                        repo,
+                        path = overrides.PathFor(repo),
+                        has = overrides.Has(repo),
+                        text = overrides.Read(repo),
+                    }, Json);
+            }
+        });
+
+        app.MapGet("/api/dashboard/configs", (HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
+            !DashboardAuthorized(context, dashboard)
+                ? Forbidden()
+                : Results.Json(new ConfigOverrides(store.Root).List()
+                    .Select(o => new { repo = o.Repo, path = o.Path, changed = o.Changed }), Json));
 
         // Whether quickrun:// reaches this build. A handler registered to a binary that has since
         // moved looks installed and does nothing, which is the failure this exists to show.
@@ -241,7 +368,8 @@ public static class DaemonHost
                 Fresh: request.Fresh ?? false,
                 Yes: true,
                 NoOpen: true,
-                ConfigPath: string.IsNullOrWhiteSpace(request.Config) ? null : request.Config);
+                ConfigPath: string.IsNullOrWhiteSpace(request.Config) ? null : request.Config,
+                ConfigText: string.IsNullOrWhiteSpace(request.ConfigText) ? null : request.ConfigText);
 
             var (summary, error) = await runs.PrepareAsync(args);
 
@@ -299,6 +427,14 @@ public static class DaemonHost
 
             await StreamEventsAsync(context, runs, id);
         });
+    }
+
+    /// <summary>An embedded asset, cached hard: a vendored editor never changes under one build.</summary>
+    private static IResult Asset(string path)
+    {
+        if (StaticAssets.Open(path) is not { } asset) return Results.NotFound();
+
+        return Results.Stream(asset.Content, asset.ContentType, enableRangeProcessing: false);
     }
 
     private static bool DashboardAuthorized(HttpContext context, Dashboard dashboard) =>

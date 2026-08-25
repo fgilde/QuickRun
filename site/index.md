@@ -37,6 +37,11 @@ features:
       No quickrun.yml? A Pinokio app runs from its own scripts, and everything else is detected -
       compose files, npm scripts, .NET projects, Python apps, Procfile, .replit, Makefiles, Cargo,
       Go, Maven, Gradle - with the address worked out, so you get a link.
+  - title: A builder for the config
+    details: >
+      Write a quickrun.yml in the local UI with completion from the schema, check it with the real
+      validator, test it against the repository, and keep your own config for repositories you do
+      not own.
   - title: Nothing runs unseen
     details: >
       Every run shows the repository, ref, resolved commit and the exact commands, and waits for
@@ -54,6 +59,7 @@ run: ./run.sh
 <<< @/../samples/npm-dev.yml{yaml}
 
 Every block is optional. See the [config reference](/config) for the whole shape,
+[the config builder](/builder) for writing one without leaving QuickRun,
 [repositories without a config](/no-config) for what happens when there is none, or the
 [samples](/samples) for eight worked examples — including a multi-service stack, a generated input
 form with a validated secret, and a repository that installs its own SDK.

@@ -94,6 +94,13 @@ label.field > input, label.field > textarea { color: var(--fg); }
 details > summary { cursor: pointer; margin-top: 12px; color: var(--muted); }
 ol.plan { margin: 10px 0 0; padding-left: 22px; }
 ol.plan li { margin-bottom: 6px; overflow-wrap: anywhere; }
+.editor {
+  height: 420px; width: 100%; margin: 14px 0; border: 1px solid var(--line);
+  border-radius: 8px; overflow: hidden;
+}
+textarea.editor { padding: 10px 12px; background: var(--bg); resize: vertical; }
+.issue { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; }
+.issue .where { color: var(--muted); font-size: 12px; min-width: 8em; }
 ol.plan .phase {
   font-size: 11px; color: var(--muted); border: 1px solid var(--line);
   border-radius: 10px; padding: 1px 6px; margin-right: 6px;
@@ -111,6 +118,7 @@ ol.plan .phase {
 
 <nav>
   <button data-tab="runs" aria-selected="true">Runs</button>
+  <button data-tab="builder" aria-selected="false">Config builder</button>
   <button data-tab="workspaces" aria-selected="false">Workspaces</button>
   <button data-tab="extension" aria-selected="false">Browser extension</button>
   <button data-tab="about" aria-selected="false">About</button>
@@ -160,6 +168,68 @@ ol.plan .phase {
 
     <h2>Runs</h2>
     <div id="runList"><p class="muted">Nothing has run yet.</p></div>
+  </section>
+
+  <section id="builder" hidden>
+    <h2>Write a config for a repository</h2>
+    <div class="card">
+      <div class="row">
+        <input id="bRepo" class="grow" type="text" spellcheck="false" autocomplete="off"
+               placeholder="owner/repo, or a git URL" aria-label="Repository">
+        <input id="bRef" type="text" spellcheck="false" placeholder="branch (optional)"
+               aria-label="Branch" style="max-width:220px">
+        <button class="action" id="bLoad">Load</button>
+      </div>
+      <div class="row">
+        <span id="bSource" class="pill">nothing loaded</span>
+        <span id="bNote" class="muted grow"></span>
+      </div>
+
+      <div id="bEditor" class="editor"></div>
+      <textarea id="bFallback" class="editor" spellcheck="false" hidden
+                aria-label="Config"></textarea>
+
+      <div class="row">
+        <button class="action" id="bCheck">Check</button>
+        <button class="action primary" id="bTest">Test against the repository</button>
+        <button class="action" id="bSave">Save as my config</button>
+        <button class="action danger" id="bDelete" hidden>Delete my config</button>
+        <span id="bState" class="muted grow"></span>
+      </div>
+
+      <div id="bIssues"></div>
+      <div id="bPlan" hidden></div>
+    </div>
+
+    <div class="card">
+      <h2>When it is good</h2>
+      <ol class="steps">
+        <li>
+          <strong>Your own repository:</strong> save the text as <code>quickrun.yml</code> in the
+          repository root, commit it, push it. That is all - anyone who runs the repository from then
+          on gets your config, and the <span class="mono">quickrun validate</span> command checks it
+          in a pre-commit hook.
+        </li>
+        <li>
+          <strong>Someone else's repository:</strong> use <strong>Save as my config</strong>. It is
+          kept in QuickRun's own directory, applies to every branch of that repository, and beats a
+          <code>quickrun.yml</code> the repository ships. Nothing is written into the checkout, so
+          <span class="mono">--fresh</span> cannot delete it and you cannot commit it by accident.
+        </li>
+        <li>
+          The schema line at the top of the file gives you the same completion in your own editor -
+          VS Code, JetBrains and anything else that speaks YAML language server.
+        </li>
+      </ol>
+      <p class="muted" style="margin-bottom:0">
+        Full reference: <a href="https://fgilde.github.io/QuickRun/config" target="_blank" rel="noreferrer">fgilde.github.io/QuickRun/config</a>
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="grow"><strong>Configs you saved</strong></span></div>
+      <div id="bMine"><p class="muted" style="margin:8px 0 0">None yet.</p></div>
+    </div>
   </section>
 
   <section id="workspaces" hidden>
@@ -270,8 +340,18 @@ document.querySelectorAll('nav button').forEach((tab) => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
     document.querySelectorAll('main section').forEach((s) => { s.hidden = s.id !== tab.dataset.tab; });
+    history.replaceState(null, '', `#${tab.dataset.tab}`);
   });
 });
+
+/** A tab can be linked to: the tray menu and the docs point at #builder. */
+function openTabFromHash() {
+  const wanted = location.hash.replace('#', '');
+  const tab = wanted && document.querySelector(`nav button[data-tab="${CSS.escape(wanted)}"]`);
+  if (tab) tab.click();
+}
+
+addEventListener('hashchange', openTabFromHash);
 
 /**
  * A run's address as a link - but only if it is one.
@@ -398,9 +478,9 @@ function parseInputs(text) {
  * The plan, and nothing else: this is the confirmation gate, so it shows the commands that would
  * run before anything has run. Every command is repository content and is escaped as such.
  */
-function renderPlan(run) {
-  starter.plan.hidden = false;
-  starter.plan.innerHTML = `
+function renderPlan(run, panel = starter.plan) {
+  panel.hidden = false;
+  panel.innerHTML = `
     <div class="row" style="margin-top:14px">
       <span class="grow name">${escapeHtml(run.displayName)}</span>
       ${pill('awaiting your confirmation', 'warn')}
@@ -418,17 +498,17 @@ function renderPlan(run) {
       <button class="action" data-cancel="${run.id}">Cancel</button>
     </div>`;
 
-  starter.plan.querySelector('[data-confirm]').addEventListener('click', async (event) => {
+  panel.querySelector('[data-confirm]').addEventListener('click', async (event) => {
     event.currentTarget.disabled = true;
     await api(`/api/dashboard/runs/${run.id}/confirm`, { method: 'POST' });
-    starter.plan.hidden = true;
+    panel.hidden = true;
     say('started');
     refresh();
   });
 
-  starter.plan.querySelector('[data-cancel]').addEventListener('click', async () => {
+  panel.querySelector('[data-cancel]').addEventListener('click', async () => {
     await api(`/api/dashboard/runs/${run.id}/cancel`, { method: 'POST' }).catch(() => null);
-    starter.plan.hidden = true;
+    panel.hidden = true;
     say('cancelled - nothing ran');
     refresh();
   });
@@ -678,8 +758,385 @@ document.getElementById('checkUpdate').addEventListener('click', async () => {
   renderUpdate(await api('/api/dashboard/update').catch(() => null));
 });
 
+/* ---- the config builder ------------------------------------------------------------------- */
+
+const builder = {
+  repo: document.getElementById('bRepo'),
+  ref: document.getElementById('bRef'),
+  load: document.getElementById('bLoad'),
+  source: document.getElementById('bSource'),
+  note: document.getElementById('bNote'),
+  host: document.getElementById('bEditor'),
+  fallback: document.getElementById('bFallback'),
+  check: document.getElementById('bCheck'),
+  test: document.getElementById('bTest'),
+  save: document.getElementById('bSave'),
+  remove: document.getElementById('bDelete'),
+  state: document.getElementById('bState'),
+  issues: document.getElementById('bIssues'),
+  plan: document.getElementById('bPlan'),
+  mine: document.getElementById('bMine'),
+};
+
+let editor = null;
+let booting = null;
+
+function builderSay(message) {
+  builder.state.textContent = message ?? '';
+}
+
+function configText() {
+  return editor ? editor.getValue() : builder.fallback.value;
+}
+
+function setConfigText(text) {
+  if (editor) editor.setValue(text);
+  else builder.fallback.value = text;
+}
+
+/**
+ * Loads the vendored editor, once, when this tab is first opened.
+ *
+ * Everything here works without it: the textarea is the fallback, and the config is checked by the
+ * daemon with the same parser a run uses - so a failed editor costs syntax colours, not the feature.
+ */
+function bootEditor() {
+  if (booting) return booting;
+
+  booting = new Promise((resolve) => {
+    const style = document.createElement('link');
+    style.rel = 'stylesheet';
+    style.href = '/monaco/monaco.css';
+    document.head.append(style);
+
+    const script = document.createElement('script');
+    script.src = '/monaco/monaco.js';
+
+    script.onerror = () => { useFallback('the editor could not be loaded'); resolve(null); };
+    script.onload = () => {
+      try {
+        editor = monaco.editor.create(builder.host, {
+          value: builder.fallback.value,
+          language: 'yaml',
+          theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs',
+          automaticLayout: true,
+          minimap: { enabled: false },
+          tabSize: 2,
+          insertSpaces: true,
+          scrollBeyondLastLine: false,
+          fontSize: 13,
+        });
+        registerCompletions();
+        resolve(editor);
+      } catch (failure) {
+        useFallback(failure.message);
+        resolve(null);
+      }
+    };
+
+    document.head.append(script);
+  });
+
+  return booting;
+}
+
+function useFallback(reason) {
+  builder.host.hidden = true;
+  builder.fallback.hidden = false;
+  builderSay(`${reason} - editing as plain text`);
+}
+
+/**
+ * Completion from the schema QuickRun publishes, so the suggestions cannot drift away from what the
+ * parser accepts. Which keys are offered depends on the block the cursor is in, decided by walking
+ * up to the nearest top-level section - crude, and right for every config a person actually writes.
+ */
+async function registerCompletions() {
+  let schema;
+  try { schema = await (await fetch('/quickrun.schema.json')).json(); } catch { return; }
+
+  const defs = schema.$defs ?? {};
+  const keysOf = (node) => {
+    if (!node) return [];
+    const direct = Object.keys(node.properties ?? {});
+    const branches = [...(node.oneOf ?? []), ...(node.anyOf ?? []), ...(node.allOf ?? [])];
+    return [...new Set([...direct, ...branches.flatMap((b) => Object.keys(b.properties ?? {}))])];
+  };
+
+  const sections = {
+    '': keysOf(schema),
+    tasks: keysOf(defs.task),
+    setup: keysOf(defs.step),
+    stop: keysOf(defs.step),
+    requires: keysOf(defs.requirement),
+    inputs: keysOf(defs.input),
+  };
+  const ready = keysOf(defs.readyWhen);
+
+  const SNIPPETS = [
+    ['task', 'a task that waits for a port and opens it',
+      '- name: ${1:web}\n  run: ${2:npm run dev}\n  readyWhen: {http: "http://localhost:${3:5173}"}\n  open: true'],
+    ['task-log', 'a task that is ready when it prints something',
+      "- name: ${1:app}\n  run: ${2:python app.py}\n  readyWhen: {log: '${3:Running on }'}\n  open: true"],
+    ['requires-dotnet', 'the .NET SDK as a prerequisite',
+      '- tool: dotnet\n  version: ">=${1:10.0}"\n  install: https://dotnet.microsoft.com/download'],
+    ['requires-node', 'Node as a prerequisite',
+      '- tool: node\n  version: ">=${1:20.0}"\n  install: https://nodejs.org'],
+    ['requires-docker', 'Docker as a prerequisite',
+      '- tool: docker\n  install: https://docs.docker.com/get-docker/'],
+    ['input-select', 'a select input with two options',
+      '- id: ${1:mode}\n  label: ${2:Mode}\n  type: select\n  options: [${3:fast}, ${4:slow}]\n  default: ${3:fast}'],
+    ['input-secret', 'a secret, never written to a log',
+      '- id: ${1:apiKey}\n  label: ${2:API key}\n  type: password\n  required: true\n  env: ${3:API_KEY}'],
+  ];
+
+  monaco.languages.registerCompletionItemProvider('yaml', {
+    triggerCharacters: [' ', '-', ':'],
+    provideCompletionItems(model, position) {
+      const line = model.getLineContent(position.lineNumber);
+      const before = line.slice(0, position.column - 1);
+      const word = model.getWordUntilPosition(position);
+      const range = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: word.startColumn,
+        endColumn: word.endColumn,
+      };
+
+      // readyWhen is written inline, so its keys are what to offer inside it.
+      const keys = before.includes('readyWhen')
+        ? ready
+        : sections[sectionAt(model, position.lineNumber)] ?? sections[''];
+
+      const suggestions = keys.map((key) => ({
+        label: key,
+        kind: monaco.languages.CompletionItemKind.Property,
+        insertText: `${key}: `,
+        range,
+      }));
+
+      for (const [label, detail, body] of SNIPPETS)
+        suggestions.push({
+          label,
+          detail,
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: body,
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range,
+        });
+
+      return { suggestions };
+    },
+  });
+}
+
+/** Which top-level section a line belongs to, by looking upwards for an unindented key. */
+function sectionAt(model, lineNumber) {
+  if (/^\S/.test(model.getLineContent(lineNumber))) return '';
+
+  for (let line = lineNumber - 1; line >= 1; line--) {
+    const match = /^([a-zA-Z]+):/.exec(model.getLineContent(line));
+    if (match) return match[1];
+  }
+
+  return '';
+}
+
+function renderIssues(result) {
+  const issues = result.issues ?? [];
+  builder.issues.innerHTML = issues.length === 0
+    ? '<p class="muted" style="margin:8px 0 0">No problems found.</p>'
+    : issues.map((issue) => `<div class="issue">
+        <span class="where mono">${escapeHtml(issue.path || 'config')}</span>
+        <span>${pill(issue.isError ? 'error' : 'warning', issue.isError ? 'bad' : 'warn')}</span>
+        <span class="grow">${escapeHtml(issue.message)}</span>
+      </div>`).join('');
+
+  if (!editor) return;
+
+  // The same issues as markers in the gutter. A validation issue carries a path, not a line, so the
+  // marker goes on the line whose key that path names when it can be found.
+  const model = editor.getModel();
+  monaco.editor.setModelMarkers(model, 'quickrun', issues.map((issue) => {
+    const line = lineFor(model, issue.path);
+    return {
+      startLineNumber: line,
+      endLineNumber: line,
+      startColumn: 1,
+      endColumn: model.getLineMaxColumn(line),
+      message: `${issue.path ? issue.path + ': ' : ''}${issue.message}`,
+      severity: issue.isError ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+    };
+  }));
+}
+
+/** The line a validation path points at, or the first line when it cannot be located. */
+function lineFor(model, path) {
+  const last = String(path ?? '').split(/[.\[\]]/).filter(Boolean).pop();
+  if (!last) return 1;
+
+  const found = model.findMatches(`${last}:`, false, false, false, null, false, 1);
+  return found.length ? found[0].range.startLineNumber : 1;
+}
+
+async function checkConfig() {
+  const text = configText();
+  if (!text.trim()) { builderSay('there is nothing to check'); return null; }
+
+  builderSay('checking…');
+  try {
+    const result = await api('/api/dashboard/config/check', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+
+    renderIssues(result);
+    builderSay(result.ok
+      ? `looks good${result.tasks?.length ? ` - ${result.tasks.length} task(s)` : ''}`
+      : 'this config would not run');
+    return result;
+  } catch (failure) {
+    builderSay(failure.message);
+    return null;
+  }
+}
+
+async function loadSuggestion() {
+  const repo = builder.repo.value.trim();
+  if (!repo) { builderSay('a repository is needed'); return; }
+
+  await bootEditor();
+  builderSay('checking the repository out…');
+  builder.plan.hidden = true;
+
+  try {
+    const result = await api('/api/dashboard/config/suggest', {
+      method: 'POST',
+      body: JSON.stringify({
+        repo,
+        ref: builder.ref.value.trim() || null,
+        token: starter.token.value || null,
+      }),
+    });
+
+    setConfigText(result.text);
+    builder.source.textContent = {
+      yours: 'your config',
+      repo: "the repository's own config",
+      pinokio: 'derived from Pinokio scripts',
+      detected: 'detected, not committed',
+      template: 'a starting point',
+    }[result.source] ?? result.source;
+    builder.source.className = `pill ${result.source === 'yours' || result.source === 'repo' ? 'ok' : 'warn'}`;
+    builder.note.textContent = result.note ?? '';
+    builder.remove.hidden = result.source !== 'yours';
+    builderSay(`loaded ${result.repo} @ ${result.ref}`);
+    await checkConfig();
+  } catch (failure) {
+    builderSay(failure.message);
+  }
+}
+
+async function testConfig() {
+  const repo = builder.repo.value.trim();
+  if (!repo) { builderSay('a repository is needed'); return; }
+
+  const checked = await checkConfig();
+  if (checked && !checked.ok) return;
+
+  builder.test.disabled = true;
+  builderSay('checking out and building the plan…');
+
+  try {
+    const run = await api('/api/dashboard/run', {
+      method: 'POST',
+      body: JSON.stringify({
+        repo,
+        ref: builder.ref.value.trim() || null,
+        token: starter.token.value || null,
+        configText: configText(),
+      }),
+    });
+
+    renderPlan(run, builder.plan);
+    builderSay('this run would use the config in the editor, not the repository’s');
+  } catch (failure) {
+    builderSay(failure.message);
+  } finally {
+    builder.test.disabled = false;
+  }
+}
+
+async function saveMine() {
+  const repo = builder.repo.value.trim();
+  if (!repo) { builderSay('a repository is needed'); return; }
+
+  try {
+    const result = await api('/api/dashboard/config/mine', {
+      method: 'POST',
+      body: JSON.stringify({ repo, text: configText(), action: 'save' }),
+    });
+
+    builderSay(`saved to ${result.path}`);
+    builder.remove.hidden = false;
+    builder.source.textContent = 'your config';
+    builder.source.className = 'pill ok';
+    builder.note.textContent = 'this config is now used for every branch of that repository';
+    listMine();
+  } catch (failure) {
+    builderSay(failure.message);
+  }
+}
+
+async function deleteMine() {
+  const repo = builder.repo.value.trim();
+  if (!repo) return;
+
+  await api('/api/dashboard/config/mine', {
+    method: 'POST',
+    body: JSON.stringify({ repo, action: 'delete' }),
+  }).catch(() => null);
+
+  builder.remove.hidden = true;
+  builderSay('removed - the repository decides again');
+  listMine();
+}
+
+async function listMine() {
+  const saved = await api('/api/dashboard/configs').catch(() => []);
+
+  builder.mine.innerHTML = saved.length === 0
+    ? '<p class="muted" style="margin:8px 0 0">None yet.</p>'
+    : saved.map((entry) => `<div class="row">
+        <span class="grow mono">${escapeHtml(entry.repo)}</span>
+        <span class="muted">${new Date(entry.changed).toLocaleString()}</span>
+        <button class="action" data-open-config="${escapeHtml(entry.repo)}">Open</button>
+      </div>`).join('');
+
+  builder.mine.querySelectorAll('[data-open-config]').forEach((button) => {
+    button.addEventListener('click', () => {
+      builder.repo.value = button.dataset.openConfig;
+      loadSuggestion();
+    });
+  });
+}
+
+builder.load.addEventListener('click', loadSuggestion);
+builder.check.addEventListener('click', checkConfig);
+builder.test.addEventListener('click', testConfig);
+builder.save.addEventListener('click', saveMine);
+builder.remove.addEventListener('click', deleteMine);
+
+// The editor is three megabytes of JavaScript: it loads when someone asks for this tab, not before.
+document.querySelector('nav button[data-tab="builder"]').addEventListener('click', () => {
+  bootEditor();
+  listMine();
+  if (!builder.repo.value) builder.repo.value = starter.repo.value;
+});
+
 refresh();
 loadScheme();
+openTabFromHash();
 setInterval(refresh, 4000);
 api('/api/dashboard/update').then(renderUpdate).catch(() => renderUpdate(null));
 </script>

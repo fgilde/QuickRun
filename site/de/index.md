@@ -38,6 +38,11 @@ features:
       Keine quickrun.yml? Eine Pinokio-App läuft aus ihren eigenen Skripten, alles andere wird
       erkannt - Compose-Dateien, npm-Skripte, .NET-Projekte, Python-Apps, Procfile, .replit,
       Makefiles, Cargo, Go, Maven, Gradle - samt Adresse, damit es einen Link gibt.
+  - title: Ein Builder für die Config
+    details: >
+      Die quickrun.yml in der lokalen UI schreiben, mit Vervollständigung aus dem Schema, geprüft
+      vom echten Validator, getestet gegen das Repository - und für fremde Repositories die eigene
+      Config behalten.
   - title: Nichts läuft unbesehen
     details: >
       Jeder Lauf zeigt Repository, Ref, aufgelösten Commit und die exakten Befehle und wartet auf
@@ -55,6 +60,7 @@ run: ./run.sh
 <<< @/../samples/npm-dev.yml{yaml}
 
 Jeder Block ist optional. Die [Config-Referenz](/de/config) beschreibt die vollständige Form,
+[der Config-Builder](/de/builder) schreibt eine ohne QuickRun zu verlassen,
 [Repositories ohne Config](/de/no-config) erklärt den Fall ohne sie, die
 [Beispiele](/de/samples) zeigen acht ausgearbeitete Fälle — darunter ein Multi-Service-Stack, ein
 generiertes Eingabeformular mit validiertem Secret und ein Repository, das sich sein SDK selbst

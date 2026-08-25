@@ -17,6 +17,9 @@ public enum RunEventKind
     Progress,
     Failed,
     Finished,
+
+    /// <summary>Stopped on request. A run that was asked to stop did not fail, and did not finish.</summary>
+    Cancelled,
 }
 
 /// <summary>
@@ -54,6 +57,9 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
     private RunOptions? _options;
     private int _taskCount;
     private int _tasksSettled;
+    private int _tasksStarted;
+    private int _reportedPercent;
+    private readonly object _progressGate = new();
 
     public async Task<RunOutcome> ExecuteAsync(RunConfig config, RunOptions options, CancellationToken ct)
     {
@@ -154,6 +160,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
         {
             var command = Interpolator.Expand(task.Run, options.Context);
             Emit(RunEventKind.TaskStarted, task.Name, $"$ {command}");
+            StartedTask(task);
 
             var spec = new ProcessSpec(command, ResolveCwd(options.Workspace, task.Cwd, options.Context),
                 EnvironmentFor(task, options));
@@ -217,6 +224,19 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
         string Snapshot() { lock (log) return log.ToString(); }
 
         var ready = await Readiness.WaitAsync(task.ReadyWhen, Snapshot, options.ReadyTimeout, ct);
+
+        if (!ready && !ct.IsCancellationRequested)
+        {
+            // The task is still running: it just never met its condition. Saying nothing leaves a
+            // progress bar frozen next to an application that works, which is what this fixes.
+            Emit(RunEventKind.Error, task.Name,
+                $"gave up waiting for {Describe(task.ReadyWhen)} after {options.ReadyTimeout.TotalSeconds:0}s"
+                + " - the task is still running, so it may only be slow");
+            SettleTask(task.Name, $"{task.Name} started, readiness not confirmed");
+            Complete(task.Name);
+            return;
+        }
+
         if (!ready || ct.IsCancellationRequested) return;
 
         Complete(task.Name);
@@ -262,9 +282,52 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
         ReportProgress(RunPhase.Tasks, ProgressModel.StepPercent(settled, _taskCount), detail);
     }
 
-    private void ReportProgress(RunPhase phase, int phasePercent, string detail) =>
+    /// <summary>
+    /// Half the credit for launching, the other half for becoming ready. A long-running task never
+    /// finishes, so waiting for readiness to move the bar at all leaves it parked through the whole
+    /// startup - and a bar that does not move reads as "stuck", not as "starting".
+    /// </summary>
+    private void StartedTask(TaskDef task)
+    {
+        if (_settled.ContainsKey(task.Name)) return;
+
+        var started = Interlocked.Increment(ref _tasksStarted);
+        var percent = ProgressModel.StepPercent(started, Math.Max(1, _taskCount * 2));
+
+        ReportProgress(RunPhase.Tasks, percent,
+            task.ReadyWhen is null
+                ? $"{task.Name} started"
+                : $"{task.Name} started, waiting for {Describe(task.ReadyWhen)}");
+    }
+
+    /// <summary>What a task is waiting for, in the words the config used.</summary>
+    private static string Describe(ReadyWhen? readyWhen) => readyWhen switch
+    {
+        { Port: { } port } => $"port {port}",
+        { Http: { } url } => url,
+        { Log: { } pattern } => $"'{pattern}' in the output",
+        { Delay: { } delay } => $"{delay.TotalSeconds:0}s",
+        _ => "the process to start",
+    };
+
+    /// <summary>
+    /// Reports progress, never backwards. Tasks start and settle in whatever order they please, and
+    /// half-credit for starting means the two counts can cross - a bar that jumps back is worse
+    /// than one that is coarse.
+    /// </summary>
+    private void ReportProgress(RunPhase phase, int phasePercent, string detail)
+    {
+        var total = ProgressModel.Total(phase, phasePercent);
+
+        lock (_progressGate)
+        {
+            total = Math.Max(total, _reportedPercent);
+            _reportedPercent = total;
+        }
+
         onEvent(new RunEvent(RunEventKind.Progress, null, detail,
-            new RunProgress(phase, ProgressModel.Total(phase, phasePercent), Redact(detail, _options))));
+            new RunProgress(phase, total, Redact(detail, _options))));
+    }
 
     private void Complete(string taskName)
     {

@@ -231,4 +231,75 @@ public class RunRegistryTests
 
         Assert.Empty(collected);
     }
+
+    /// <summary>
+    /// What the config says the repository is, so the window that asks for confirmation can show it
+    /// instead of a bare name.
+    /// </summary>
+    [Fact]
+    public async Task The_summary_carries_the_configs_description()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "name: Demo\ndescription: Starts the thing and opens it.\nrun: echo hi\n");
+        repo.Commit("add config");
+
+        var (summary, _) = await new RunRegistry(new WorkspaceStore(home.Path)).PrepareAsync(Args(repo.Url));
+
+        Assert.Equal("Starts the thing and opens it.", summary!.Description);
+    }
+
+    [Fact]
+    public async Task A_config_without_a_description_says_nothing()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var (summary, _) = await new RunRegistry(new WorkspaceStore(home.Path)).PrepareAsync(Args(repo.Url));
+
+        Assert.Null(summary!.Description);
+    }
+
+    /// <summary>
+    /// Stopping has to be visible. The runner announces finishing and failing itself, but a stopped
+    /// run used to return in silence - which left a log window saying "Running" for ever.
+    /// </summary>
+    [Fact]
+    public async Task Stopping_a_run_ends_the_stream_with_a_cancelled_event()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        var sleep = OSKinds.Current == OSKind.Windows
+            ? "powershell -NoProfile -Command Start-Sleep -Seconds 30"
+            : "sleep 30";
+        repo.Write("quickrun.yml", $"tasks:\n  - name: app\n    run: {sleep}\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var collected = new List<RunEvent>();
+        var reading = Task.Run(async () =>
+        {
+            await foreach (var e in registry.Subscribe(summary!.Id, cts.Token)) collected.Add(e);
+        }, cts.Token);
+
+        Assert.True(registry.Confirm(summary!.Id));
+
+        // Wait for the task to be up before stopping it, so this tests stopping rather than racing.
+        while (registry.Get(summary.Id)!.LiveTasks == 0 && !cts.IsCancellationRequested)
+            await Task.Delay(50, cts.Token);
+
+        Assert.True(registry.Stop(summary.Id));
+
+        try { await reading; } catch (OperationCanceledException) { }
+
+        Assert.Contains(collected, e => e.Kind == RunEventKind.Cancelled);
+        Assert.Equal(RunState.Cancelled, registry.Get(summary.Id)!.State);
+        Assert.Equal(0, registry.Get(summary.Id)!.LiveTasks);
+    }
 }

@@ -45,9 +45,6 @@
          loose files next to the executable and the single-binary promise is gone. -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
-    <!-- The WebView2 package also carries WPF and WinForms wrappers, which reference a WindowsBase
-         this app never loads. Only the Core assembly is used, so the conflict is noise. -->
-    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 

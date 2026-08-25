@@ -45,6 +45,16 @@ h1 { font-size: 18px; margin: 0; }
 h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 20px 0 8px; }
 .muted { color: var(--muted); margin: 2px 0 0; }
 
+/* What the repository says it is. Untrusted text, so it is set with textContent and kept plain. */
+.description {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .facts { display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px; margin: 0; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
@@ -101,6 +111,7 @@ footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .banner--running { background: var(--code-bg); }
 .banner--ok { background: var(--ok-bg); border-color: var(--ok-line); }
 .banner--bad { background: var(--bad-bg); border-color: var(--bad-line); }
+.banner--warn { background: var(--warn-bg); border-color: var(--warn-line); }
 
 .errors { font-weight: 400; font-size: 12.5px; color: var(--muted); }
 .banner--bad .errors { color: var(--bad-line); }

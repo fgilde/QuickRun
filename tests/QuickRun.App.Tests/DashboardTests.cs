@@ -71,6 +71,19 @@ public class DashboardTests
         Assert.Contains("https://fgilde.github.io/QuickRun/download", html);
     }
 
+    /// <summary>
+    /// A stopped run has to read as stopped, and what the repository says it is belongs next to it.
+    /// </summary>
+    [Fact]
+    public void The_page_renders_a_description_and_a_stopped_run()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("run.description", html);
+        Assert.Contains("cancelled: ['stopped', 'warn']", html);
+        Assert.Contains("Stopping", html);
+    }
+
     /// <summary>A run can be started from this page, which is what makes the extension optional.</summary>
     [Fact]
     public void The_page_can_start_a_run_itself()

@@ -7,5 +7,9 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- The WebView2 package carries WPF and WinForms wrappers next to the Core assembly, and they
+         reference a WindowsBase nothing here loads. Only Core is used, so the conflict is noise -
+         in the app and in anything that references it. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
   </PropertyGroup>
 </Project>

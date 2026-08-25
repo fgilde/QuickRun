@@ -171,7 +171,8 @@ function notify(tabId, runId, event) {
 
   // A run the user has stopped watching should say so itself. The moment worth interrupting for is
   // the outcome, and the moment something became reachable - not every line of build output.
-  if (event.kind === 'taskReady' || event.kind === 'finished' || event.kind === 'failed')
+  if (event.kind === 'taskReady' || event.kind === 'finished' || event.kind === 'failed'
+      || event.kind === 'cancelled')
     raiseLogWindow(runId);
 }
 

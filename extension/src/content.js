@@ -158,6 +158,11 @@ chrome.runtime.onMessage.addListener((message) => {
   } else if (kind === 'finished') {
     setState(button, 'done');
     setLabel(button, 'Finished');
+  } else if (kind === 'cancelled') {
+    // Stopped on request is neither a failure nor a success, and the button has to stop saying
+    // a percentage that will never move again.
+    setState(button, 'done');
+    setLabel(button, 'Stopped');
   }
 });
 

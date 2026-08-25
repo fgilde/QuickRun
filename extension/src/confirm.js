@@ -39,6 +39,15 @@ function render(run) {
   text('ref', run.ref);
   text('commit', run.commit ? run.commit.slice(0, 10) : 'unknown');
   text('dir', run.workspace ?? '');
+
+  // What the repository says it is, when its config says anything. textContent: this is the
+  // repository's own text.
+  if (run.description) {
+    const description = document.getElementById('description');
+    description.textContent = run.description;
+    description.hidden = false;
+  }
+
   if (run.url) showAddress(run.url);
 
   const list = document.getElementById('commands');
@@ -74,6 +83,7 @@ document.getElementById('openDir').addEventListener('click', async () => {
 
 stop.addEventListener('click', async () => {
   stop.disabled = true;
+  setState('Stopping', 'running');
   await chrome.runtime.sendMessage({ type: 'stop', runId: run.id });
 });
 
@@ -177,10 +187,16 @@ chrome.runtime.onMessage.addListener((message) => {
 
   append(`${event.task ? `[${event.task}] ` : ''}${event.text}`, event.kind === 'error' ? 'err' : '');
 
-  if (event.kind === 'finished' || event.kind === 'failed') {
-    const ok = event.kind === 'finished';
-    document.getElementById('phase').textContent = ok ? 'finished' : 'failed';
-    setState(ok ? 'Finished' : 'Failed', ok ? 'ok' : 'bad');
+  // Terminal, one way or another: what is left to do is read the log and close the window.
+  if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') {
+    const outcome = {
+      finished: ['Finished', 'ok', 'finished'],
+      failed: ['Failed', 'bad', 'failed'],
+      cancelled: ['Stopped', 'warn', 'stopped'],
+    }[event.kind];
+
+    document.getElementById('phase').textContent = outcome[2];
+    setState(outcome[0], outcome[1]);
     stop.hidden = true;
     close.hidden = false;
   }

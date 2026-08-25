@@ -99,6 +99,11 @@ ol.plan li { margin-bottom: 6px; overflow-wrap: anywhere; }
   border-radius: 8px; overflow: hidden;
 }
 textarea.editor { padding: 10px 12px; background: var(--bg); resize: vertical; }
+/* The repository's own words, so it is escaped like everything else that comes from one. */
+.description {
+  margin: 10px 0 0; padding: 9px 11px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
 .issue { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; }
 .issue .where { color: var(--muted); font-size: 12px; min-width: 8em; }
 ol.plan .phase {
@@ -488,6 +493,7 @@ function renderPlan(run, panel = starter.plan) {
     <div class="row">
       <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
     </div>
+    ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
     ${run.workspace ? `<div class="row"><code class="grow mono">${escapeHtml(run.workspace)}</code></div>` : ''}
     <p class="muted" style="margin:10px 0 0">These commands will run on your machine, with your privileges:</p>
     <ol class="plan">
@@ -559,7 +565,7 @@ function renderRuns(runs) {
       running: ['running', ''],
       succeeded: ['succeeded', 'ok'],
       failed: ['failed', 'bad'],
-      cancelled: ['cancelled', ''],
+      cancelled: ['stopped', 'warn'],
     }[run.state] ?? [run.state, ''];
 
     const percent = run.progress?.percent ?? (run.state === 'succeeded' ? 100 : 0);
@@ -576,6 +582,7 @@ function renderRuns(runs) {
       <div class="row">
         <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
       </div>
+      ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
       <div class="row">
         <div class="bar grow"><div style="width:${percent}%"></div></div>
         <span class="muted" style="min-width:3.2em;text-align:right">${percent}%</span>
@@ -598,6 +605,8 @@ function renderRuns(runs) {
 
   target.querySelectorAll('[data-stop]').forEach((button) => {
     button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'Stopping…';
       await api(`/api/dashboard/runs/${button.dataset.stop}/stop`, { method: 'POST' });
       refresh();
     });
@@ -630,7 +639,7 @@ function follow(run) {
     log.textContent += `${event.task ? '[' + event.task + '] ' : ''}${event.text}\n`;
     log.scrollTop = log.scrollHeight;
 
-    if (event.kind === 'finished' || event.kind === 'failed') {
+    if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') {
       source.close();
       streams.delete(run.id);
       setTimeout(refresh, 400);

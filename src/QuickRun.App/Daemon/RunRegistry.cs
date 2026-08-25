@@ -32,7 +32,9 @@ public sealed record RunSummary(
     string? Error,
     string? Workspace,
     string? Url,
-    int LiveTasks);
+    int LiveTasks,
+    /// <summary>What the config says this repository is, when it says anything.</summary>
+    string? Description = null);
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -193,6 +195,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Fingerprint = plan.Fingerprint,
                     State = RunState.AwaitingConfirmation,
                     Workspace = preparation.Workspace,
+                    Description = preparation.Config?.Description,
                 };
         }
 
@@ -210,14 +213,22 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
         public void Complete(RunOutcome outcome)
         {
+            var cancelled = _stop.IsCancellationRequested;
+
             lock (_gate)
                 Summary = Summary with
                 {
-                    State = _stop.IsCancellationRequested ? RunState.Cancelled
+                    State = cancelled ? RunState.Cancelled
                         : outcome.Ok ? RunState.Succeeded : RunState.Failed,
                     Error = outcome.Error,
                     LiveTasks = 0,
                 };
+
+            // The runner announces finishing and failing itself, but a run that was stopped returns
+            // without a word - which left the log window saying "Running" for ever, with a Stop
+            // button that had nothing left to stop.
+            if (cancelled) Publish(new RunEvent(RunEventKind.Cancelled, null, "stopped on request"));
+
             CloseSubscribers();
         }
 

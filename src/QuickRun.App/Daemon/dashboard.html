@@ -83,6 +83,21 @@ th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--lin
 th { color: var(--muted); font-weight: 500; font-size: 12px; }
 ol.steps { padding-left: 22px; margin: 0; }
 ol.steps li { margin-bottom: 10px; }
+input, select, textarea {
+  padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); color: var(--fg); font: inherit; min-width: 0;
+}
+input[type="checkbox"] { width: auto; }
+textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+label.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+label.field > input, label.field > textarea { color: var(--fg); }
+details > summary { cursor: pointer; margin-top: 12px; color: var(--muted); }
+ol.plan { margin: 10px 0 0; padding-left: 22px; }
+ol.plan li { margin-bottom: 6px; overflow-wrap: anywhere; }
+ol.plan .phase {
+  font-size: 11px; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1px 6px; margin-right: 6px;
+}
 </style>
 </head>
 <body class="notranslate">
@@ -103,6 +118,46 @@ ol.steps li { margin-bottom: 10px; }
 
 <main>
   <section id="runs">
+    <h2>Start a run</h2>
+    <div class="card">
+      <div class="row">
+        <input id="repoInput" class="grow" type="text" spellcheck="false" autocomplete="off"
+               placeholder="owner/repo, or a git URL" aria-label="Repository">
+        <select id="refSelect" aria-label="Branch" style="max-width:300px">
+          <option value="">default branch</option>
+        </select>
+        <input id="refInput" class="mono" type="text" placeholder="branch, tag or commit"
+               aria-label="Branch" style="max-width:300px" hidden>
+        <button class="action primary" id="prepareButton">Prepare</button>
+      </div>
+      <div class="row"><span id="starterState" class="muted grow"></span></div>
+
+      <details>
+        <summary>Private repository, pull request, inputs</summary>
+        <div class="row">
+          <label class="field grow">Token
+            <input id="tokenInput" type="password" autocomplete="off" placeholder="only for a private repository">
+          </label>
+          <label class="field">Pull request
+            <input id="prInput" type="number" min="1" style="width:120px">
+          </label>
+          <label class="field grow">Subdirectory
+            <input id="subdirInput" type="text" placeholder="optional">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field grow">Inputs, one <span class="mono">key=value</span> per line
+            <textarea id="inputsInput" rows="2" spellcheck="false"></textarea>
+          </label>
+        </div>
+        <div class="row">
+          <label><input id="freshInput" type="checkbox"> Discard the existing checkout first</label>
+        </div>
+      </details>
+
+      <div id="planPanel" hidden></div>
+    </div>
+
     <h2>Runs</h2>
     <div id="runList"><p class="muted">Nothing has run yet.</p></div>
   </section>
@@ -126,14 +181,17 @@ ol.steps li { margin-bottom: 10px; }
     <h2>Browser extension</h2>
     <div class="card">
       <div class="row">
-        <span class="grow">Pairing</span>
-        <span id="pairState" class="pill">checking…</span>
-        <button class="action primary" id="pairButton">Open pairing window</button>
+        <span class="grow"><span class="mono">quickrun://</span> handler</span>
+        <span id="schemeState" class="pill">checking…</span>
+        <button class="action primary" id="schemeButton">Register</button>
       </div>
       <p class="muted" style="margin-top:10px">
-        A token is handed out only while a pairing window is open, and the window can only be opened
-        from this machine. That is what stops any web page from silently obtaining one.
+        The extension uses <span class="mono">quickrun://</span> to start QuickRun when it is
+        installed but not running. Registering needs no administrator rights: on Windows it is a key
+        under <span class="mono">HKCU</span>, on Linux a <span class="mono">.desktop</span> file in
+        your home directory, on macOS the <span class="mono">QuickRun.app</span> bundle.
       </p>
+      <p id="schemeDetail" class="muted mono" style="margin:0"></p>
     </div>
 
     <div class="card">
@@ -144,7 +202,7 @@ ol.steps li { margin-bottom: 10px; }
           <a href="https://fgilde.github.io/QuickRun/download#the-browser-extension" target="_blank" rel="noreferrer">download page</a>. Until the store
           listings are live it is loaded unpacked; that page has the steps.
         </li>
-        <li>Click <strong>Open pairing window</strong> above, then <strong>Pair</strong> in the extension options within 60 seconds.</li>
+        <li>Nothing to pair: the extension is trusted by its origin, which a web page cannot forge.</li>
         <li>
           Open any repository on GitHub. A <strong>Run this</strong> button appears next to the branch
           dropdown, in pull request headers, and on every row of the branch list.
@@ -195,7 +253,16 @@ async function api(path, options = {}) {
     ...options,
     headers: { 'X-QuickRun-Dashboard': TOKEN, ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
   });
-  if (!response.ok) throw new Error(`${path} -> ${response.status}`);
+
+  if (!response.ok) {
+    // The reason a run could not be prepared is the whole point of the response - "422" is not.
+    let detail = '';
+    try { detail = (await response.json())?.error ?? ''; } catch { /* not every failure is JSON */ }
+    const failure = new Error(detail || `${path} -> ${response.status}`);
+    failure.status = response.status;
+    throw failure;
+  }
+
   return response.status === 204 ? null : response.json();
 }
 
@@ -230,10 +297,179 @@ function pill(text, kind) {
   return `<span class="pill ${kind ?? ''}">${text}</span>`;
 }
 
+/* ---- starting a run from here, without the extension ------------------------------------- */
+
+const starter = {
+  repo: document.getElementById('repoInput'),
+  select: document.getElementById('refSelect'),
+  ref: document.getElementById('refInput'),
+  prepare: document.getElementById('prepareButton'),
+  state: document.getElementById('starterState'),
+  plan: document.getElementById('planPanel'),
+  token: document.getElementById('tokenInput'),
+  pr: document.getElementById('prInput'),
+  subdir: document.getElementById('subdirInput'),
+  inputs: document.getElementById('inputsInput'),
+  fresh: document.getElementById('freshInput'),
+};
+
+// The last repository, so a second run is one click. Never the token: that stays in memory only.
+try { starter.repo.value = localStorage.getItem('quickrun.repo') ?? ''; } catch { /* private window */ }
+
+function say(message) {
+  starter.state.textContent = message ?? '';
+}
+
+function typedRef() {
+  starter.select.hidden = true;
+  starter.ref.hidden = false;
+}
+
+function chosenRef() {
+  const value = starter.ref.hidden ? starter.select.value : starter.ref.value;
+  return value.trim() || null;
+}
+
+/** Fills the picker. Branch names are repository content, so they go in as text, never as HTML. */
+function fillRefs(result) {
+  const select = starter.select;
+  select.textContent = '';
+
+  const group = (label, names) => {
+    if (!names.length) return;
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = label;
+    for (const name of names) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      optgroup.append(option);
+    }
+    select.append(optgroup);
+  };
+
+  const recent = result.recent ?? [];
+  group('Run before', recent);
+  group('Branches', (result.branches ?? []).filter((branch) => !recent.includes(branch)));
+
+  if (!select.options.length) {
+    typedRef();
+    say(result.error ?? 'no branches found - type a branch, tag or commit instead');
+    return;
+  }
+
+  select.hidden = false;
+  starter.ref.hidden = true;
+  if (result.default) select.value = result.default;
+
+  const count = (result.branches ?? []).length;
+  say(result.error ?? `${count} branch${count === 1 ? '' : 'es'}${result.default ? `, ${result.default} selected` : ''}`);
+}
+
+async function loadBranches() {
+  const repo = starter.repo.value.trim();
+  if (!repo) return;
+
+  try { localStorage.setItem('quickrun.repo', repo); } catch { /* private window */ }
+
+  say('listing branches…');
+  try {
+    fillRefs(await api('/api/dashboard/branches', {
+      method: 'POST',
+      body: JSON.stringify({ repo, token: starter.token.value || null }),
+    }));
+  } catch (failure) {
+    typedRef();
+    say(failure.message);
+  }
+}
+
+function parseInputs(text) {
+  const values = {};
+  for (const line of text.split('\n')) {
+    const at = line.indexOf('=');
+    if (at <= 0) continue;
+    values[line.slice(0, at).trim()] = line.slice(at + 1).trim();
+  }
+  return values;
+}
+
+/**
+ * The plan, and nothing else: this is the confirmation gate, so it shows the commands that would
+ * run before anything has run. Every command is repository content and is escaped as such.
+ */
+function renderPlan(run) {
+  starter.plan.hidden = false;
+  starter.plan.innerHTML = `
+    <div class="row" style="margin-top:14px">
+      <span class="grow name">${escapeHtml(run.displayName)}</span>
+      ${pill('awaiting your confirmation', 'warn')}
+    </div>
+    <div class="row">
+      <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
+    </div>
+    ${run.workspace ? `<div class="row"><code class="grow mono">${escapeHtml(run.workspace)}</code></div>` : ''}
+    <p class="muted" style="margin:10px 0 0">These commands will run on your machine, with your privileges:</p>
+    <ol class="plan">
+      ${run.commands.map((command) => `<li><span class="phase">${escapeHtml(command.phase)}</span><code>${escapeHtml(command.command)}${command.cwd ? ' (in ' + escapeHtml(command.cwd) + ')' : ''}</code></li>`).join('')}
+    </ol>
+    <div class="row" style="margin-top:12px">
+      <button class="action primary" data-confirm="${run.id}">Run</button>
+      <button class="action" data-cancel="${run.id}">Cancel</button>
+    </div>`;
+
+  starter.plan.querySelector('[data-confirm]').addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    await api(`/api/dashboard/runs/${run.id}/confirm`, { method: 'POST' });
+    starter.plan.hidden = true;
+    say('started');
+    refresh();
+  });
+
+  starter.plan.querySelector('[data-cancel]').addEventListener('click', async () => {
+    await api(`/api/dashboard/runs/${run.id}/cancel`, { method: 'POST' }).catch(() => null);
+    starter.plan.hidden = true;
+    say('cancelled - nothing ran');
+    refresh();
+  });
+}
+
+async function prepareRun() {
+  const repo = starter.repo.value.trim();
+  if (!repo) { say('a repository is needed'); return; }
+
+  starter.prepare.disabled = true;
+  starter.plan.hidden = true;
+  say('checking out and building the plan…');
+
+  try {
+    renderPlan(await api('/api/dashboard/run', {
+      method: 'POST',
+      body: JSON.stringify({
+        repo,
+        ref: chosenRef(),
+        pr: starter.pr.value ? Number(starter.pr.value) : null,
+        subdir: starter.subdir.value.trim() || null,
+        token: starter.token.value || null,
+        inputs: parseInputs(starter.inputs.value),
+        fresh: starter.fresh.checked,
+      }),
+    }));
+    say('');
+  } catch (failure) {
+    say(failure.message);
+  } finally {
+    starter.prepare.disabled = false;
+  }
+}
+
+starter.repo.addEventListener('change', loadBranches);
+starter.prepare.addEventListener('click', prepareRun);
+
 function renderRuns(runs) {
   const target = document.getElementById('runList');
   if (!runs.length) {
-    target.innerHTML = '<p class="muted">Nothing has run yet. Start one from the browser extension, or with <code>quickrun run owner/repo</code>.</p>';
+    target.innerHTML = '<p class="muted">Nothing has run yet. Start one above, from the browser extension, or with <code>quickrun run owner/repo</code>.</p>';
     return;
   }
 
@@ -355,10 +591,33 @@ function renderWorkspaces(state) {
 function renderAbout(state) {
   document.getElementById('aboutVersion').textContent = state.version;
   document.getElementById('aboutSource').textContent = state.installSource;
+}
 
-  const pairState = document.getElementById('pairState');
-  pairState.textContent = state.paired ? 'paired' : state.pairingWindowOpen ? 'window open' : 'not paired';
-  pairState.className = `pill ${state.paired ? 'ok' : 'warn'}`;
+/** Whether quickrun:// reaches this build, said plainly enough to act on. */
+function renderScheme(status) {
+  const state = document.getElementById('schemeState');
+  const detail = document.getElementById('schemeDetail');
+  const button = document.getElementById('schemeButton');
+
+  if (!status) {
+    state.textContent = 'unknown';
+    state.className = 'pill';
+    detail.textContent = '';
+    return;
+  }
+
+  const [text, kind] = status.registered
+    ? status.stale ? ['registered to another build', 'warn'] : ['registered', 'ok']
+    : ['not registered', 'warn'];
+
+  state.textContent = text;
+  state.className = `pill ${kind}`;
+  detail.textContent = status.detail ?? '';
+  button.textContent = status.registered && !status.stale ? 'Register again' : 'Register';
+}
+
+async function loadScheme() {
+  renderScheme(await api('/api/dashboard/integration').catch(() => null));
 }
 
 function renderUpdate(update) {
@@ -392,12 +651,20 @@ async function refresh() {
   }
 }
 
-document.getElementById('pairButton').addEventListener('click', async () => {
-  await api('/api/dashboard/pair/open', { method: 'POST' });
-  const pairState = document.getElementById('pairState');
-  pairState.textContent = 'window open — click Pair in the extension';
-  pairState.className = 'pill warn';
-  setTimeout(refresh, 2000);
+document.getElementById('schemeButton').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  document.getElementById('schemeDetail').textContent = 'registering…';
+
+  try {
+    const result = await api('/api/dashboard/integration/register', { method: 'POST' });
+    renderScheme(result);
+    if (!result.ok) document.getElementById('schemeDetail').textContent = result.detail;
+  } catch (failure) {
+    document.getElementById('schemeDetail').textContent = failure.message;
+  } finally {
+    button.disabled = false;
+  }
 });
 
 document.getElementById('cleanAll').addEventListener('click', async () => {
@@ -412,6 +679,7 @@ document.getElementById('checkUpdate').addEventListener('click', async () => {
 });
 
 refresh();
+loadScheme();
 setInterval(refresh, 4000);
 api('/api/dashboard/update').then(renderUpdate).catch(() => renderUpdate(null));
 </script>

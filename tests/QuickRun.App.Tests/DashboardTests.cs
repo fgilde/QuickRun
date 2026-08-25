@@ -56,13 +56,34 @@ public class DashboardTests
             Assert.Contains(expected, html);
     }
 
+    /// <summary>
+    /// Pairing is gone, so the page must not still promise it - and what replaced it, registering
+    /// the scheme the extension falls back to, has to be reachable from here.
+    /// </summary>
     [Fact]
-    public void The_page_explains_how_to_pair()
+    public void The_page_offers_the_protocol_registration_and_no_pairing()
     {
         var html = new Dashboard().Render(9876);
 
-        Assert.Contains("pairing window", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("quickrun://", html);
+        Assert.Contains("schemeButton", html);
+        Assert.DoesNotContain("pairing window", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://fgilde.github.io/QuickRun/download", html);
+    }
+
+    /// <summary>A run can be started from this page, which is what makes the extension optional.</summary>
+    [Fact]
+    public void The_page_can_start_a_run_itself()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("repoInput", html);
+        Assert.Contains("refSelect", html);
+        Assert.Contains("/api/dashboard/branches", html);
+        Assert.Contains("/api/dashboard/run", html);
+
+        // The gate: the page confirms separately, it does not start on prepare.
+        Assert.Contains("/api/dashboard/runs/${run.id}/confirm", html);
     }
 
     /// <summary>

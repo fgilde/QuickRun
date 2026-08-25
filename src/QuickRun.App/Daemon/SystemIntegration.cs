@@ -6,6 +6,13 @@ namespace QuickRun.App.Daemon;
 
 public sealed record IntegrationStep(string What, bool Ok, string Detail);
 
+/// <param name="Command">What the system would run for a <c>quickrun://</c> URL, as registered.</param>
+/// <param name="Stale">
+/// Registered, but to a different executable than the one running. That is the failure nobody sees:
+/// the scheme looks installed and opens a binary that has been moved, renamed or deleted.
+/// </param>
+public sealed record SchemeStatus(bool Registered, string? Command, bool Stale, string Detail);
+
 /// <summary>
 /// Registers the <c>quickrun://</c> scheme and the autostart entry.
 /// <para>
@@ -38,7 +45,22 @@ public static class SystemIntegration
     {
         var steps = new List<IntegrationStep>();
 
-        steps.Add(Try("register quickrun://", () =>
+        steps.Add(SchemeStepWindows(executable));
+
+        steps.Add(Try("add autostart entry", () =>
+        {
+            using var run = Registry.CurrentUser.CreateSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Run");
+            run.SetValue("QuickRun", $"\"{executable}\" daemon --port {port}");
+            return @"HKCU\...\CurrentVersion\Run\QuickRun";
+        }));
+
+        return steps;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static IntegrationStep SchemeStepWindows(string executable) =>
+        Try("register quickrun://", () =>
         {
             // HKCU, not HKLM: no administrator rights, and the registration belongs to this user.
             using var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{Scheme}");
@@ -50,17 +72,23 @@ public static class SystemIntegration
             command.SetValue("", $"\"{executable}\" handle \"%1\"");
 
             return $@"HKCU\Software\Classes\{Scheme}";
-        }));
+        });
 
-        steps.Add(Try("add autostart entry", () =>
-        {
-            using var run = Registry.CurrentUser.CreateSubKey(
-                @"Software\Microsoft\Windows\CurrentVersion\Run");
-            run.SetValue("QuickRun", $"\"{executable}\" daemon --port {port}");
-            return @"HKCU\...\CurrentVersion\Run\QuickRun";
-        }));
+    [SupportedOSPlatform("windows")]
+    private static SchemeStatus StatusWindows()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{Scheme}\shell\open\command");
+        var command = key?.GetValue("") as string;
 
-        return steps;
+        if (string.IsNullOrWhiteSpace(command))
+            return new SchemeStatus(false, null, false, $@"nothing registered under HKCU\Software\Classes\{Scheme}");
+
+        var registered = ExecutableFrom(command!);
+        var stale = !SameExecutable(registered, Environment.ProcessPath);
+
+        return new SchemeStatus(true, command, stale, stale
+            ? $"registered to {registered}, which is not the QuickRun running now"
+            : $@"HKCU\Software\Classes\{Scheme}");
     }
 
     [SupportedOSPlatform("windows")]
@@ -93,26 +121,7 @@ public static class SystemIntegration
         var applications = Path.Combine(Home(), ".local", "share", "applications");
         var desktopFile = Path.Combine(applications, "quickrun.desktop");
 
-        steps.Add(Try("register quickrun://", () =>
-        {
-            Directory.CreateDirectory(applications);
-            File.WriteAllText(desktopFile, $"""
-                [Desktop Entry]
-                Type=Application
-                Name=QuickRun
-                Comment=Run any git repository with one click
-                Exec={executable} handle %u
-                Terminal=false
-                NoDisplay=true
-                MimeType=x-scheme-handler/{Scheme};
-
-                """);
-
-            // Without this the .desktop file exists but nothing routes the scheme to it.
-            RunQuiet("xdg-mime", "default", "quickrun.desktop", $"x-scheme-handler/{Scheme}");
-            RunQuiet("update-desktop-database", applications);
-            return desktopFile;
-        }));
+        steps.Add(SchemeStepLinux(executable));
 
         steps.Add(Try("add autostart entry", () =>
         {
@@ -133,6 +142,58 @@ public static class SystemIntegration
         }));
 
         return steps;
+    }
+
+    private static IntegrationStep SchemeStepLinux(string executable)
+    {
+        var applications = Path.Combine(Home(), ".local", "share", "applications");
+        var desktopFile = Path.Combine(applications, "quickrun.desktop");
+
+        return Try("register quickrun://", () =>
+        {
+            Directory.CreateDirectory(applications);
+            File.WriteAllText(desktopFile, $"""
+                [Desktop Entry]
+                Type=Application
+                Name=QuickRun
+                Comment=Run any git repository with one click
+                Exec={executable} handle %u
+                Terminal=false
+                NoDisplay=true
+                MimeType=x-scheme-handler/{Scheme};
+
+                """);
+
+            // Without this the .desktop file exists but nothing routes the scheme to it.
+            RunQuiet("xdg-mime", "default", "quickrun.desktop", $"x-scheme-handler/{Scheme}");
+            RunQuiet("update-desktop-database", applications);
+            return desktopFile;
+        });
+    }
+
+    private static SchemeStatus StatusLinux()
+    {
+        var desktopFile = Path.Combine(Home(), ".local", "share", "applications", "quickrun.desktop");
+        if (!File.Exists(desktopFile))
+            return new SchemeStatus(false, null, false, $"no {desktopFile}");
+
+        string? exec = null;
+        try
+        {
+            exec = File.ReadAllLines(desktopFile)
+                .FirstOrDefault(line => line.StartsWith("Exec=", StringComparison.Ordinal))?["Exec=".Length..];
+        }
+        catch (IOException)
+        {
+            // Unreadable is as good as absent for this purpose.
+        }
+
+        var registered = exec is null ? null : ExecutableFrom(exec);
+        var stale = !SameExecutable(registered, Environment.ProcessPath);
+
+        return new SchemeStatus(true, exec, stale, stale
+            ? $"registered to {registered}, which is not the QuickRun running now"
+            : desktopFile);
     }
 
     private static IReadOnlyList<IntegrationStep> UninstallLinux()
@@ -161,16 +222,7 @@ public static class SystemIntegration
         // The scheme lives in the app bundle's Info.plist; a bare binary cannot claim it. If this
         // is the bundled binary, tell Launch Services about the bundle. Otherwise say so plainly
         // rather than pretending the registration happened.
-        var bundle = FindEnclosingBundle(executable);
-        steps.Add(bundle is null
-            ? new IntegrationStep("register quickrun://", false,
-                "not running from QuickRun.app - download the .app.zip asset to register the scheme")
-            : Try("register quickrun://", () =>
-            {
-                RunQuiet("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
-                    "-f", bundle);
-                return bundle;
-            }));
+        steps.Add(SchemeStepMacOs(executable));
 
         steps.Add(Try("add launch agent", () =>
         {
@@ -208,6 +260,33 @@ public static class SystemIntegration
         return steps;
     }
 
+    private static IntegrationStep SchemeStepMacOs(string executable)
+    {
+        var bundle = FindEnclosingBundle(executable);
+
+        return bundle is null
+            ? new IntegrationStep("register quickrun://", false,
+                "not running from QuickRun.app - download the .app.zip asset to register the scheme")
+            : Try("register quickrun://", () =>
+            {
+                RunQuiet("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+                    "-f", bundle);
+                return bundle;
+            });
+    }
+
+    private static SchemeStatus StatusMacOs()
+    {
+        var bundle = FindEnclosingBundle(Environment.ProcessPath ?? "");
+
+        // Launch Services owns the answer and has no queryable command line, so the bundle is the
+        // honest one: inside it the scheme can be claimed, outside it cannot.
+        return bundle is null
+            ? new SchemeStatus(false, null, false,
+                "not running from QuickRun.app - the .app bundle is what can claim the scheme")
+            : new SchemeStatus(true, bundle, false, bundle);
+    }
+
     private static IReadOnlyList<IntegrationStep> UninstallMacOs()
     {
         var plist = Path.Combine(Home(), "Library", "LaunchAgents", "org.fgilde.quickrun.plist");
@@ -224,6 +303,60 @@ public static class SystemIntegration
                 return "removed";
             }),
         };
+    }
+
+    /// <summary>
+    /// Registers only the scheme, without touching autostart. This is what the button in the local
+    /// UI does: a handler that opens the wrong binary is the common failure, and re-registering it
+    /// should not also change whether QuickRun starts with the machine.
+    /// </summary>
+    public static IntegrationStep RegisterScheme(string executable)
+    {
+        if (OperatingSystem.IsWindows()) return SchemeStepWindows(executable);
+        if (OperatingSystem.IsMacOS()) return SchemeStepMacOs(executable);
+        return SchemeStepLinux(executable);
+    }
+
+    /// <summary>Whether <c>quickrun://</c> would reach this executable.</summary>
+    public static SchemeStatus Status()
+    {
+        if (OperatingSystem.IsWindows()) return StatusWindows();
+        if (OperatingSystem.IsMacOS()) return StatusMacOs();
+        return StatusLinux();
+    }
+
+    /// <summary>
+    /// The program out of a registered command line. Windows quotes it, a .desktop file does not and
+    /// appends placeholders like <c>%u</c>.
+    /// </summary>
+    internal static string? ExecutableFrom(string command)
+    {
+        var text = command.Trim();
+        if (text.Length == 0) return null;
+
+        if (text[0] == '"')
+        {
+            var end = text.IndexOf('"', 1);
+            return end > 1 ? text[1..end] : null;
+        }
+
+        var space = text.IndexOf(' ');
+        return space < 0 ? text : text[..space];
+    }
+
+    private static bool SameExecutable(string? registered, string? running)
+    {
+        if (registered is null || running is null) return false;
+
+        try
+        {
+            return string.Equals(Path.GetFullPath(registered), Path.GetFullPath(running),
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     /// <summary>The <c>.app</c> directory this executable sits inside, if any.</summary>

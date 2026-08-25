@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using QuickRun.App.Commands;
+using QuickRun.Core.Git;
+using QuickRun.Core.Inputs;
 using QuickRun.Core;
 using QuickRun.Core.Update;
 using QuickRun.Core.Workspace;
@@ -20,6 +22,23 @@ public sealed record RunRequest(
     string? Subdir,
     string? Config,
     Dictionary<string, string?>? Inputs);
+
+/// <summary>What the local UI asks for to fill its branch picker.</summary>
+public sealed record BranchRequest(string? Repo, string? Token);
+
+/// <summary>
+/// A run started from the local UI. Unlike the extension's request this one may carry a token: the
+/// page asking is QuickRun's own, and a private repository has to come from somewhere.
+/// </summary>
+public sealed record DashboardRunRequest(
+    string? Repo,
+    string? Ref,
+    int? Pr,
+    string? Subdir,
+    string? Config,
+    Dictionary<string, string?>? Inputs,
+    string? Token,
+    bool? Fresh);
 
 /// <summary>
 /// The localhost listener the browser extension talks to. Loopback only, and every endpoint that
@@ -138,6 +157,112 @@ public static class DaemonHost
             var source = InstallSources.DetectCurrent(store.Root);
             return Results.Json(await new UpdateChecker().CheckAsync(BuildInfo.Version, source), Json);
         });
+
+        // Whether quickrun:// reaches this build. A handler registered to a binary that has since
+        // moved looks installed and does nothing, which is the failure this exists to show.
+        app.MapGet("/api/dashboard/integration", (HttpContext context, Dashboard dashboard) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var status = SystemIntegration.Status();
+            return Results.Json(new
+            {
+                status.Registered,
+                status.Command,
+                status.Stale,
+                status.Detail,
+                executable = Environment.ProcessPath,
+            }, Json);
+        });
+
+        app.MapPost("/api/dashboard/integration/register", (HttpContext context, Dashboard dashboard) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var executable = Environment.ProcessPath;
+            if (executable is null)
+                return Results.Json(new { error = "cannot determine the running executable" },
+                    Json, statusCode: StatusCodes.Status500InternalServerError);
+
+            var step = SystemIntegration.RegisterScheme(executable);
+            var status = SystemIntegration.Status();
+
+            return Results.Json(new
+            {
+                ok = step.Ok,
+                detail = step.Detail,
+                status.Registered,
+                status.Stale,
+            }, Json);
+        });
+
+        // What refs this repository has, and which of them this user has run before. A POST because
+        // the token belongs in a body rather than in a URL that ends up in logs and history.
+        app.MapPost("/api/dashboard/branches", (BranchRequest request, HttpContext context,
+            Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
+
+            string repo;
+            try { repo = RunPipeline.Normalize(request.Repo!.Trim()); }
+            catch (ArgumentException e) { return Results.BadRequest(new { error = e.Message }); }
+
+            var recent = RefSuggestions.Recent(store.List(), repo);
+            var (branches, error) = new GitClient(new CredentialResolver(request.Token)).ListBranches(repo);
+
+            // A repository nobody can list is still runnable by name, so the recent refs and a
+            // typed-in branch stay available: this is a suggestion, not a gate.
+            return Results.Json(new
+            {
+                repo,
+                branches = branches ?? Array.Empty<string>(),
+                recent,
+                @default = RefSuggestions.Default(branches ?? Array.Empty<string>(), recent),
+                error = branches is null ? error ?? "the branches could not be listed" : null,
+            }, Json);
+        });
+
+        // Prepares a run the local UI asked for. Like the extension's endpoint it executes nothing:
+        // the page shows the command list and confirms separately.
+        app.MapPost("/api/dashboard/run", async (DashboardRunRequest request, HttpContext context,
+            Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
+
+            var args = new RunArgs(
+                request.Repo!.Trim(),
+                string.IsNullOrWhiteSpace(request.Ref) ? null : request.Ref!.Trim(),
+                request.Pr,
+                string.IsNullOrWhiteSpace(request.Subdir) ? null : request.Subdir!.Trim(),
+                (request.Inputs ?? new()).Select(kv => $"{kv.Key}={kv.Value}").ToList(),
+                string.IsNullOrWhiteSpace(request.Token) ? null : request.Token,
+                Fresh: request.Fresh ?? false,
+                Yes: true,
+                NoOpen: true,
+                ConfigPath: string.IsNullOrWhiteSpace(request.Config) ? null : request.Config);
+
+            var (summary, error) = await runs.PrepareAsync(args);
+
+            return error is null
+                ? Results.Json(summary, Json)
+                : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);
+        });
+
+        app.MapPost("/api/dashboard/runs/{id}/confirm", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            return runs.Confirm(id)
+                ? Results.Json(runs.Get(id), Json)
+                : Results.Json(new { error = "unknown run, or it has already started" },
+                    Json, statusCode: StatusCodes.Status409Conflict);
+        });
+
+        app.MapPost("/api/dashboard/runs/{id}/cancel", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+            !DashboardAuthorized(context, dashboard) ? Forbidden()
+                : runs.Cancel(id) ? Results.NoContent() : Results.NotFound());
 
         app.MapPost("/api/dashboard/runs/{id}/stop", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
             !DashboardAuthorized(context, dashboard) ? Forbidden()

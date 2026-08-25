@@ -109,7 +109,7 @@ public static class RunPipeline
     /// Leaves URLs git already understands alone - the tests, and anyone running a local mirror,
     /// depend on that. Only shorthand goes through the normaliser's whitelist.
     /// </summary>
-    private static string Normalize(string input)
+    public static string Normalize(string input)
     {
         if (Uri.TryCreate(input, UriKind.Absolute, out var uri)
             && uri.Scheme is "http" or "https" or "file" or "ssh")

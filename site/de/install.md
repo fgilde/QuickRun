@@ -14,7 +14,10 @@ quickrun
 QuickRun startet seinen Listener auf `127.0.0.1:9876`, legt ein Icon ins Tray und öffnet sein
 Fenster. Das Fenster hat fünf Bereiche:
 
-- **Run a repository** — ein Repository ohne Browser-Erweiterung starten
+- **Start a run** — ein Repository und ein Branch, ohne Browser-Erweiterung. Repository eintippen,
+  QuickRun listet die Branches, stellt die schon einmal gelaufenen Refs nach oben und wählt den vor,
+  den du sowieso genommen hättest. PR-Nummer, Token für ein privates Repository und die Inputs der
+  Config liegen hinter *More*. Nach *Prepare* steht der Plan da; es läuft nichts ohne Bestätigung
 - **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
 - **Browser extension** — wie die Erweiterung funktioniert
@@ -32,6 +35,13 @@ quickrun install
 Registriert das `quickrun://`-Schema und legt einen Autostart-Eintrag an. Das Schema hat eine
 Aufgabe: die Browser-Erweiterung kann QuickRun damit starten, wenn es installiert ist aber nicht
 läuft. Ohne funktioniert alles weiter, solange QuickRun läuft, wenn du den Button klickst.
+
+Der Reiter **Browser extension** in der lokalen UI macht dasselbe nur für das Schema und sagt, wie
+der Stand ist: *registered*, *not registered* oder *registered to another build* — letzteres nach
+dem Verschieben oder Neuinstallieren der Binary, und der einzige Fehler, der wie Erfolg aussieht.
+Administratorrechte braucht das nicht: unter Windows ist es ein Schlüssel unter
+`HKCU\Software\Classes\quickrun`, unter Linux eine `.desktop`-Datei in
+`~/.local/share/applications`.
 
 Unter macOS braucht das Schema das [App-Bundle](/de/download#macos-app-bundle) — eine nackte Binary
 kann kein URL-Schema für sich beanspruchen.

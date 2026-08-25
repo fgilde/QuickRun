@@ -13,7 +13,10 @@ quickrun
 QuickRun starts its listener on `127.0.0.1:9876`, puts an icon in the tray and opens its window.
 The window has five sections:
 
-- **Run a repository** — start any repository without the browser extension
+- **Start a run** — a repository and a branch, without the browser extension. Type the repository
+  and QuickRun lists its branches, putting the refs you have run before at the top and preselecting
+  the one you would have picked. A pull request number, a token for a private repository and the
+  config's inputs are behind *More*. Preparing shows the plan; nothing runs until you confirm it
 - **Runs** — what is running, with live progress and log output
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
 - **Browser extension** — how the extension works
@@ -31,6 +34,12 @@ quickrun install
 This registers the `quickrun://` scheme and adds an autostart entry. The scheme has one job: it lets
 the browser extension start QuickRun when it is installed but not running. Without it everything
 still works, as long as QuickRun is running when you click the button.
+
+The **Browser extension** tab of the local UI does the same for the scheme alone, and says what the
+state is: *registered*, *not registered*, or *registered to another build* - which is what you get
+after moving or reinstalling the binary, and the one failure that looks like success. No
+administrator rights are involved: on Windows it is a key under `HKCU\Software\Classes\quickrun`,
+on Linux a `.desktop` file in `~/.local/share/applications`.
 
 On macOS the scheme needs the [app bundle](/download#macos-app-bundle); a bare binary cannot claim a
 URL scheme.

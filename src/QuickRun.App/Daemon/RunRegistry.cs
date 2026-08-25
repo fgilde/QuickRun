@@ -131,6 +131,13 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
     public bool Stop(string id) => _runs.TryGetValue(id, out var entry) && entry.RequestStop();
 
+    /// <summary>
+    /// Throws away a prepared run nobody approved. Without this a declined plan would sit in the
+    /// list as "awaiting confirmation" for ever, and the reader cannot tell that from a plan still
+    /// waiting for them.
+    /// </summary>
+    public bool Cancel(string id) => _runs.TryGetValue(id, out var entry) && entry.CancelBeforeStart();
+
     public IAsyncEnumerable<RunEvent> Subscribe(string id, CancellationToken ct) =>
         _runs.TryGetValue(id, out var entry)
             ? entry.Subscribe(ct)
@@ -240,6 +247,18 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     LiveTasks = 0,
                 };
             CloseSubscribers();
+        }
+
+        public bool CancelBeforeStart()
+        {
+            lock (_gate)
+            {
+                if (Summary.State != RunState.AwaitingConfirmation) return false;
+                Summary = Summary with { State = RunState.Cancelled };
+            }
+
+            CloseSubscribers();
+            return true;
         }
 
         public bool RequestStop()

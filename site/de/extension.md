@@ -37,17 +37,12 @@ das ausgecheckt wurde, und — sobald ein Task eine meldet — die Adresse, auf 
 
 Deklariert die Config [Inputs](/de/config#inputs), fragt das Fenster sie ab, bevor es überhaupt
 etwas zu bestätigen gibt: Label, Beschreibung, Default, ein Dropdown für `select`, eine Checkbox für
-`bool`, ein maskiertes Feld für `password`. **Continue** übernimmt die Werte, und die Befehlsliste
-wird daraus neu gebaut — du bestätigst also genau das, was diese Werte ergeben, und wer danach einen
-Wert ändert, bekommt wieder Continue statt Run. Werte mit `env` gehen als diese
-Umgebungsvariable in den Lauf, und ein Secret wird nie ans Fenster zurückgeschickt.
-
-Deklariert die Config [Inputs](/de/config#inputs), fragt das Fenster sie ab, bevor es überhaupt
-etwas zu bestätigen gibt: Label, Beschreibung, Default, ein Dropdown für `select`, eine Checkbox für
-`bool`, ein maskiertes Feld für `password`. **Continue** übernimmt die Werte, und die Befehlsliste
-wird daraus neu gebaut — du bestätigst also genau das, was diese Werte ergeben, und wer danach einen
-Wert ändert, bekommt wieder Continue statt Run. Werte mit `env` gehen als diese
-Umgebungsvariable in den Lauf, und ein Secret wird nie ans Fenster zurückgeschickt.
+`bool`, ein maskiertes Feld für `password`. Ein geänderter Wert wird einen Moment später von selbst
+übernommen und die Befehlsliste daraus neu gebaut — auf dem Schirm steht also immer die Liste, die
+diese Werte ergeben: du bestätigst genau das, was läuft, und es bleibt bei einem Klick auf **Run**.
+*Continue* steht nur auf dem Button, solange nötige Werte fehlen, denn bis dahin gibt es keine
+Befehlsliste zu bestätigen. Werte mit `env` gehen als diese Umgebungsvariable in den Lauf, und ein
+Secret wird nie ans Fenster zurückgeschickt.
 
 Nach der Bestätigung bleibt das Fenster offen und wird zum Log des Laufs: der Checkout mit den
 echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des Repositories
@@ -55,7 +50,9 @@ ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ei
 kein Ort für hundert Zeilen Build-Ausgabe.
 
 Sobald der Lauf läuft, bekommt jeder Task eine eigene Zeile: was er tut — *starting*, *ready*,
-*exited* — und die Adresse, die er gemeldet hat, als Link. „Running" für den ganzen Lauf sagt nichts
+*exited* — die Adresse, die er gemeldet hat, als Link, und die Prozess-ID dessen, was er gestartet
+hat. Bei einer Desktop-Anwendung ist diese PID der einzige Griff, den man an ihr hat — und genau
+darauf wartet ein Task mit `readyWhen: {window: true}`. „Running" für den ganzen Lauf sagt nichts
 darüber, welcher von fünf Diensten oben ist.
 
 **Stop** stoppt den Lauf und sagt es: der Button wechselt beim Klick sofort auf *Stopping…* mit

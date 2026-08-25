@@ -183,7 +183,11 @@ ol.plan .phase {
     </div>
 
     <h2>Runs</h2>
-    <div id="runList"><p class="muted">Nothing has run yet.</p></div>
+    <p class="muted" id="noRuns" hidden>
+      Nothing has run yet. Start one above, from the browser extension, or with
+      <code>quickrun run owner/repo</code>.
+    </p>
+    <div id="runList"></div>
   </section>
 
   <section id="builder" hidden>
@@ -358,6 +362,7 @@ async function api(path, options = {}) {
 
 document.querySelectorAll('nav button').forEach((tab) => {
   tab.addEventListener('click', () => {
+    if (tab.dataset.tab === 'workspaces') loadWorkspaces();
     document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
     document.querySelectorAll('main section').forEach((s) => { s.hidden = s.id !== tab.dataset.tab; });
     history.replaceState(null, '', `#${tab.dataset.tab}`);
@@ -545,6 +550,9 @@ function inputForm(run) {
     element,
     values: () => Object.fromEntries([...controls].map(([id, control]) => [id, read(control)])),
     dirty: () => [...controls].some(([id, control]) => read(control) !== initial.get(id)),
+    // Called once the values have been sent: the fields are left exactly as they are, because
+    // rebuilding them would take the cursor out of the one being typed in.
+    settle: () => { for (const [id, control] of controls) initial.set(id, read(control)); },
   };
 }
 
@@ -578,6 +586,16 @@ function inputControl(def, value) {
   return input;
 }
 
+/** The commands themselves. Every one of them is repository content and is escaped as such. */
+function planList(run) {
+  if (run.commands.length === 0) return '';
+
+  return `<p class="muted" style="margin:10px 0 0">These commands will run on your machine, with your privileges:</p>
+    <ol class="plan">
+      ${run.commands.map((command) => `<li><span class="phase">${escapeHtml(command.phase)}</span><code>${escapeHtml(command.command)}${command.cwd ? ' (in ' + escapeHtml(command.cwd) + ')' : ''}</code></li>`).join('')}
+    </ol>`;
+}
+
 /**
  * The plan, and nothing else: this is the confirmation gate, so it shows the commands that would
  * run before anything has run. Every command is repository content and is escaped as such.
@@ -597,12 +615,7 @@ function renderPlan(run, panel = starter.plan) {
     ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
     ${run.workspace ? `<div class="row"><code class="grow mono">${escapeHtml(run.workspace)}</code></div>` : ''}
     <div data-inputs></div>
-    ${run.commands.length > 0
-      ? `<p class="muted" style="margin:10px 0 0">These commands will run on your machine, with your privileges:</p>
-         <ol class="plan">
-           ${run.commands.map((command) => `<li><span class="phase">${escapeHtml(command.phase)}</span><code>${escapeHtml(command.command)}${command.cwd ? ' (in ' + escapeHtml(command.cwd) + ')' : ''}</code></li>`).join('')}
-         </ol>`
-      : ''}
+    <div data-commands>${planList(run)}</div>
     <p class="muted" data-plan-state style="margin:10px 0 0">${waiting ? escapeHtml(run.error ?? '') : ''}</p>
     <div class="row" style="margin-top:12px">
       <button class="action primary" data-confirm="${run.id}">${waiting ? 'Continue' : 'Run'}</button>
@@ -614,37 +627,53 @@ function renderPlan(run, panel = starter.plan) {
   const form = inputForm(run);
   const primary = panel.querySelector('[data-confirm]');
   const note = panel.querySelector('[data-plan-state]');
+  let current = run;
 
   if (form) {
     panel.querySelector('[data-inputs]').append(form.element);
-    const update = () => { primary.textContent = waiting || form.dirty() ? 'Continue' : 'Run'; };
-    form.element.addEventListener('input', update);
-    form.element.addEventListener('change', update);
+
+    // A changed value applies itself a moment later, so the plan on screen is always the plan those
+    // values produce and approving stays one click.
+    let timer = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; if (form.dirty()) primary.click(); }, 600);
+    };
+
+    form.element.addEventListener('input', schedule);
+    form.element.addEventListener('change', schedule);
   }
 
   primary.addEventListener('click', async (event) => {
-    if (form && (waiting || form.dirty())) {
-      event.currentTarget.disabled = true;
+    if (form && (current.state === 'awaitingInput' || form.dirty())) {
+      primary.disabled = true;
       note.textContent = 'applying...';
 
       try {
-        const updated = await api(`/api/dashboard/runs/${run.id}/inputs`, {
+        const before = current.fingerprint;
+        const commands = current.commands.length;
+
+        current = await api(`/api/dashboard/runs/${run.id}/inputs`, {
           method: 'POST',
           body: JSON.stringify({ inputs: form.values() }),
         });
 
-        renderPlan(updated, panel);
-        panel.querySelector('[data-plan-state]').textContent =
-          'this is what those values would run - check it and press Run';
+        // Only the command list is redrawn - the form keeps the cursor in the field being typed in.
+        form.settle();
+        panel.querySelector('[data-commands]').innerHTML = planList(current);
+        primary.textContent = current.commands.length === 0 ? 'Continue' : 'Run';
+        note.textContent = current.fingerprint === before && current.commands.length === commands
+          ? 'ready to run'
+          : 'the commands changed with those values';
       } catch (failure) {
-        if (failure.run) renderPlan(failure.run, panel);
-        panel.querySelector('[data-plan-state]').textContent = failure.message;
+        note.textContent = failure.message;
       }
 
+      primary.disabled = false;
       return;
     }
 
-    event.currentTarget.disabled = true;
+    primary.disabled = true;
     await api(`/api/dashboard/runs/${run.id}/confirm`, { method: 'POST' });
     panel.hidden = true;
     say('started');
@@ -720,75 +749,252 @@ function taskRows(run) {
       <span class="mono">${escapeHtml(task.name)}</span>
       ${pill(label, kind)}
       ${task.url ? addressLink(task.url) : '<span class="grow"></span>'}
+      ${task.pid ? `<span class="muted mono">pid ${task.pid}</span>` : ''}
     </div>`;
   }).join('');
 }
+
+/* ---- the run list ------------------------------------------------------------------------- */
+
+/**
+ * One card per run, kept and updated rather than rebuilt.
+ *
+ * Rebuilding the whole list every two seconds threw away the log element the event stream was
+ * writing into, re-parsed every card, and re-attached every listener - while hundreds of output
+ * lines a second were arriving. That is what made the page stop responding and then die.
+ */
+const cards = new Map();
+
+/** How much of a task's output the page keeps. A restore prints thousands of lines. */
+const LOG_LINES = 600;
+
+const RUN_STATES = {
+  awaitingInput: ['waiting for values', 'warn'],
+  awaitingConfirmation: ['awaiting confirmation', 'warn'],
+  running: ['running', ''],
+  stopping: ['stopping…', 'warn'],
+  succeeded: ['succeeded', 'ok'],
+  failed: ['failed', 'bad'],
+  cancelled: ['stopped', 'warn'],
+};
+
+const TERMINAL_STATES = ['succeeded', 'failed', 'cancelled'];
 
 function renderRuns(runs) {
   const target = document.getElementById('runList');
-  if (!runs.length) {
-    target.innerHTML = '<p class="muted">Nothing has run yet. Start one above, from the browser extension, or with <code>quickrun run owner/repo</code>.</p>';
+  const empty = document.getElementById('noRuns');
+
+  if (empty) empty.hidden = runs.length > 0;
+
+  // Runs that are gone take their card with them.
+  const alive = new Set(runs.map((run) => run.id));
+  for (const [id, entry] of cards) {
+    if (alive.has(id)) continue;
+    entry.root.remove();
+    cards.delete(id);
+  }
+
+  for (const run of runs) {
+    let entry = cards.get(run.id);
+
+    if (!entry) {
+      entry = buildCard(run);
+      cards.set(run.id, entry);
+      target.append(entry.root);
+    }
+
+    updateCard(entry, run);
+  }
+
+  runs.filter((run) => run.state === 'running' || run.state === 'stopping').forEach(follow);
+}
+
+/** The parts of a card that never change, built once. */
+function buildCard(run) {
+  const root = document.createElement('div');
+  root.className = 'card';
+  root.dataset.run = run.id;
+
+  root.innerHTML = `
+    <div class="row">
+      <span class="grow name"></span>
+      <span data-state></span>
+      <span data-actions></span>
+    </div>
+    <div class="row"><span class="muted mono grow" data-where></span></div>
+    <p class="description" data-description hidden></p>
+    <div class="row">
+      <div class="bar grow"><div style="width:0%"></div></div>
+      <span class="muted" style="min-width:3.2em;text-align:right" data-percent>0%</span>
+    </div>
+    <div class="row"><span class="muted grow" data-detail></span></div>
+    <div data-tasks></div>
+    <div class="row" data-address hidden></div>
+    <div class="row" data-workspace hidden></div>
+    <div class="row" data-error hidden></div>
+    <pre data-log hidden></pre>`;
+
+  return {
+    root,
+    name: root.querySelector('.name'),
+    state: root.querySelector('[data-state]'),
+    actions: root.querySelector('[data-actions]'),
+    where: root.querySelector('[data-where]'),
+    description: root.querySelector('[data-description]'),
+    fill: root.querySelector('.bar > div'),
+    percent: root.querySelector('[data-percent]'),
+    detail: root.querySelector('[data-detail]'),
+    tasks: root.querySelector('[data-tasks]'),
+    address: root.querySelector('[data-address]'),
+    workspace: root.querySelector('[data-workspace]'),
+    error: root.querySelector('[data-error]'),
+    log: root.querySelector('[data-log]'),
+    pending: [],
+    lines: 0,
+    shown: {},
+  };
+}
+
+/** Everything that can change, written only when it actually did. */
+function updateCard(entry, run) {
+  const seen = entry.shown;
+
+  if (seen.name !== run.displayName) {
+    entry.name.textContent = run.displayName;
+    seen.name = run.displayName;
+  }
+
+  const where = `${run.repo} @ ${run.ref}${run.commit ? ` (${run.commit.slice(0, 7)})` : ''}`;
+  if (seen.where !== where) {
+    entry.where.textContent = where;
+    seen.where = where;
+  }
+
+  if (seen.description !== run.description) {
+    entry.description.textContent = run.description ?? '';
+    entry.description.hidden = !run.description;
+    seen.description = run.description;
+  }
+
+  if (seen.state !== run.state) {
+    const [label, kind] = RUN_STATES[run.state] ?? [run.state, ''];
+    entry.state.innerHTML = pill(label, kind);
+    renderActions(entry, run);
+    seen.state = run.state;
+  }
+
+  const percent = run.progress?.percent ?? (run.state === 'succeeded' ? 100 : 0);
+  if (seen.percent !== percent) {
+    entry.fill.style.width = `${percent}%`;
+    entry.percent.textContent = `${percent}%`;
+    seen.percent = percent;
+  }
+
+  const detail = run.progress?.detail ?? '';
+  if (seen.detail !== detail) {
+    entry.detail.textContent = detail;
+    seen.detail = detail;
+  }
+
+  // Task rows change rarely - a state or an address - so they are compared as one string first.
+  const signature = JSON.stringify(run.tasks ?? []);
+  if (seen.tasks !== signature) {
+    entry.tasks.innerHTML = taskRows(run);
+    seen.tasks = signature;
+  }
+
+  const address = run.url && !(run.tasks ?? []).some((task) => task.url) ? run.url : null;
+  if (seen.address !== address) {
+    entry.address.innerHTML = address ? `<span class="muted">Address</span>${addressLink(address)}` : '';
+    entry.address.hidden = !address;
+    seen.address = address;
+  }
+
+  if (seen.workspace !== run.workspace) {
+    entry.workspace.innerHTML = run.workspace
+      ? `<code class="grow mono">${escapeHtml(run.workspace)}</code>
+         <button class="action" data-reveal="${run.id}">Open folder</button>`
+      : '';
+    entry.workspace.hidden = !run.workspace;
+    seen.workspace = run.workspace;
+
+    entry.workspace.querySelector('[data-reveal]')?.addEventListener('click', () =>
+      api(`/api/dashboard/runs/${run.id}/reveal`, { method: 'POST' }));
+  }
+
+  if (seen.error !== run.error) {
+    entry.error.innerHTML = run.error ? `<span class="pill bad">${escapeHtml(run.error)}</span>` : '';
+    entry.error.hidden = !run.error;
+    seen.error = run.error;
+  }
+}
+
+/** Stop while it runs, remove once it is over - both usable while other runs carry on. */
+function renderActions(entry, run) {
+  entry.actions.textContent = '';
+
+  if (run.state === 'running') {
+    const stop = document.createElement('button');
+    stop.className = 'action danger';
+    stop.textContent = 'Stop';
+    stop.disabled = run.liveTasks === 0;
+    if (stop.disabled) stop.title = 'nothing is running any more';
+
+    stop.addEventListener('click', async () => {
+      stop.disabled = true;
+      stop.textContent = 'Stopping…';
+      await api(`/api/dashboard/runs/${run.id}/stop`, { method: 'POST' }).catch(() => null);
+      refresh();
+    });
+
+    entry.actions.append(stop);
     return;
   }
 
-  target.innerHTML = runs.map((run) => {
-    const state = {
-      awaitingConfirmation: ['awaiting confirmation', 'warn'],
-      running: ['running', ''],
-      succeeded: ['succeeded', 'ok'],
-      failed: ['failed', 'bad'],
-      cancelled: ['stopped', 'warn'],
-    }[run.state] ?? [run.state, ''];
+  if (run.state === 'stopping') {
+    const waiting = document.createElement('button');
+    waiting.className = 'action danger';
+    waiting.textContent = 'Stopping…';
+    waiting.disabled = true;
+    entry.actions.append(waiting);
+    return;
+  }
 
-    const percent = run.progress?.percent ?? (run.state === 'succeeded' ? 100 : 0);
-    const detail = run.progress?.detail ?? '';
-
-    return `<div class="card" data-run="${run.id}">
-      <div class="row">
-        <span class="grow name">${escapeHtml(run.displayName)}</span>
-        ${pill(state[0], state[1])}
-        ${run.state === 'running'
-          ? `<button class="action danger" data-stop="${run.id}"${run.liveTasks === 0 ? ' disabled title="nothing is running any more"' : ''}>Stop</button>`
-          : ''}
-      </div>
-      <div class="row">
-        <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
-      </div>
-      ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
-      <div class="row">
-        <div class="bar grow"><div style="width:${percent}%"></div></div>
-        <span class="muted" style="min-width:3.2em;text-align:right">${percent}%</span>
-      </div>
-      <div class="row"><span class="muted grow" data-detail>${escapeHtml(detail)}</span></div>
-      ${taskRows(run)}
-      ${run.url && !(run.tasks ?? []).some((t) => t.url) ? `<div class="row"><span class="muted">Address</span>${addressLink(run.url)}</div>` : ''}
-      ${run.workspace ? `<div class="row">
-        <code class="grow mono">${escapeHtml(run.workspace)}</code>
-        <button class="action" data-reveal="${run.id}">Open folder</button>
-      </div>` : ''}
-      ${run.error ? `<div class="row"><span class="pill bad">${escapeHtml(run.error)}</span></div>` : ''}
-      <pre data-log="${run.id}" hidden></pre>
-    </div>`;
-  }).join('');
-
-  target.querySelectorAll('[data-reveal]').forEach((button) => {
-    button.addEventListener('click', () =>
-      api(`/api/dashboard/runs/${button.dataset.reveal}/reveal`, { method: 'POST' }));
-  });
-
-  target.querySelectorAll('[data-stop]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      button.textContent = 'Stopping…';
-      await api(`/api/dashboard/runs/${button.dataset.stop}/stop`, { method: 'POST' });
+  if (run.state === 'awaitingConfirmation' || run.state === 'awaitingInput') {
+    const drop = document.createElement('button');
+    drop.className = 'action';
+    drop.textContent = 'Cancel';
+    drop.addEventListener('click', async () => {
+      drop.disabled = true;
+      await api(`/api/dashboard/runs/${run.id}/cancel`, { method: 'POST' }).catch(() => null);
       refresh();
     });
+    entry.actions.append(drop);
+    return;
+  }
+
+  if (!TERMINAL_STATES.includes(run.state)) return;
+
+  const forget = document.createElement('button');
+  forget.className = 'action';
+  forget.textContent = 'Remove';
+  forget.title = 'takes it out of this list; the workspace stays';
+  forget.addEventListener('click', async () => {
+    forget.disabled = true;
+    await api(`/api/dashboard/runs/${run.id}/forget`, { method: 'POST' }).catch(() => null);
+    refresh();
   });
 
-  runs.filter((r) => r.state === 'running').forEach(follow);
+  entry.actions.append(forget);
 }
 
-/** Streams one run's events into its log block, so the dashboard shows the same output the CLI does. */
+/**
+ * Streams one run's events into its log block.
+ *
+ * Lines are buffered and written on the next frame, and the block keeps the last few hundred of
+ * them. Appending to textContent per line copies the whole log every time, which is what turned a
+ * thousand-line restore into a dead page.
+ */
 function follow(run) {
   if (streams.has(run.id)) return;
 
@@ -797,20 +1003,19 @@ function follow(run) {
 
   source.onmessage = (message) => {
     const event = JSON.parse(message.data);
-    const card = document.querySelector(`[data-run="${run.id}"]`);
-    if (!card) return;
+    const entry = cards.get(run.id);
+    if (!entry) return;
 
     if (event.progress) {
-      card.querySelector('.bar > div').style.width = `${event.progress.percent}%`;
-      card.querySelector('[data-detail]').textContent = event.progress.detail;
+      entry.fill.style.width = `${event.progress.percent}%`;
+      entry.percent.textContent = `${event.progress.percent}%`;
+      entry.detail.textContent = event.progress.detail ?? '';
+      entry.shown.percent = event.progress.percent;
+      entry.shown.detail = event.progress.detail ?? '';
       return;
     }
 
-    const log = card.querySelector(`[data-log="${run.id}"]`);
-    if (!log) return;
-    log.hidden = false;
-    log.textContent += `${event.task ? '[' + event.task + '] ' : ''}${event.text}\n`;
-    log.scrollTop = log.scrollHeight;
+    appendLog(entry, `${event.task ? `[${event.task}] ` : ''}${event.text}`);
 
     if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') {
       source.close();
@@ -820,6 +1025,42 @@ function follow(run) {
   };
 
   source.onerror = () => { source.close(); streams.delete(run.id); };
+}
+
+function appendLog(entry, line) {
+  entry.pending.push(line);
+  if (entry.flushing) return;
+
+  entry.flushing = true;
+  requestAnimationFrame(() => flushLog(entry));
+}
+
+function flushLog(entry) {
+  entry.flushing = false;
+
+  const lines = entry.pending;
+  entry.pending = [];
+  if (lines.length === 0) return;
+
+  const atBottom = entry.log.scrollHeight - entry.log.scrollTop - entry.log.clientHeight < 40;
+
+  // One text node per line, so trimming is removing nodes rather than rewriting a string.
+  for (const line of lines) entry.log.append(document.createTextNode(`${line}\n`));
+  entry.lines += lines.length;
+
+  while (entry.lines > LOG_LINES && entry.log.firstChild) {
+    entry.log.firstChild.remove();
+    entry.lines -= 1;
+  }
+
+  entry.log.hidden = false;
+  if (atBottom) entry.log.scrollTop = entry.log.scrollHeight;
+}
+
+/** Reads the workspaces when that tab is opened, not on every poll. */
+async function loadWorkspaces() {
+  const state = await api('/api/dashboard/workspaces').catch(() => null);
+  if (state) renderWorkspaces(state);
 }
 
 function renderWorkspaces(state) {
@@ -845,7 +1086,7 @@ function renderWorkspaces(state) {
   target.querySelectorAll('[data-remove]').forEach((button) => {
     button.addEventListener('click', async () => {
       await api(`/api/dashboard/workspaces/${encodeURIComponent(button.dataset.remove)}`, { method: 'DELETE' });
-      refresh();
+      loadWorkspaces();
     });
   });
 }
@@ -905,11 +1146,13 @@ async function refresh() {
   try {
     const state = await api('/api/dashboard/state');
     renderRuns(state.runs);
-    renderWorkspaces(state);
     renderAbout(state);
   } catch (error) {
-    document.getElementById('runList').innerHTML =
-      '<p class="muted">QuickRun is no longer running. Close this tab, or start it again.</p>';
+    const gone = document.getElementById('noRuns');
+    if (gone) {
+      gone.hidden = false;
+      gone.textContent = 'QuickRun is no longer running. Close this tab, or start it again.';
+    }
   }
 }
 
@@ -932,7 +1175,7 @@ document.getElementById('schemeButton').addEventListener('click', async (event) 
 document.getElementById('cleanAll').addEventListener('click', async () => {
   if (!confirm('Remove every workspace? Repositories are checked out again on the next run.')) return;
   await api('/api/dashboard/workspaces', { method: 'DELETE' });
-  refresh();
+  loadWorkspaces();
 });
 
 document.getElementById('checkUpdate').addEventListener('click', async () => {

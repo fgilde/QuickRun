@@ -441,4 +441,97 @@ public class RunRegistryTests
         Assert.Equal("exited", tasks.Single(t => t.Name == "once").State);
         Assert.Null(tasks.Single(t => t.Name == "once").Url);
     }
+
+    /// <summary>
+    /// Stopping is not instant - stop commands run, processes get killed - so the state has to say
+    /// so while it happens, and it has to leave that state afterwards.
+    /// </summary>
+    [Fact]
+    public async Task A_run_being_stopped_says_stopping_and_then_reaches_a_final_state()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        var sleep = OSKinds.Current == OSKind.Windows
+            ? "powershell -NoProfile -Command Start-Sleep -Seconds 30"
+            : "sleep 30";
+        repo.Write("quickrun.yml", $"tasks:\n  - name: app\n    run: {sleep}\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.True(registry.Confirm(summary!.Id));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        while (registry.Get(summary.Id)!.LiveTasks == 0 && !cts.IsCancellationRequested)
+            await Task.Delay(50, cts.Token);
+
+        Assert.True(registry.Stop(summary.Id));
+        Assert.Equal(RunState.Stopping, registry.Get(summary.Id)!.State);
+
+        // Asking twice is not an error, it is a second click on the same button.
+        Assert.False(registry.Stop(summary.Id));
+
+        while (registry.Get(summary.Id)!.State == RunState.Stopping && !cts.IsCancellationRequested)
+            await Task.Delay(50, cts.Token);
+
+        Assert.Equal(RunState.Cancelled, registry.Get(summary.Id)!.State);
+    }
+
+    /// <summary>
+    /// A finished run can be taken off the list; one that is still going cannot, because that would
+    /// leave its processes with nobody watching them and no way back to its log.
+    /// </summary>
+    [Fact]
+    public async Task Only_a_finished_run_can_be_forgotten()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        // Waiting for confirmation is not finished either.
+        Assert.False(registry.Forget(summary!.Id));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        Assert.True(registry.Confirm(summary.Id));
+        while (registry.Get(summary.Id)!.State == RunState.Running && !cts.IsCancellationRequested)
+            await Task.Delay(50, cts.Token);
+
+        Assert.True(registry.Forget(summary.Id));
+        Assert.Null(registry.Get(summary.Id));
+        Assert.DoesNotContain(registry.All(), r => r.Id == summary.Id);
+
+        // And forgetting what is already gone is simply false, not a crash.
+        Assert.False(registry.Forget(summary.Id));
+    }
+
+    /// <summary>
+    /// The pid belongs in the status: for a desktop app it is the only handle a user has on the
+    /// process the run started.
+    /// </summary>
+    [Fact]
+    public async Task A_task_reports_the_pid_of_the_process_it_started()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "tasks:\n  - name: app\n    run: echo hi\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.True(registry.Confirm(summary!.Id));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        while (registry.Get(summary.Id)!.State == RunState.Running && !cts.IsCancellationRequested)
+            await Task.Delay(50, cts.Token);
+
+        var task = Assert.Single(registry.Get(summary.Id)!.Tasks!);
+        Assert.Equal("app", task.Name);
+        Assert.NotNull(task.Pid);
+        Assert.True(task.Pid > 0);
+    }
 }

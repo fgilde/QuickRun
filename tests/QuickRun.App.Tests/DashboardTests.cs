@@ -140,4 +140,31 @@ public class DashboardTests
         Assert.DoesNotContain("releases/latest/download", html);
         Assert.DoesNotContain("releases/tag/", html);
     }
+
+    /// <summary>
+    /// A changed value must not cost a second click, and applying it must not rebuild the form: the
+    /// field being typed in has to keep the cursor.
+    /// </summary>
+    [Fact]
+    public void Changing_a_value_applies_itself_and_leaves_the_form_alone()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("settle:", html);
+        Assert.Contains("form.settle();", html);
+        Assert.Contains("[data-commands]", html);
+
+        // The whole panel is no longer redrawn while someone is typing in it.
+        Assert.DoesNotContain("renderPlan(updated, panel)", html);
+    }
+
+    /// <summary>A finished run can be taken off the list, and nothing else can.</summary>
+    [Fact]
+    public void The_page_can_remove_a_finished_run()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("/forget`", html);
+        Assert.Contains("Remove", html);
+    }
 }

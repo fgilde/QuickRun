@@ -93,6 +93,12 @@ export async function confirm(runId, { port }) {
   return ok ? { run: payload } : { error: payload?.error ?? `could not start the run (${status})` };
 }
 
+/** What a run is doing now. The window asks while it is stopping, rather than trusting an event. */
+export async function state(runId, { port }) {
+  const { ok, payload } = await request(`/api/runs/${runId}`, { port });
+  return ok ? payload : null;
+}
+
 export async function stop(runId, { port }) {
   const { ok } = await request(`/api/runs/${runId}/stop`, { method: 'POST', port });
   return ok;

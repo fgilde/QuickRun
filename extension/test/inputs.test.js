@@ -111,3 +111,18 @@ test('dirty says whether anything was changed', () => {
   assert.equal(form.dirty(), true);
   assert.deepEqual(form.values(), { name: 'b' });
 });
+
+test('settle takes the values without touching the fields', () => {
+  const form = inputForm({ inputs: [{ id: 'name', type: 'text', default: 'a' }] });
+  const control = controlOf(form, 0);
+
+  control.value = 'b';
+  form.settle();
+
+  // Nothing pending any more, and the field itself is untouched - the cursor stays where it is.
+  assert.equal(form.dirty(), false);
+  assert.equal(control.value, 'b');
+
+  control.value = 'c';
+  assert.equal(form.dirty(), true);
+});

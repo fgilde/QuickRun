@@ -139,6 +139,7 @@ footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 }
 .task .state.ok { color: var(--ok-line); border-color: var(--ok-line); }
 .task .state.warn { color: var(--warn-line); border-color: var(--warn-line); }
+.task .pid { font-size: 12px; color: var(--muted); }
 
 /* Stopping is not instant, so the banner says it is happening rather than looking stuck. */
 .spinner {

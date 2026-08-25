@@ -6,7 +6,8 @@
 /**
  * Renders the fields for a run's inputs.
  *
- * @returns {{element: HTMLElement, values: () => Record<string, string>, dirty: () => boolean}|null}
+ * @returns {{element: HTMLElement, values: () => Record<string, string>, dirty: () => boolean,
+ *   settle: () => void}|null}
  *   null when the config declares no inputs.
  */
 export function inputForm(run) {
@@ -59,6 +60,10 @@ export function inputForm(run) {
     element,
     values,
     dirty: () => [...controls].some(([id, control]) => read(control) !== initial.get(id)),
+    // Called once the values have been sent: what is in the fields is now what the plan was built
+    // from, so nothing is pending any more - and the fields themselves are left alone, because
+    // rebuilding them would take the cursor out of the one being typed in.
+    settle: () => { for (const [id, control] of controls) initial.set(id, read(control)); },
   };
 }
 

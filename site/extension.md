@@ -37,17 +37,12 @@ was checked out into, and — once a task reports one — the address it is list
 
 If the config declares [inputs](/config#inputs), the window asks for them before there is anything
 to approve: labels, descriptions, defaults, a dropdown for a `select`, a checkbox for a `bool`, a
-masked field for a `password`. **Continue** applies the values and the command list is rebuilt from
-them — so what you approve is what those values produce, and changing a value afterwards makes the
-button say Continue again rather than Run. Values marked with an `env` are passed to the run as that
-environment variable, and a secret is never sent back to the window.
-
-If the config declares [inputs](/config#inputs), the window asks for them before there is anything
-to approve: labels, descriptions, defaults, a dropdown for a `select`, a checkbox for a `bool`, a
-masked field for a `password`. **Continue** applies the values and the command list is rebuilt from
-them — so what you approve is what those values produce, and changing a value afterwards makes the
-button say Continue again rather than Run. Values marked with an `env` are passed to the run as that
-environment variable, and a secret is never sent back to the window.
+masked field for a `password`. A changed value applies itself a moment later and the command list is
+rebuilt from it, so the list on screen is always the one those values produce — what you approve is
+what runs, and it stays one click on **Run**. The button says *Continue* only while required values
+are still missing, because until they are there is no command list to approve. Values marked with an
+`env` are passed to the run as that environment variable, and a secret is never sent back to the
+window.
 
 After you approve, that window stays open and becomes the run's log: the checkout with its real
 progress counters, every setup step, and everything the repository's own commands print. The button
@@ -55,7 +50,9 @@ on the page shows only a percentage and a coarse phase — a toolbar button is n
 lines of build output.
 
 Once the run starts, every task gets a line of its own: what it is doing - *starting*, *ready*,
-*exited* - and the address it reported, as a link. "Running" for a whole run says nothing about which
+*exited* - the address it reported, as a link, and the process id of what it started. For a desktop
+application that pid is the whole handle you have on it, and it is what a task with
+`readyWhen: {window: true}` is waiting on. "Running" for a whole run says nothing about which
 of five services came up.
 
 **Stop** stops the run and says so: the button turns to *Stopping…* with a spinner the moment it is

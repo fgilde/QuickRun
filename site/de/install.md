@@ -28,7 +28,12 @@ Das Fenster hat diese Bereiche:
   den du sowieso genommen hättest. PR-Nummer und Token für ein privates Repository liegen hinter
   *More*. Nach *Prepare* steht der Plan da — und, wenn die Config Inputs deklariert, zuerst ein
   Formular dafür; es läuft nichts ohne Bestätigung
-- **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit
+- **Runs** — was läuft, mit Fortschritt und Log-Ausgabe in Echtzeit. Jeder Task zeigt seinen
+  Zustand, seine Adresse sobald es eine gibt, und die Prozess-ID dessen, was er gestartet hat.
+  **Stop** bittet den Run zu stoppen: er zeigt *stopping*, solange die Stop-Kommandos der Config
+  laufen, gibt ihnen 30 Sekunden und beendet danach, was übrig ist — der Run verlässt diesen Zustand
+  immer. Ein beendeter Run lässt sich mit **Remove** aus der Liste nehmen; das löscht nichts, der
+  Checkout bleibt unter Workspaces
 - **Config builder** — eine `quickrun.yml` schreiben, prüfen und testen, siehe [Config-Builder](/de/builder)
 - **Workspaces** — was ausgecheckt ist, wieviel Platz es braucht, und wie man es entfernt
 - **Browser extension** — wie die Erweiterung funktioniert

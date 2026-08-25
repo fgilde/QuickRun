@@ -28,6 +28,8 @@ async function handle(message, sender) {
       return supplyInputs(message.runId, message.values);
     case 'stop':
       return stopRun(message.runId);
+    case 'runState':
+      return runState(message.runId);
     case 'reveal':
       return revealRun(message.runId);
     case 'openDownloads':
@@ -104,6 +106,12 @@ async function startRun(target, tabId) {
 async function supplyInputs(runId, values) {
   const { port } = await api.settings();
   return api.supplyInputs(runId, values ?? {}, { port });
+}
+
+/** The run as the daemon sees it, for a window that is waiting for something to finish. */
+async function runState(runId) {
+  const { port } = await api.settings();
+  return { run: await api.state(runId, { port }) };
 }
 
 async function stopRun(runId) {

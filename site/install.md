@@ -25,7 +25,11 @@ The window has these sections:
   the one you would have picked. A pull request number and a token for a private repository are
   behind *More*. Preparing shows the plan - and, when the config declares inputs, a form for them
   first; nothing runs until you confirm it
-- **Runs** — what is running, with live progress and log output
+- **Runs** — what is running, with live progress and log output. Each task shows its state, its
+  address once it has one, and the process id of what it started. **Stop** asks the run to stop: it
+  says *stopping* while the config's stop commands run, gives them 30 seconds, and then kills what
+  is left - the run always leaves that state. A finished run can be taken off the list with
+  **Remove**, which deletes nothing: the checkout stays in Workspaces
 - **Config builder** — write, check and test a `quickrun.yml`, see [the config builder](/builder)
 - **Workspaces** — what is checked out, how much disk it uses, and a way to remove it
 - **Browser extension** — how the extension works

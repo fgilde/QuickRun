@@ -157,6 +157,19 @@ public static class DaemonHost
                 installSource = InstallSources.DetectCurrent(store.Root).ToString().ToLowerInvariant(),
                 workspaceRoot = store.Root,
                 runs = runs.All(),
+            }, Json);
+        });
+
+        // Separate from the state poll on purpose: listing workspaces sums the size of every file
+        // in every checkout, which is far too much disk to touch every few seconds - and the page
+        // only needs it when someone is looking at that tab.
+        app.MapGet("/api/dashboard/workspaces", (HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            return Results.Json(new
+            {
+                workspaceRoot = store.Root,
                 workspaces = store.List().Select(w => new
                 {
                     w.Id,
@@ -404,6 +417,13 @@ public static class DaemonHost
                 : Results.Json(new { error = "unknown run, or it has already started" },
                     Json, statusCode: StatusCodes.Status409Conflict);
         });
+
+        // Off the list, but nothing is deleted: the workspace and its checkout stay where they are.
+        app.MapPost("/api/dashboard/runs/{id}/forget", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+            !DashboardAuthorized(context, dashboard) ? Forbidden()
+                : runs.Forget(id) ? Results.NoContent()
+                    : Results.Json(new { error = "a run that is still going cannot be removed" },
+                        Json, statusCode: StatusCodes.Status409Conflict));
 
         app.MapPost("/api/dashboard/runs/{id}/cancel", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
             !DashboardAuthorized(context, dashboard) ? Forbidden()

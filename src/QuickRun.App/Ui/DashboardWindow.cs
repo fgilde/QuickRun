@@ -344,6 +344,7 @@ public sealed class DashboardWindow : Window
                     {
                         Mono(task.Name).With(t => t.MinWidth = 90),
                         Muted(task.State),
+                        Muted(task.Pid is { } pid ? $"pid {pid}" : ""),
                     },
                 };
 
@@ -370,6 +371,9 @@ public sealed class DashboardWindow : Window
                     },
                 });
 
+            if (run.State == RunState.Stopping)
+                card.Children.Add(Muted("stopping..."));
+
             if (run.State == RunState.Running)
             {
                 var id = run.Id;
@@ -388,7 +392,9 @@ public sealed class DashboardWindow : Window
     private static string State(RunState state) => state switch
     {
         RunState.AwaitingConfirmation => "awaiting confirmation in the browser",
+        RunState.AwaitingInput => "waiting for values",
         RunState.Running => "running",
+        RunState.Stopping => "stopping...",
         RunState.Succeeded => "succeeded",
         RunState.Failed => "failed",
         _ => "cancelled",

@@ -17,6 +17,10 @@ public enum RunState
     /// <summary>Prepared and waiting for someone to approve the command list.</summary>
     AwaitingConfirmation,
     Running,
+
+    /// <summary>Asked to stop, and the processes are being taken down.</summary>
+    Stopping,
+
     Succeeded,
     Failed,
     Cancelled,
@@ -28,7 +32,11 @@ public enum RunState
 /// starting to exited, which is the honest answer for something that only had to run once.
 /// </param>
 /// <param name="Url">Where this task said it is listening, when it said anything.</param>
-public sealed record RunTaskStatus(string Name, string State, string? Url);
+/// <param name="Pid">
+/// The process it is running as. For a desktop application that is the only handle anyone has on
+/// it - there is no address to open and nothing to probe, but there is a process to find.
+/// </param>
+public sealed record RunTaskStatus(string Name, string State, string? Url, int? Pid = null);
 
 public sealed record RunSummary(
     string Id,
@@ -73,9 +81,14 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 {
     private const int ReplayBufferSize = 500;
 
+    /// <summary>How long a config's stop commands get before the run is finalised anyway.</summary>
+    private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(30);
+
     private readonly ConcurrentDictionary<string, Entry> _runs = new(StringComparer.Ordinal);
 
-    public bool AnyActive => _runs.Values.Any(e => e.Summary.State is RunState.Running or RunState.AwaitingConfirmation);
+    public bool AnyActive => _runs.Values.Any(e =>
+        e.Summary.State is RunState.Running or RunState.Stopping
+            or RunState.AwaitingConfirmation or RunState.AwaitingInput);
 
     public IReadOnlyList<RunSummary> All() => _runs.Values.Select(e => e.Summary).ToList();
 
@@ -165,6 +178,19 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
     public bool Stop(string id) => _runs.TryGetValue(id, out var entry) && entry.RequestStop();
 
     /// <summary>
+    /// Takes a finished run off the list. Only a finished one: forgetting a run that is still going
+    /// would leave its processes with nobody watching them and no way back to its log.
+    /// </summary>
+    public bool Forget(string id)
+    {
+        if (!_runs.TryGetValue(id, out var entry)) return false;
+        if (entry.Summary.State is RunState.Running or RunState.Stopping
+            or RunState.AwaitingConfirmation or RunState.AwaitingInput) return false;
+
+        return _runs.TryRemove(id, out _);
+    }
+
+    /// <summary>
     /// Throws away a prepared run nobody approved. Without this a declined plan would sit in the
     /// list as "awaiting confirmation" for ever, and the reader cannot tell that from a plan still
     /// waiting for them.
@@ -211,7 +237,18 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                 openUrl(e.Text[5..].Trim());
         });
         var outcome = await runner.ExecuteAsync(config, options, entry.StopToken);
-        await runner.StopAsync();
+
+        // The stop commands are the repository's code, and a run has to reach a final state even
+        // when they hang - otherwise "stopping" is where it stays for ever.
+        try
+        {
+            await runner.StopAsync().WaitAsync(StopTimeout);
+        }
+        catch (TimeoutException)
+        {
+            entry.Publish(new RunEvent(RunEventKind.Error, null,
+                $"the stop commands did not finish within {StopTimeout.TotalSeconds:0}s - giving up on them"));
+        }
 
         store.Touch(WorkspaceStore.IdFor(preparation.Plan.Repo, preparation.Plan.Ref),
             preparation.Plan.Repo, preparation.Plan.Ref, preparation.Plan.Commit, outcome.Ok);
@@ -348,6 +385,12 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         public bool RequestStop()
         {
             if (_stop.IsCancellationRequested) return false;
+
+            lock (_gate)
+                if (Summary.State == RunState.Running)
+                    Summary = Summary with { State = RunState.Stopping };
+
+            Publish(new RunEvent(RunEventKind.Info, null, "stopping"));
             _stop.Cancel();
             return true;
         }
@@ -391,8 +434,14 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                         ? e.Text[5..].Trim()
                         : null;
 
-                    if (state is not null || address is not null)
-                        Summary = Summary with { Tasks = Update(Summary.Tasks, name, state, address) };
+                    var pid = e.Kind == RunEventKind.Info
+                              && e.Text.StartsWith("pid ", StringComparison.Ordinal)
+                              && int.TryParse(e.Text[4..].Trim(), out var parsed)
+                        ? parsed
+                        : (int?)null;
+
+                    if (state is not null || address is not null || pid is not null)
+                        Summary = Summary with { Tasks = Update(Summary.Tasks, name, state, address, pid) };
                 }
 
                 _history.Add(e);
@@ -407,14 +456,14 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         /// reads without locking.
         /// </summary>
         private static IReadOnlyList<RunTaskStatus> Update(
-            IReadOnlyList<RunTaskStatus>? tasks, string name, string? state, string? url)
+            IReadOnlyList<RunTaskStatus>? tasks, string name, string? state, string? url, int? pid)
         {
             var rows = tasks?.ToList() ?? new List<RunTaskStatus>();
             var at = rows.FindIndex(t => t.Name == name);
 
             if (at < 0)
             {
-                rows.Add(new RunTaskStatus(name, state ?? "starting", url));
+                rows.Add(new RunTaskStatus(name, state ?? "starting", url, pid));
                 return rows;
             }
 
@@ -423,7 +472,13 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
             // and that is worth the address it brings, but not a state that says it is still up.
             var next = rows[at].State == "exited" && state == "ready" ? "exited" : state ?? rows[at].State;
 
-            rows[at] = rows[at] with { State = next, Url = url ?? rows[at].Url };
+            rows[at] = rows[at] with
+            {
+                State = next,
+                Url = url ?? rows[at].Url,
+                // A restarted task runs as a new process, so a new pid replaces the old one.
+                Pid = pid ?? rows[at].Pid,
+            };
 
             return rows;
         }

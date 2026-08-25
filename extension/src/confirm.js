@@ -110,13 +110,25 @@ function renderCommands(run) {
 /**
  * What the button does next.
  *
- * With no plan, or with values that have been changed since the plan was built, it applies the
- * values first - the command list has to be the one those values produced, because that list is
- * what the user is approving.
+ * Values are applied on their own a moment after they change, so the plan on screen is the plan
+ * those values produce and the button stays "Run". It only says "Continue" while there is no plan
+ * at all - required values still missing.
  */
 function updateApprove() {
-  const needsValues = run.state === 'awaitingInput' || (form?.dirty() ?? false);
-  approve.textContent = needsValues ? 'Continue' : 'Run';
+  approve.textContent = run.commands.length === 0 ? 'Continue' : 'Run';
+}
+
+let applyTimer = null;
+
+/** Applies a changed value by itself, so approving stays one click. */
+function scheduleApply() {
+  updateApprove();
+
+  if (applyTimer) clearTimeout(applyTimer);
+  applyTimer = setTimeout(() => {
+    applyTimer = null;
+    if (form?.dirty()) applyValues();
+  }, 600);
 }
 
 function text(id, value) {
@@ -124,9 +136,16 @@ function text(id, value) {
 }
 
 approve.addEventListener('click', async () => {
+  // A value changed within the last moment has not been applied yet, so it is applied now - and if
+  // it turns out to change nothing about the commands on screen, this click still starts the run.
   if (run.state === 'awaitingInput' || (form?.dirty() ?? false)) {
+    const before = run.fingerprint;
+    const commands = run.commands.length;
+
     await applyValues();
-    return;
+
+    const same = run.fingerprint === before && run.commands.length === commands;
+    if (!same || run.commands.length === 0) return;
   }
 
   decide(true);
@@ -145,24 +164,30 @@ async function applyValues() {
 
   approve.disabled = false;
 
+  // Only the plan is redrawn, never the form: the field being typed in has to keep the cursor.
   if (result?.run) {
     run = result.run;
-    render(run);
+    form?.settle();
+    text('subtitle', run.commands.length === 0
+      ? 'fill in the values below to see what would run'
+      : `${run.commands.length} command(s)`);
+    renderCommands(run);
   }
 
   if (result?.error) {
     text('inputError', result.error);
+    updateApprove();
     return;
   }
 
   text('inputError', run.commands.length > 0
-    ? 'this is what those values would run - check it and press Run'
+    ? 'this is what those values would run'
     : '');
   updateApprove();
 }
 
-document.getElementById('inputs').addEventListener('input', updateApprove);
-document.getElementById('inputs').addEventListener('change', updateApprove);
+document.getElementById('inputs').addEventListener('input', scheduleApply);
+document.getElementById('inputs').addEventListener('change', scheduleApply);
 cancel.addEventListener('click', () => decide(false));
 close.addEventListener('click', () => window.close());
 
@@ -173,6 +198,7 @@ document.getElementById('openDir').addEventListener('click', async () => {
 });
 
 let stopping = false;
+let finished = false;
 
 stop.addEventListener('click', async () => {
   stopping = true;
@@ -183,7 +209,38 @@ stop.addEventListener('click', async () => {
   // is happening rather than sit on "Running" until it is over.
   setState('Stopping', 'running', { busy: true });
   await chrome.runtime.sendMessage({ type: 'stop', runId: run.id });
+
+  // And then it has to end. An event can be missed - a dropped stream, a window opened late - so
+  // the run is asked directly rather than waited on.
+  watchUntilDone();
 });
+
+const TERMINAL = ['succeeded', 'failed', 'cancelled'];
+
+async function watchUntilDone() {
+  const giveUpAt = Date.now() + 60_000;
+
+  while (!finished && Date.now() < giveUpAt) {
+    await new Promise((resume) => setTimeout(resume, 1000));
+    if (finished) return;
+
+    const answer = await chrome.runtime.sendMessage({ type: 'runState', runId: run.id })
+      .catch(() => null);
+    const state = answer?.run?.state;
+
+    if (state && TERMINAL.includes(state)) {
+      conclude(state === 'succeeded' ? 'finished' : state === 'failed' ? 'failed' : 'cancelled');
+      return;
+    }
+  }
+
+  if (finished) return;
+
+  // Something is refusing to die. Saying so beats a spinner that never stops.
+  setState('Still stopping', 'warn');
+  append('the run has not finished stopping - closing this window leaves it running', 'err');
+  close.hidden = false;
+}
 
 async function decide(approved) {
   if (decided) return;
@@ -280,6 +337,13 @@ function renderTasks() {
 
     row.append(label, state);
 
+    if (task.pid) {
+      const pid = document.createElement('span');
+      pid.className = 'pid';
+      pid.textContent = `pid ${task.pid}`;
+      row.append(pid);
+    }
+
     if (task.url) {
       const safe = httpUrl(task.url);
       const address = document.createElement(safe ? 'a' : 'span');
@@ -325,9 +389,17 @@ chrome.runtime.onMessage.addListener((message) => {
       ? event.text.slice(5).trim()
       : null;
 
-    if (state || url) {
-      const current = tasks.get(event.task) ?? { state: 'starting', url: null };
-      tasks.set(event.task, { state: state ?? current.state, url: url ?? current.url });
+    const pid = event.kind === 'info' && event.text.startsWith('pid ')
+      ? Number.parseInt(event.text.slice(4).trim(), 10)
+      : null;
+
+    if (state || url || pid) {
+      const current = tasks.get(event.task) ?? { state: 'starting', url: null, pid: null };
+      tasks.set(event.task, {
+        state: state ?? current.state,
+        url: url ?? current.url,
+        pid: pid ?? current.pid,
+      });
       renderTasks();
     }
   }
@@ -351,33 +423,75 @@ chrome.runtime.onMessage.addListener((message) => {
   append(`${event.task ? `[${event.task}] ` : ''}${event.text}`, event.kind === 'error' ? 'err' : '');
 
   // Terminal, one way or another: what is left to do is read the log and close the window.
-  if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') {
-    const outcome = {
-      finished: ['Finished', 'ok', 'finished'],
-      failed: ['Failed', 'bad', 'failed'],
-      cancelled: ['Stopped', 'warn', 'stopped'],
-    }[event.kind];
-
-    document.getElementById('phase').textContent = outcome[2];
-    setState(outcome[0], outcome[1]);
-    stop.hidden = true;
-    close.hidden = false;
-
-    // Asked to stop, and it stopped: the window has done its job. Long enough to read the banner,
-    // short enough not to be in the way - and only when the user asked for it.
-    if (stopping) setTimeout(() => window.close(), 1500);
-  }
+  if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') conclude(event.kind);
 });
+
+/** The run is over, however it got there. */
+function conclude(kind) {
+  if (finished) return;
+  finished = true;
+
+  const outcome = {
+    finished: ['Finished', 'ok', 'finished'],
+    failed: ['Failed', 'bad', 'failed'],
+    cancelled: ['Stopped', 'warn', 'stopped'],
+  }[kind] ?? ['Finished', 'ok', 'finished'];
+
+  document.getElementById('phase').textContent = outcome[2];
+  setState(outcome[0], outcome[1]);
+  stop.hidden = true;
+  close.hidden = false;
+
+  // Asked to stop, and it stopped: the window has done its job. Long enough to read the banner,
+  // short enough to be out of the way - and only when the user asked for it.
+  if (stopping) setTimeout(() => window.close(), 1500);
+}
+
+/**
+ * The log, written in batches and kept to a few hundred lines.
+ *
+ * A restore prints thousands of lines, and touching the DOM once per line is how a window stops
+ * answering and then dies.
+ */
+const LOG_LINES = 800;
+const pendingLines = [];
+let flushingLog = false;
+let shownLines = 0;
 
 function append(line, kind) {
   if (!line) return;
 
-  const entry = document.createElement('span');
-  if (kind) entry.className = kind;
-  // textContent: log lines are whatever the repository's commands printed.
-  entry.textContent = `${line}\n`;
+  pendingLines.push([line, kind]);
+  if (flushingLog) return;
+
+  flushingLog = true;
+  requestAnimationFrame(flushLog);
+}
+
+function flushLog() {
+  flushingLog = false;
+
+  const lines = pendingLines.splice(0, pendingLines.length);
+  if (lines.length === 0) return;
 
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
-  log.append(entry);
+  const batch = document.createDocumentFragment();
+
+  for (const [line, kind] of lines) {
+    const entry = document.createElement('span');
+    if (kind) entry.className = kind;
+    // textContent: log lines are whatever the repository's commands printed.
+    entry.textContent = `${line}\n`;
+    batch.append(entry);
+  }
+
+  log.append(batch);
+  shownLines += lines.length;
+
+  while (shownLines > LOG_LINES && log.firstChild) {
+    log.firstChild.remove();
+    shownLines -= 1;
+  }
+
   if (atBottom) log.scrollTop = log.scrollHeight;
 }

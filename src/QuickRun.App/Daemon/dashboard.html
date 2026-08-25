@@ -31,6 +31,8 @@ header {
 header h1 { font-size: 17px; margin: 0; }
 header .version { color: var(--muted); font-size: 12px; }
 header .spacer { flex: 1; }
+header a { color: var(--muted); font-size: 12.5px; text-decoration: none; }
+header a:hover { color: var(--fg); text-decoration: underline; }
 nav { display: flex; gap: 4px; padding: 10px 18px 0; border-bottom: 1px solid var(--line); }
 nav button {
   padding: 7px 14px; border: 1px solid transparent; border-bottom: none;
@@ -119,6 +121,8 @@ ol.plan .phase {
   <span class="version">{{VERSION}}</span>
   <span class="spacer"></span>
   <span id="updateBadge"></span>
+  <!-- Only inside QuickRun's own window: a window has no address bar, so this is the way out. -->
+  <a id="inBrowser" href="/" target="_blank" rel="noreferrer" hidden>Open in browser</a>
 </header>
 
 <nav>
@@ -1142,6 +1146,11 @@ document.querySelector('nav button[data-tab="builder"]').addEventListener('click
   listMine();
   if (!builder.repo.value) builder.repo.value = starter.repo.value;
 });
+
+// Inside the desktop window the page is the whole interface, so it has to offer the one thing a
+// window cannot: opening the same page in the real browser.
+if (new URLSearchParams(location.search).get('shell') === 'window')
+  document.getElementById('inBrowser').hidden = false;
 
 refresh();
 loadScheme();

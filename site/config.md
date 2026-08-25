@@ -98,6 +98,11 @@ Exactly one of these, or omit the block to mean "ready as soon as the process st
 Readiness describes the *service*, not the process. `docker compose up -d db` exits long before its
 port opens, so a task that exits cleanly keeps its readiness watcher running.
 
+A readiness check that never fires is not fatal. QuickRun waits three minutes, then says so in the
+log and counts the task as started - the process keeps running, because "it never answered on that
+port" and "it is broken" are not the same thing. The progress bar moves when a task *starts* as well
+as when it becomes ready, so a slow application no longer looks stuck.
+
 `open: true` needs an address. With `port` or `http` that is the one you declared. With `log` there
 is none, so QuickRun takes the last loopback address the task printed - which is the line the
 pattern was waiting for. Only `localhost`, `127.0.0.1`, `0.0.0.0` and `[::1]` count: a build log is

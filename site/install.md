@@ -13,9 +13,10 @@ quickrun
 QuickRun starts its listener on `127.0.0.1:9876`, puts an icon in the tray and opens its window.
 
 On Windows the window shows the same page the listener serves, in the system's WebView - one
-interface rather than two, and the browser engine is the one Windows already ships. Elsewhere, and
-whenever no WebView is available or `QUICKRUN_NO_WEBVIEW` is set, the window draws its own native
-view of the same data.
+interface rather than two, and the browser engine is the one Windows already ships. The page brings
+its own header, so the window adds none, and an **Open in browser** link in it is the way out that a
+window without an address bar otherwise lacks. Elsewhere, and whenever no WebView is available or
+`QUICKRUN_NO_WEBVIEW` is set, the window draws its own native view of the same data.
 
 The window has these sections:
 

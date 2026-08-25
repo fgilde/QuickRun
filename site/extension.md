@@ -32,10 +32,17 @@ Clicking Run does not start anything. QuickRun checks the repository out, builds
 extension opens a window listing the repository, ref, resolved commit and the **exact commands**
 that will run. Only the button in that window starts them.
 
+The window also shows the `description` from the config when it has one, the folder the repository
+was checked out into, and — once a task reports one — the address it is listening on, as a link.
+
 After you approve, that window stays open and becomes the run's log: the checkout with its real
 progress counters, every setup step, and everything the repository's own commands print. The button
 on the page shows only a percentage and a coarse phase — a toolbar button is no place for a hundred
 lines of build output.
+
+**Stop** stops the run and says so: the banner turns to *Stopped* and the window offers Close. It is
+only clickable while something is actually running - a run whose processes have all exited has
+nothing left to stop.
 
 That window is an extension page, not part of the GitHub page, and that is on purpose: a web page
 can draw a convincing fake panel over its own content, and nobody should ever approve one set of

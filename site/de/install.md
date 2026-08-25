@@ -15,9 +15,11 @@ QuickRun startet seinen Listener auf `127.0.0.1:9876`, legt ein Icon ins Tray un
 Fenster.
 
 Unter Windows zeigt das Fenster dieselbe Seite, die der Listener ausliefert, im System-WebView —
-eine Oberfläche statt zwei, und die Browser-Engine ist die, die Windows sowieso mitbringt. Sonst,
-und immer wenn kein WebView verfügbar ist oder `QUICKRUN_NO_WEBVIEW` gesetzt ist, zeichnet das
-Fenster seine eigene native Ansicht derselben Daten.
+eine Oberfläche statt zwei, und die Browser-Engine ist die, die Windows sowieso mitbringt. Die Seite
+bringt ihren eigenen Header mit, deshalb fügt das Fenster keinen zweiten hinzu, und der Link **Open
+in browser** darin ist der Ausweg, den ein Fenster ohne Adressleiste sonst nicht hat. Sonst, und
+immer wenn kein WebView verfügbar ist oder `QUICKRUN_NO_WEBVIEW` gesetzt ist, zeichnet das Fenster
+seine eigene native Ansicht derselben Daten.
 
 Das Fenster hat diese Bereiche:
 

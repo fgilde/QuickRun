@@ -32,10 +32,17 @@ Ein Klick auf Run startet nichts. QuickRun checkt das Repository aus, baut den P
 Erweiterung öffnet ein Fenster mit Repository, Ref, aufgelöstem Commit und den **exakten Befehlen**,
 die laufen werden. Erst der Button in diesem Fenster startet sie.
 
+Das Fenster zeigt außerdem die `description` aus der Config, wenn es eine gibt, das Verzeichnis, in
+das ausgecheckt wurde, und — sobald ein Task eine meldet — die Adresse, auf der es läuft, als Link.
+
 Nach der Bestätigung bleibt das Fenster offen und wird zum Log des Laufs: der Checkout mit den
 echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des Repositories
 ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ein Toolbar-Button ist
 kein Ort für hundert Zeilen Build-Ausgabe.
+
+**Stop** stoppt den Lauf und sagt es: das Banner wechselt auf *Stopped*, und das Fenster bietet
+Close an. Klickbar ist es nur, solange wirklich etwas läuft — ein Lauf, dessen Prozesse alle beendet
+sind, hat nichts mehr zu stoppen.
 
 Dieses Fenster ist eine Extension-Seite und nicht Teil der GitHub-Seite — und das mit Absicht: eine
 Webseite kann über ihren eigenen Inhalt ein überzeugendes gefälschtes Panel zeichnen, und niemand

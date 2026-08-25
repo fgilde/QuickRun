@@ -33,6 +33,7 @@ public sealed class DashboardWindow : Window
     private readonly string _listenerUrl;
 
     private readonly StackPanel _runList = Rows();
+    private readonly ContentControl _header = new();
     private readonly StackPanel _workspaceList = Rows();
     private readonly TextBlock _updateState = Muted("checking…");
     private readonly DispatcherTimer _timer;
@@ -74,21 +75,28 @@ public sealed class DashboardWindow : Window
     private Control BuildLayout()
     {
         var shell = new ContentControl();
+        _header.Content = Header();
 
-        var browser = EmbeddedBrowser.TryCreate(_listenerUrl, reason =>
+        // ?shell=window tells the page it is inside this window: it drops nothing, but it does
+        // offer a way out into the real browser, which is the one thing a window cannot provide.
+        var browser = EmbeddedBrowser.TryCreate($"{_listenerUrl}/?shell=window", reason =>
             Dispatcher.UIThread.Post(() =>
             {
                 Output.Warn($"the embedded browser could not start ({reason}) - using the native view");
+                _header.IsVisible = true;
                 shell.Content = NativeLayout();
             }));
 
+        // The page has its own header with the same logo and version in it. Two of them, one above
+        // the other, is what made the window look wrong.
+        _header.IsVisible = browser is null;
         shell.Content = browser is null ? NativeLayout() : browser;
 
         return new DockPanel
         {
             Children =
             {
-                Header().With(d => DockPanel.SetDock(d, Dock.Top)),
+                _header.With(d => DockPanel.SetDock(d, Dock.Top)),
                 shell,
             },
         };

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Threading;
@@ -83,6 +84,7 @@ internal sealed class WebView2Host : NativeControlHost
     private readonly Action<string> _onFailure;
 
     private CoreWebView2Controller? _controller;
+    private Window? _window;
     private nint _child;
 
     public WebView2Host(string url, Action<string> onFailure)
@@ -93,6 +95,52 @@ internal sealed class WebView2Host : NativeControlHost
         // The control's size in device pixels is what WebView2 wants, and Avalonia reports it in
         // layout units - so the client rectangle of the child window is the honest source.
         LayoutUpdated += (_, _) => Resize();
+    }
+
+    /// <summary>
+    /// WebView2 has to be told when the window moves, or it keeps drawing where the window used to
+    /// be and stops taking clicks where it now is - and when it resizes, because it fills the
+    /// rectangle it was last given rather than its parent.
+    /// </summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        if (TopLevel.GetTopLevel(this) is not Window window) return;
+
+        _window = window;
+        window.PositionChanged += Moved;
+        window.SizeChanged += Resized;
+        window.PropertyChanged += Restored;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (_window is { } window)
+        {
+            window.PositionChanged -= Moved;
+            window.SizeChanged -= Resized;
+            window.PropertyChanged -= Restored;
+            _window = null;
+        }
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void Moved(object? sender, PixelPointEventArgs e) => _controller?.NotifyParentWindowPositionChanged();
+
+    private void Resized(object? sender, SizeChangedEventArgs e) => Resize();
+
+    /// <summary>
+    /// Minimising and restoring changes neither position nor size, and leaves the WebView drawing
+    /// nothing until it is told the window moved.
+    /// </summary>
+    private void Restored(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != Window.WindowStateProperty) return;
+
+        _controller?.NotifyParentWindowPositionChanged();
+        Resize();
     }
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)

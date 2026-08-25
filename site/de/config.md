@@ -107,6 +107,15 @@ Bisher nur unter Windows; anderswo zählt der Task als gestartet.
 Readiness beschreibt den *Dienst*, nicht den Prozess. `docker compose up -d db` beendet sich lange
 bevor der Port offen ist, deshalb läuft der Readiness-Watcher weiter, wenn ein Task sauber beendet.
 
+Ein Task, der mit einem Exit-Code ungleich 0 endet, lässt den Lauf fehlschlagen — und der Lauf sagt,
+welcher Task mit welchem Code. Eine Anwendung, die nicht starten konnte, weil der Port belegt war
+oder ein Connection String fehlte, ist kein fertiger Lauf, so weit das Log vorher auch kam.
+
+Bevor ein Task startet, wird die Adresse aus seinem `readyWhen` einmal geprüft. Antwortet dort schon
+etwas, sagt das Log es: Readiness kann zwei Server nicht unterscheiden, sie wäre also bei einem
+Fremden zugeschlagen, während der Task selbst am Binden scheitert. Der übliche Grund ist ein
+früherer Lauf desselben Repositories, der noch läuft.
+
 Eine Readiness-Prüfung, die nie zutrifft, ist kein Fehler. QuickRun wartet drei Minuten, sagt es
 dann im Log und zählt den Task als gestartet — der Prozess läuft weiter, denn „hat auf dem Port
 nicht geantwortet" und „ist kaputt" sind nicht dasselbe. Der Fortschrittsbalken bewegt sich beim

@@ -44,6 +44,18 @@ diese Werte ergeben: du bestätigst genau das, was läuft, und es bleibt bei ein
 Befehlsliste zu bestätigen. Werte mit `env` gehen als diese Umgebungsvariable in den Lauf, und ein
 Secret wird nie ans Fenster zurückgeschickt.
 
+Solange ein Lauf dieses Branches läuft, ist der Button der Weg dorthin und nicht der Weg in einen
+zweiten Lauf. Ein Klick öffnet die Aktionen:
+
+- **Show log** — holt das Log-Fenster zurück, oder öffnet ein neues, das sich an den Lauf hängt. Das
+  Fenster zu schließen hat nie etwas gestoppt, also muss man auch zurückkommen können
+- **Open …** — die Adresse, die der Lauf gemeldet hat, sobald er eine gemeldet hat
+- **Stop** — stoppt den Lauf, und beendet auch das, was er laufen ließ, wenn ein Task sich beendet
+  und einen Server hinterlassen hat
+
+Nach einem Reload findet der Button seinen Lauf wieder: der Tab vergisst ihn, der Daemon nicht. Ein
+Branch, der schon läuft, lässt sich damit nicht versehentlich zweimal starten.
+
 Nach der Bestätigung bleibt das Fenster offen und wird zum Log des Laufs: der Checkout mit den
 echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des Repositories
 ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ein Toolbar-Button ist

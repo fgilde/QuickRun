@@ -106,6 +106,15 @@ config for it at all. Windows only for now; elsewhere the task counts as started
 Readiness describes the *service*, not the process. `docker compose up -d db` exits long before its
 port opens, so a task that exits cleanly keeps its readiness watcher running.
 
+A task that exits with a non-zero code fails the run, and the run says which task and which code.
+An application that could not start - a port already taken, a missing connection string - is not a
+finished run, however far the log got before it died.
+
+Before a task starts, the address its `readyWhen` names is probed once. If something is already
+answering there, the log says so: readiness cannot tell two servers apart, so it would have passed
+on a stranger while the task itself failed to bind. The usual reason is an earlier run of the same
+repository that is still going.
+
 A readiness check that never fires is not fatal. QuickRun waits three minutes, then says so in the
 log and counts the task as started - the process keeps running, because "it never answered on that
 port" and "it is broken" are not the same thing. The progress bar moves when a task *starts* as well

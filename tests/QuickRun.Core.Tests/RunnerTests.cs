@@ -332,4 +332,41 @@ public class RunnerTests
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => runner.ExecuteAsync(config, Options(repo.Path), CancellationToken.None));
     }
+
+    /// <summary>
+    /// A crashed task used to leave the run reporting success: the status said finished and the log
+    /// held the stack trace. An application that could not start is not a finished run.
+    /// </summary>
+    [Fact]
+    public async Task A_task_that_exits_badly_fails_the_run()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        var fail = OSKinds.Current == OSKind.Windows ? "exit /b 3" : "exit 3";
+        var config = ConfigParser.Parse($"tasks:\n  - name: app\n    run: {fail}\n", OSKinds.Current);
+
+        var events = new List<RunEvent>();
+        await using var runner = new Runner(events.Add);
+        var outcome = await runner.ExecuteAsync(config, Options(repo.Path), CancellationToken.None);
+
+        Assert.False(outcome.Ok);
+        Assert.Contains("app exited with code 3", outcome.Error);
+        Assert.DoesNotContain(events, e => e.Kind == RunEventKind.Finished);
+    }
+
+    /// <summary>A task that ends cleanly is still a finished run, whatever else is going on.</summary>
+    [Fact]
+    public async Task A_task_that_exits_cleanly_finishes_the_run()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        var config = ConfigParser.Parse("tasks:\n  - name: app\n    run: echo hi\n", OSKinds.Current);
+
+        await using var runner = new Runner(_ => { });
+        var outcome = await runner.ExecuteAsync(config, Options(repo.Path), CancellationToken.None);
+
+        Assert.True(outcome.Ok, outcome.Error);
+    }
 }

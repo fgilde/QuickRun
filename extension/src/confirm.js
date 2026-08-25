@@ -7,7 +7,11 @@
 import { httpUrl } from './safeurl.js';
 import { inputForm } from './inputs.js';
 
-const { pendingRun } = await chrome.storage.session.get('pendingRun');
+// Two ways in: a plan waiting to be approved, or a run that is already going and wants watching
+// again. Closing this window never stopped the run, so getting back to it has to be possible.
+const attaching = new URLSearchParams(location.search).get('attach') === '1';
+const stored = await chrome.storage.session.get(attaching ? 'attachedRun' : 'pendingRun');
+const pendingRun = attaching ? stored.attachedRun : stored.pendingRun;
 
 // The run is replaced when values are supplied: the plan is rebuilt from them, and what gets
 // approved has to be the rebuilt one.
@@ -37,8 +41,52 @@ let sawTask = false;
 if (!run) {
   document.getElementById('name').textContent = 'Nothing to confirm';
   approve.hidden = true;
+} else if (attaching) {
+  render(run);
+  attach(run);
 } else {
   render(run);
+}
+
+/**
+ * Takes over a run that is already going: nothing to approve, so the window goes straight to the
+ * log, with a Stop that means it. Everything since the run started is replayed by the daemon, so
+ * the log is not empty just because this window is new.
+ */
+function attach(current) {
+  decided = true;
+  document.getElementById('name').textContent = current.displayName || current.repo;
+  review.hidden = true;
+  progress.hidden = false;
+  approve.hidden = true;
+  cancel.hidden = true;
+  close.hidden = false;
+
+  const alive = ['running', 'stopping'].includes(current.state) || (current.leftovers ?? 0) > 0;
+  stop.hidden = !alive;
+  liveTasks = current.liveTasks ?? 0;
+  sawTask = true;
+
+  for (const task of current.tasks ?? []) {
+    tasks.set(task.name, { state: task.state, url: task.url ?? null, pid: task.pid ?? null });
+  }
+  renderTasks();
+
+  if (current.progress) {
+    document.getElementById('fill').style.width = `${current.progress.percent}%`;
+    document.getElementById('percent').textContent = `${current.progress.percent}%`;
+    document.getElementById('phase').textContent = current.progress.detail || current.progress.phase;
+  }
+
+  if (current.url) showAddress(current.url);
+
+  if (alive) {
+    setState(current.state === 'stopping' ? 'Stopping' : 'Running', 'running',
+      { busy: current.state === 'stopping' });
+  } else {
+    conclude(current.state === 'succeeded' ? 'finished'
+      : current.state === 'failed' ? 'failed' : 'cancelled');
+  }
 }
 
 function render(run) {

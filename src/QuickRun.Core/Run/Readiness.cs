@@ -71,7 +71,8 @@ public static class Readiness
         try { return await probe(); } catch { return false; }
     }
 
-    private static async Task<bool> PortOpenAsync(int port)
+    /// <summary>Whether a loopback port is answering. Public so a caller can ask before starting.</summary>
+    public static async Task<bool> PortOpenAsync(int port)
     {
         using var client = new TcpClient();
         var connect = client.ConnectAsync("127.0.0.1", port);
@@ -83,7 +84,7 @@ public static class Readiness
     /// Anything below 500 counts as up: a dev server answering 404 on / is running, and waiting
     /// for a 200 would hang on apps whose root path is not routed.
     /// </summary>
-    private static async Task<bool> HttpAnsweringAsync(string url)
+    public static async Task<bool> HttpAnsweringAsync(string url)
     {
         using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         return (int)response.StatusCode < 500;

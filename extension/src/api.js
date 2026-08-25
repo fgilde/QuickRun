@@ -99,6 +99,17 @@ export async function state(runId, { port }) {
   return ok ? payload : null;
 }
 
+/**
+ * Every run the daemon knows about.
+ *
+ * A page that was reloaded has forgotten which run it started, and the button has to be able to ask
+ * "is this branch running right now" before it can offer to stop it.
+ */
+export async function runs({ port }) {
+  const { ok, payload } = await request('/api/runs', { port, timeoutMs: 2500 });
+  return ok && Array.isArray(payload) ? payload : [];
+}
+
 export async function stop(runId, { port }) {
   const { ok } = await request(`/api/runs/${runId}/stop`, { method: 'POST', port });
   return ok;

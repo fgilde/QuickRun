@@ -57,6 +57,15 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
     private readonly ConcurrentDictionary<string, int> _pids = new();
 
     /// <summary>
+    /// Tasks that ended badly, with the exit code they ended on.
+    /// <para>
+    /// A crashed task used to leave the run reporting success: the log had the stack trace and the
+    /// status said finished. An application that could not bind its port is not a finished run.
+    /// </para>
+    /// </summary>
+    private readonly ConcurrentDictionary<string, int> _failures = new();
+
+    /// <summary>
     /// Everything this run starts. Given from outside so it can outlive the run: a task that
     /// launches a server and exits leaves it running, and stopping has to reach it afterwards.
     /// </summary>
@@ -107,6 +116,15 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
         await Task.WhenAll(config.Tasks.Select(t => RunTaskAsync(t, options, linked.Token)));
 
         if (linked.IsCancellationRequested) return new(false, "run cancelled");
+
+        // A task that exited badly is a failed run, whatever the others did. Saying "finished"
+        // because every task got as far as exiting is how a crash looked like a success.
+        if (!_failures.IsEmpty)
+        {
+            var failed = _failures.OrderBy(f => f.Key, StringComparer.Ordinal)
+                .Select(f => $"{f.Key} exited with code {f.Value}");
+            return Fail(string.Join("; ", failed));
+        }
 
         ReportProgress(RunPhase.Tasks, 100, "finished");
         Emit(RunEventKind.Finished, null, "all tasks finished");
@@ -175,6 +193,12 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
             var spec = new ProcessSpec(command, ResolveCwd(options.Workspace, task.Cwd, options.Context),
                 EnvironmentFor(task, options));
 
+            // Something already listening where this task is about to listen means readiness will
+            // pass on a stranger: the address answers before the task has started. Worth saying out
+            // loud, because the usual reason is an earlier run of the same repository still running -
+            // and the task itself is then about to fail to bind.
+            if (attempt == 1) await WarnIfTakenAsync(task, options, ct);
+
             using var watcher = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var watching = WatchReadinessAsync(task, log, options, watcher.Token);
 
@@ -204,6 +228,10 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
             Emit(RunEventKind.TaskExited, task.Name, $"exited with code {code}");
             SettleTask(task.Name, $"{task.Name} exited with code {code}");
 
+            // Not while stopping: a task killed on request exits non-zero because it was killed.
+            if (code != 0 && !ct.IsCancellationRequested) _failures[task.Name] = code;
+            else _failures.TryRemove(task.Name, out _);
+
             // Readiness describes the service, not the process. `docker compose up -d` exits long
             // before its port opens, so a clean exit keeps the watcher running to its own timeout.
             // A failed exit cancels it - nothing is going to come up.
@@ -221,6 +249,38 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
             var backoff = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1));
             Emit(RunEventKind.Info, task.Name, $"restarting in {backoff.TotalSeconds:0}s (attempt {attempt + 1})");
             try { await Task.Delay(backoff, ct); } catch (OperationCanceledException) { return; }
+        }
+    }
+
+    /// <summary>
+    /// Says so when the address a task waits for is already answering before the task starts.
+    /// Readiness cannot tell two servers apart, so this is the only chance to notice.
+    /// </summary>
+    private async Task WarnIfTakenAsync(TaskDef task, RunOptions options, CancellationToken ct)
+    {
+        var readyWhen = task.ReadyWhen;
+        if (readyWhen is null) return;
+
+        try
+        {
+            var taken = readyWhen switch
+            {
+                { Port: { } port } => await Readiness.PortOpenAsync(port),
+                { Http: { } url } => await Readiness.HttpAnsweringAsync(Interpolator.Expand(url, options.Context)),
+                _ => false,
+            };
+
+            if (!taken) return;
+
+            var what = readyWhen.Port is { } number ? $"port {number}" : readyWhen.Http;
+            Emit(RunEventKind.Error, task.Name,
+                $"something is already listening on {what} before this task started - readiness cannot "
+                + "tell it apart from this run, and this task will probably fail to bind. An earlier "
+                + "run that is still going is the usual reason.");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // A pre-flight courtesy, never a reason to fail a run.
         }
     }
 

@@ -660,6 +660,12 @@ public static class DaemonHost
             return runs.Get(id) is { } summary ? Results.Json(summary, Json) : Results.NotFound();
         });
 
+        // Every run this QuickRun knows about. The button on a GitHub page needs it: after a reload
+        // the page has forgotten which run it started, and "is this branch running right now" is the
+        // question it has to answer before it can offer to stop it.
+        app.MapGet("/api/runs", (HttpContext context, RunRegistry runs) =>
+            !Authorized(context) ? Unauthorized() : Results.Json(runs.All(), Json));
+
         app.MapGet("/api/runs/{id}/events", async (string id, HttpContext context, RunRegistry runs) =>
         {
             if (!Authorized(context))

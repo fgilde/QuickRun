@@ -44,6 +44,17 @@ are still missing, because until they are there is no command list to approve. V
 `env` are passed to the run as that environment variable, and a secret is never sent back to the
 window.
 
+While a run of that branch is going, the button is the way into it rather than a way to start a
+second one. Clicking it opens the actions:
+
+- **Show log** — brings the log window back, or opens a new one attached to the run. Closing that
+  window never stopped anything, so getting back to it has to be possible
+- **Open …** — the address the run reported, once it has reported one
+- **Stop** — stops the run, and ends what it left running if a task exited and left a server behind
+
+The button finds its run again after a page reload: the tab forgets, the daemon does not. A branch
+that is already running therefore cannot be started twice by accident.
+
 After you approve, that window stays open and becomes the run's log: the checkout with its real
 progress counters, every setup step, and everything the repository's own commands print. The button
 on the page shows only a percentage and a coarse phase — a toolbar button is no place for a hundred

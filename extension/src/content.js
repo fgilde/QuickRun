@@ -67,10 +67,109 @@ function makeButton(target) {
   button.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
+
+    // A run of this branch is already going: clicking again must not start a second one. The button
+    // becomes the way into what can be done with the run instead.
+    if (button.dataset.runId && ACTIVE_STATES.includes(button.dataset.state)) {
+      openMenu(button, target);
+      return;
+    }
+
     onClick(button, target);
   });
 
   return button;
+}
+
+const ACTIVE_STATES = ['running', 'working', 'starting'];
+
+/* ---- the menu on a running button ------------------------------------------------------------ */
+
+/**
+ * The actions for a run in progress.
+ *
+ * Floating and appended to the body rather than placed inside the button: this button sits in a 70px
+ * grid column on the branch list, and anything that widens it pushes GitHub's own table around.
+ */
+async function openMenu(button, target) {
+  closeMenu();
+
+  const runId = button.dataset.runId;
+  const answer = await send({ type: 'activeRun', target: asTarget(target) });
+  const run = answer?.run ?? null;
+
+  // It ended while the menu was being opened: back to a button that starts a run.
+  if (!run) {
+    delete button.dataset.runId;
+    setState(button, 'ready');
+    setLabel(button, target.label);
+    return;
+  }
+
+  const menu = document.createElement('div');
+  menu.className = 'quickrun-menu';
+  menu.dataset.quickrun = 'true';
+
+  const url = run.url;
+  const items = [
+    { label: 'Show log', action: () => send({ type: 'showLog', runId: run.id ?? runId }) },
+    url ? { label: `Open ${short(url)}`, action: () => window.open(url, '_blank', 'noopener') } : null,
+    {
+      label: run.leftovers > 0 && run.state !== 'running' ? 'Stop what it left running' : 'Stop',
+      danger: true,
+      action: async () => {
+        setLabel(button, 'Stopping...');
+        await send({ type: 'stop', runId: run.id ?? runId });
+      },
+    },
+  ].filter(Boolean);
+
+  for (const item of items) {
+    const entry = document.createElement('button');
+    entry.type = 'button';
+    entry.className = 'quickrun-menu-item';
+    if (item.danger) entry.classList.add('quickrun-menu-item--danger');
+    // textContent: an address comes from the repository's own output.
+    entry.textContent = item.label;
+    entry.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenu();
+      item.action();
+    });
+    menu.append(entry);
+  }
+
+  const box = button.getBoundingClientRect();
+  menu.style.top = `${box.bottom + window.scrollY + 4}px`;
+  menu.style.left = `${Math.max(8, box.right + window.scrollX - 220)}px`;
+
+  document.body.append(menu);
+  document.addEventListener('click', closeMenu, { once: true });
+  document.addEventListener('keydown', onEscape);
+}
+
+function closeMenu() {
+  document.querySelector('.quickrun-menu')?.remove();
+  document.removeEventListener('keydown', onEscape);
+}
+
+function onEscape(event) {
+  if (event.key === 'Escape') closeMenu();
+}
+
+/** An address short enough for a menu item. */
+function short(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.host + (parsed.pathname === '/' ? '' : parsed.pathname);
+  } catch {
+    return url.slice(0, 40);
+  }
+}
+
+function asTarget(target) {
+  return { repo: target.repo, ref: target.ref ?? null, pr: target.pr ?? null };
 }
 
 /** A few words, not a log line: the button is a status light, not a console. */
@@ -114,10 +213,7 @@ async function onClick(button, target) {
   setState(button, 'working');
   setLabel(button, 'Preparing...');
 
-  const result = await send({
-    type: 'run',
-    target: { repo: target.repo, ref: target.ref ?? null, pr: target.pr ?? null },
-  });
+  const result = await send({ type: 'run', target: asTarget(target) });
 
   if (result.cancelled) {
     setState(button, 'ready');
@@ -164,6 +260,9 @@ chrome.runtime.onMessage.addListener((message) => {
     setState(button, 'done');
     setLabel(button, 'Stopped');
   }
+
+  // Over, so the next click starts a run again rather than opening a menu about a dead one.
+  if (kind === 'finished' || kind === 'failed' || kind === 'cancelled') delete button.dataset.runId;
 });
 
 function send(message) {
@@ -181,7 +280,25 @@ async function inject() {
     if (status.state === 'not-installed') setLabel(button, 'Install QuickRun');
 
     target.anchor.appendChild(button);
+
+    // A reload forgets which run this tab started; the daemon has not. Without this the button
+    // offers to start a second run of something that is already running.
+    if (status.state === 'ready') adopt(button, target);
   }
+}
+
+/** Puts a button back in touch with the run of its own branch, if one is still going. */
+async function adopt(button, target) {
+  const answer = await send({ type: 'activeRun', target: asTarget(target) });
+  const run = answer?.run;
+  if (!run) return;
+
+  button.dataset.runId = run.id;
+  setState(button, 'running');
+  setLabel(button, run.state === 'stopping' ? 'Stopping...'
+    : run.progress ? `${run.progress.percent}% ${phaseOf(run.progress)}`
+    : run.leftovers > 0 ? 'Still running' : 'Running...');
+  if (run.progress) button.style.setProperty('--quickrun-progress', `${run.progress.percent}%`);
 }
 
 function schedule() {

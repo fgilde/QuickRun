@@ -2,6 +2,7 @@
 //
 
 import * as api from './api.js';
+import { matchesTarget, stillWorthActing } from './match.js';
 
 const DOWNLOAD_PAGE = 'https://fgilde.github.io/QuickRun/download';
 
@@ -30,6 +31,10 @@ async function handle(message, sender) {
       return stopRun(message.runId);
     case 'runState':
       return runState(message.runId);
+    case 'activeRun':
+      return activeRun(message.target);
+    case 'showLog':
+      return showLog(message.runId, sender?.tab?.id);
     case 'reveal':
       return revealRun(message.runId);
     case 'openDownloads':
@@ -118,6 +123,76 @@ async function stopRun(runId) {
   const { port } = await api.settings();
   const stopped = await api.stop(runId, { port });
   return { ok: stopped };
+}
+
+/**
+ * The run of this repository and ref that is still going, if there is one.
+ *
+ * This is what lets a button offer Stop after the page was reloaded: the tab has forgotten the run,
+ * the daemon has not. A run that has finished but still owns processes counts as going - that is
+ * exactly the case where stopping is still worth offering.
+ */
+async function activeRun(target) {
+  if (!target?.repo) return { run: null };
+
+  const { port } = await api.settings();
+  const all = await api.runs({ port });
+
+  const match = all
+    .filter((run) => matchesTarget(run, target))
+    .filter(stillWorthActing)
+    .at(-1);
+
+  if (!match) return { run: null };
+
+  // Follow it, so the button gets progress even though this tab never started it.
+  if (!active.has(match.id)) follow(match.id, undefined, { port });
+
+  return {
+    run: {
+      id: match.id,
+      state: match.state,
+      url: match.url ?? match.tasks?.find((task) => task.url)?.url ?? null,
+      leftovers: match.leftovers ?? 0,
+      progress: match.progress ?? null,
+    },
+  };
+}
+
+/**
+ * Brings the run's log window back. Closing that window does not stop the run, so getting it back
+ * has to be possible - otherwise a run keeps going with nowhere to watch it.
+ */
+async function showLog(runId, tabId) {
+  const existing = logWindows.get(runId);
+
+  if (existing !== undefined) {
+    const raised = await chrome.windows.update(existing, { focused: true, drawAttention: true })
+      .then(() => true)
+      .catch(() => false);
+    if (raised) return { ok: true, reopened: false };
+    logWindows.delete(runId);
+  }
+
+  const { port } = await api.settings();
+  const run = await api.state(runId, { port });
+  if (!run) return { error: 'that run is gone' };
+
+  // The window opens attached to a run that is already going: no plan to approve, straight to the
+  // log and a Stop.
+  await chrome.storage.session.set({ attachedRun: run });
+
+  const created = await chrome.windows.create({
+    url: chrome.runtime.getURL('confirm.html?attach=1'),
+    type: 'popup',
+    width: 760,
+    height: 720,
+  });
+
+  logWindows.set(runId, created.id);
+  if (!active.has(runId)) follow(runId, tabId, { port });
+
+  return { ok: true, reopened: true };
 }
 
 /** The browser cannot open a local folder itself, so the daemon does it. */

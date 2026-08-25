@@ -7,6 +7,10 @@
   --warn-bg: #fff8c5;
   --warn-line: #d4a72c;
   --accent: #1f883d;
+  --ok-bg: #dafbe1;
+  --ok-line: #1f883d;
+  --bad-bg: #ffebe9;
+  --bad-line: #cf222e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,6 +23,10 @@
     --warn-bg: #2d2711;
     --warn-line: #7d6a1f;
     --accent: #238636;
+    --ok-bg: #12261a;
+    --ok-line: #238636;
+    --bad-bg: #2d1214;
+    --bad-line: #f85149;
   }
 }
 
@@ -76,6 +84,37 @@ code {
 footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
 /* --- progress view ------------------------------------------------------------------------ */
+
+/* Whether it worked has to be readable without scrolling a few thousand lines of build output,
+ * so the outcome is a coloured band above the log rather than its last line. */
+.banner {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.banner--running { background: var(--code-bg); }
+.banner--ok { background: var(--ok-bg); border-color: var(--ok-line); }
+.banner--bad { background: var(--bad-bg); border-color: var(--bad-line); }
+
+.errors { font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.banner--bad .errors { color: var(--bad-line); }
+
+#progress .facts { margin-bottom: 4px; }
+.folder { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.path { flex: 1; min-width: 0; }
+
+button.linkish {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  font-size: 12.5px;
+}
+
 #progress h2 { display: flex; align-items: baseline; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--fg); }
 
 .bar {

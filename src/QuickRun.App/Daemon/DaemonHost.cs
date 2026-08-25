@@ -62,7 +62,7 @@ public static class DaemonHost
         builder.Services.Configure<KestrelServerOptions>(options => options.ListenLocalhost(port));
 
         builder.Services.AddSingleton(store);
-        builder.Services.AddSingleton(new RunRegistry(store));
+        builder.Services.AddSingleton(new RunRegistry(store, UiCommand.Launch));
         builder.Services.AddSingleton(new Dashboard());
         builder.Services.AddSingleton(new ListenerPort(port));
 
@@ -143,6 +143,12 @@ public static class DaemonHost
             !DashboardAuthorized(context, dashboard) ? Forbidden()
                 : runs.Stop(id) ? Results.NoContent() : Results.NotFound());
 
+        app.MapPost("/api/dashboard/runs/{id}/reveal", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            return Reveal(runs, id);
+        });
+
         app.MapDelete("/api/dashboard/workspaces/{id}", (string id, HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
@@ -177,6 +183,19 @@ public static class DaemonHost
         Results.Json(new { error = "reload the dashboard" }, Json, statusCode: StatusCodes.Status403Forbidden);
 
     /// <summary>Shared by the extension's stream and the dashboard's.</summary>
+    /// <summary>
+    /// Opens a run's workspace in the file manager. The path is read from the registry, never from
+    /// the request: this must not become a way to make QuickRun open an arbitrary folder.
+    /// </summary>
+    private static IResult Reveal(RunRegistry runs, string id)
+    {
+        var workspace = runs.Get(id)?.Workspace;
+        if (workspace is null || !Directory.Exists(workspace)) return Results.NotFound();
+
+        UiCommand.Launch(workspace);
+        return Results.Ok();
+    }
+
     private static async Task StreamEventsAsync(HttpContext context, RunRegistry runs, string id)
     {
         context.Response.ContentType = "text/event-stream";
@@ -256,6 +275,15 @@ public static class DaemonHost
         {
             if (!Authorized(context)) return Unauthorized();
             return runs.Stop(id) ? Results.Ok() : Results.NotFound();
+        });
+
+        // Opens the run's workspace in the file manager. The path comes from the registry, never
+        // from the request: this must not become a way to make QuickRun open an arbitrary folder.
+        app.MapPost("/api/runs/{id}/reveal", (string id, HttpContext context, RunRegistry runs) =>
+        {
+            if (!Authorized(context)) return Unauthorized();
+
+            return Reveal(runs, id);
         });
 
         app.MapGet("/api/runs/{id}", (string id, HttpContext context, RunRegistry runs) =>

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using QuickRun.App.Commands;
 using QuickRun.Core.Config;
@@ -29,7 +30,37 @@ public sealed record RunSummary(
     IReadOnlyList<PlannedCommand> Commands,
     string Fingerprint,
     RunProgress? Progress,
-    string? Error);
+    string? Error,
+    string? Workspace,
+    string? Url,
+    int LiveTasks);
+
+/// <summary>
+/// Reads the address a task printed.
+/// <para>
+/// Most repositories never say <c>open:</c> in their config, but almost every server prints where
+/// it is listening. Only loopback addresses count: a build log is full of links to documentation
+/// and advisories, and none of those are where the app is running.
+/// </para>
+/// </summary>
+internal static partial class LocalAddress
+{
+    [GeneratedRegex(@"https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d{1,5})?(?:/[^\s""'<>,;]*)?",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex Pattern();
+
+    public static string? In(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return null;
+
+        var match = Pattern().Match(text);
+        if (!match.Success) return null;
+
+        // 0.0.0.0 means "every interface", which is not an address a browser can open.
+        return match.Value.Replace("0.0.0.0", "localhost", StringComparison.Ordinal)
+            .TrimEnd('.', ',', ')', ']', '"', '\'');
+    }
+}
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -40,7 +71,11 @@ public sealed record RunSummary(
 /// dialog, is what shows the commands.
 /// </para>
 /// </summary>
-public sealed class RunRegistry(WorkspaceStore store)
+/// <param name="openUrl">
+/// How to open the address a run reports. Core never opens anything itself, and the daemon is the
+/// one place that may: a run started from the browser is expected to end up in the browser.
+/// </param>
+public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = null)
 {
     private const int ReplayBufferSize = 500;
 
@@ -115,7 +150,20 @@ public sealed class RunRegistry(WorkspaceStore store)
             secrets,
             Readiness.DefaultTimeout);
 
-        await using var runner = new Runner(entry.Publish);
+        var opened = new HashSet<string>(StringComparer.Ordinal);
+
+        await using var runner = new Runner(e =>
+        {
+            entry.Publish(e);
+
+            // The runner reports the address; opening it is a decision only the host makes, and
+            // only once per address - a task that restarts must not open a second tab each time.
+            if (openUrl is not null
+                && e.Kind == RunEventKind.Info
+                && e.Text.StartsWith("open ", StringComparison.Ordinal)
+                && opened.Add(e.Text))
+                openUrl(e.Text[5..].Trim());
+        });
         var outcome = await runner.ExecuteAsync(config, options, entry.StopToken);
         await runner.StopAsync();
 
@@ -132,13 +180,14 @@ public sealed class RunRegistry(WorkspaceStore store)
     private sealed class Entry(string id)
     {
         private readonly CancellationTokenSource _stop = new();
+        private int _live;
         private readonly List<RunEvent> _history = new();
         private readonly List<Channel<RunEvent>> _subscribers = new();
         private readonly object _gate = new();
 
         public RunSummary Summary { get; private set; } = new(
             id, "", "", null, id, RunState.AwaitingConfirmation,
-            Array.Empty<PlannedCommand>(), "", null, null);
+            Array.Empty<PlannedCommand>(), "", null, null, null, null, 0);
 
         public RunPreparation? Preparation { get; private set; }
 
@@ -158,6 +207,7 @@ public sealed class RunRegistry(WorkspaceStore store)
                     Commands = plan.Commands,
                     Fingerprint = plan.Fingerprint,
                     State = RunState.AwaitingConfirmation,
+                    Workspace = preparation.Workspace,
                 };
         }
 
@@ -181,6 +231,7 @@ public sealed class RunRegistry(WorkspaceStore store)
                     State = _stop.IsCancellationRequested ? RunState.Cancelled
                         : outcome.Ok ? RunState.Succeeded : RunState.Failed,
                     Error = outcome.Error,
+                    LiveTasks = 0,
                 };
             CloseSubscribers();
         }
@@ -197,6 +248,22 @@ public sealed class RunRegistry(WorkspaceStore store)
             lock (_gate)
             {
                 if (e.Progress is { } progress) Summary = Summary with { Progress = progress };
+
+                // The runner announces the URL it would open as a log line. Lifting it into the
+                // summary is what lets a window show "it is running here" instead of making the
+                // reader find that line again in a few thousand lines of build output.
+                if (e.Kind == RunEventKind.Info && e.Text.StartsWith("open ", StringComparison.Ordinal))
+                    Summary = Summary with { Url = e.Text[5..].Trim() };
+                else if (Summary.Url is null && LocalAddress.In(e.Text) is { } guessed)
+                    Summary = Summary with { Url = guessed };
+
+                // What "stop" would actually stop. A run whose tasks have all exited is still
+                // Running while the runner winds down, and offering to stop nothing is a lie.
+                if (e.Kind is RunEventKind.TaskStarted or RunEventKind.TaskExited)
+                {
+                    _live = Math.Max(0, _live + (e.Kind == RunEventKind.TaskStarted ? 1 : -1));
+                    Summary = Summary with { LiveTasks = _live };
+                }
 
                 _history.Add(e);
                 if (_history.Count > ReplayBufferSize) _history.RemoveAt(0);

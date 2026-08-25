@@ -206,6 +206,26 @@ document.querySelectorAll('nav button').forEach((tab) => {
   });
 });
 
+/**
+ * A run's address as a link - but only if it is one.
+ *
+ * The URL comes from the repository's own quickrun.yml, so the scheme decides: http and https
+ * become a link, anything else stays text. A javascript: URL must never end up in an href.
+ */
+function addressLink(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return `<span class="grow mono">${escapeHtml(url)}</span>`;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+    return `<span class="grow mono">${escapeHtml(url)}</span>`;
+
+  return `<a class="grow mono" href="${escapeHtml(parsed.href)}" target="_blank" rel="noreferrer">${escapeHtml(parsed.href)}</a>`;
+}
+
 function pill(text, kind) {
   return `<span class="pill ${kind ?? ''}">${text}</span>`;
 }
@@ -233,7 +253,9 @@ function renderRuns(runs) {
       <div class="row">
         <span class="grow name">${escapeHtml(run.displayName)}</span>
         ${pill(state[0], state[1])}
-        ${run.state === 'running' ? `<button class="action danger" data-stop="${run.id}">Stop</button>` : ''}
+        ${run.state === 'running'
+          ? `<button class="action danger" data-stop="${run.id}"${run.liveTasks === 0 ? ' disabled title="nothing is running any more"' : ''}>Stop</button>`
+          : ''}
       </div>
       <div class="row">
         <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
@@ -243,10 +265,20 @@ function renderRuns(runs) {
         <span class="muted" style="min-width:3.2em;text-align:right">${percent}%</span>
       </div>
       <div class="row"><span class="muted grow" data-detail>${escapeHtml(detail)}</span></div>
+      ${run.url ? `<div class="row"><span class="muted">Address</span>${addressLink(run.url)}</div>` : ''}
+      ${run.workspace ? `<div class="row">
+        <code class="grow mono">${escapeHtml(run.workspace)}</code>
+        <button class="action" data-reveal="${run.id}">Open folder</button>
+      </div>` : ''}
       ${run.error ? `<div class="row"><span class="pill bad">${escapeHtml(run.error)}</span></div>` : ''}
       <pre data-log="${run.id}" hidden></pre>
     </div>`;
   }).join('');
+
+  target.querySelectorAll('[data-reveal]').forEach((button) => {
+    button.addEventListener('click', () =>
+      api(`/api/dashboard/runs/${button.dataset.reveal}/reveal`, { method: 'POST' }));
+  });
 
   target.querySelectorAll('[data-stop]').forEach((button) => {
     button.addEventListener('click', async () => {

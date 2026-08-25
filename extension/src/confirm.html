@@ -32,6 +32,21 @@
   </section>
 
   <section id="progress" hidden>
+    <p id="banner" class="banner banner--running" role="status">
+      <span id="state">Starting</span>
+      <span id="errors" class="errors" hidden></span>
+    </p>
+
+    <dl class="facts">
+      <dt>Address</dt>
+      <dd id="address"><span class="muted">not known yet</span></dd>
+      <dt>Folder</dt>
+      <dd class="folder">
+        <code id="dir" class="path"></code>
+        <button id="openDir" type="button" class="linkish">Open folder</button>
+      </dd>
+    </dl>
+
     <h2>
       <span id="phase">starting</span>
       <span id="percent" class="muted"></span>

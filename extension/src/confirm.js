@@ -4,17 +4,26 @@
 // command list, not one a page drew on top of it. After approval the window stays open and streams
 // everything QuickRun does, so the log has somewhere to live that is not a 200px toolbar button.
 
+import { httpUrl } from './safeurl.js';
+
 const { pendingRun: run } = await chrome.storage.session.get('pendingRun');
 
 const review = document.getElementById('review');
 const progress = document.getElementById('progress');
 const log = document.getElementById('log');
+const banner = document.getElementById('banner');
 const approve = document.getElementById('approve');
 const cancel = document.getElementById('cancel');
 const stop = document.getElementById('stop');
 const close = document.getElementById('close');
 
 let decided = false;
+let errorLines = 0;
+
+// What "Stop" would actually stop. Tasks report when they start and when they exit, so a run whose
+// processes have all gone gets a disabled button instead of one that does nothing.
+let liveTasks = 0;
+let sawTask = false;
 
 if (!run) {
   document.getElementById('name').textContent = 'Nothing to confirm';
@@ -29,6 +38,8 @@ function render(run) {
   text('repo', run.repo);
   text('ref', run.ref);
   text('commit', run.commit ? run.commit.slice(0, 10) : 'unknown');
+  text('dir', run.workspace ?? '');
+  if (run.url) showAddress(run.url);
 
   const list = document.getElementById('commands');
   for (const command of run.commands) {
@@ -55,6 +66,12 @@ approve.addEventListener('click', () => decide(true));
 cancel.addEventListener('click', () => decide(false));
 close.addEventListener('click', () => window.close());
 
+// A page cannot open a local folder, and neither can an extension window: the daemon does it,
+// and only for a path it already holds for this run.
+document.getElementById('openDir').addEventListener('click', async () => {
+  await chrome.runtime.sendMessage({ type: 'reveal', runId: run?.id });
+});
+
 stop.addEventListener('click', async () => {
   stop.disabled = true;
   await chrome.runtime.sendMessage({ type: 'stop', runId: run.id });
@@ -79,6 +96,51 @@ async function decide(approved) {
   approve.hidden = true;
   cancel.hidden = true;
   stop.hidden = false;
+  setState('Running', 'running');
+}
+
+/**
+ * The outcome, said plainly. "finished" with twenty error lines behind it is not the same thing as
+ * "finished", so the count travels with it.
+ */
+function setState(label, kind) {
+  document.getElementById('state').textContent = label;
+  banner.className = `banner banner--${kind}`;
+
+  const errors = document.getElementById('errors');
+  errors.hidden = errorLines === 0;
+  errors.textContent = errorLines === 1 ? '1 error line' : `${errorLines} error lines`;
+}
+
+/**
+ * Shows where the app ended up listening.
+ *
+ * The URL comes from the repository's own config, so the scheme is checked before it becomes a
+ * link: anything but http or https is shown as text and never made clickable.
+ */
+function showAddress(url) {
+  const target = document.getElementById('address');
+  const safe = httpUrl(url);
+
+  target.textContent = '';
+
+  if (!safe) {
+    target.textContent = url;
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = safe;
+  link.target = '_blank';
+  link.rel = 'noreferrer';
+  link.textContent = safe;
+  target.append(link);
+}
+
+/** Stoppable only while something is actually running. */
+function updateStop() {
+  stop.disabled = sawTask && liveTasks === 0;
+  stop.title = stop.disabled ? 'nothing is running any more' : '';
 }
 
 chrome.runtime.onMessage.addListener((message) => {
@@ -94,11 +156,31 @@ chrome.runtime.onMessage.addListener((message) => {
     return;
   }
 
+  // The runner announces the address it would have opened as an ordinary log line.
+  if (event.kind === 'info' && event.text.startsWith('open ')) showAddress(event.text.slice(5).trim());
+
+  if (event.kind === 'taskStarted') {
+    sawTask = true;
+    liveTasks += 1;
+    updateStop();
+  }
+
+  if (event.kind === 'taskExited') {
+    liveTasks = Math.max(0, liveTasks - 1);
+    updateStop();
+  }
+
+  if (event.kind === 'error') {
+    errorLines += 1;
+    setState(document.getElementById('state').textContent, banner.classList.contains('banner--bad') ? 'bad' : 'running');
+  }
+
   append(`${event.task ? `[${event.task}] ` : ''}${event.text}`, event.kind === 'error' ? 'err' : '');
 
   if (event.kind === 'finished' || event.kind === 'failed') {
-    document.getElementById('phase').textContent =
-      event.kind === 'finished' ? 'finished' : 'failed';
+    const ok = event.kind === 'finished';
+    document.getElementById('phase').textContent = ok ? 'finished' : 'failed';
+    setState(ok ? 'Finished' : 'Failed', ok ? 'ok' : 'bad');
     stop.hidden = true;
     close.hidden = false;
   }

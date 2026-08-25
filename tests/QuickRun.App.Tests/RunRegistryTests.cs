@@ -154,6 +154,65 @@ public class RunRegistryTests
     }
 
     [Fact]
+    public async Task The_summary_says_where_the_workspace_is()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var (summary, _) = await new RunRegistry(new WorkspaceStore(home.Path)).PrepareAsync(Args(repo.Url));
+
+        // The window that shows the log shows this path, so it has to survive the round trip.
+        Assert.NotNull(summary!.Workspace);
+        Assert.True(Directory.Exists(summary.Workspace));
+    }
+
+    [Fact]
+    public async Task The_address_a_task_reports_is_lifted_out_of_the_log_and_opened_once()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        // A task that is ready as soon as its port answers, with an explicit address to open.
+        repo.Write("quickrun.yml", """
+            tasks:
+              - name: web
+                run: echo serving
+                open: http://localhost:65123/app
+            """);
+        repo.Commit("add config");
+
+        var opened = new List<string>();
+        var registry = new RunRegistry(new WorkspaceStore(home.Path), opened.Add);
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        registry.Confirm(summary!.Id);
+        while (registry.Get(summary.Id)!.State == RunState.Running) await Task.Delay(100);
+
+        Assert.Equal("http://localhost:65123/app", registry.Get(summary.Id)!.Url);
+        Assert.Equal(new[] { "http://localhost:65123/app" }, opened);
+    }
+
+    [Fact]
+    public async Task A_finished_run_reports_no_live_tasks()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        registry.Confirm(summary!.Id);
+        while (registry.Get(summary.Id)!.State == RunState.Running) await Task.Delay(100);
+
+        // What the Stop button keys on: nothing is left to stop.
+        Assert.Equal(0, registry.Get(summary.Id)!.LiveTasks);
+    }
+
+    [Fact]
     public async Task Stopping_an_unknown_run_is_refused()
     {
         using var home = new TempHome();

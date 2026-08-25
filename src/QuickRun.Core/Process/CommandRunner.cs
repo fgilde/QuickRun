@@ -41,7 +41,12 @@ public static class CommandRunner
     /// Runs a command line through the platform shell, forwarding each output line as it arrives.
     /// Cancellation kills the whole process tree.
     /// </summary>
-    public static async Task<int> StreamAsync(ProcessSpec spec, Action<string, bool> onLine, CancellationToken ct)
+    /// <param name="onStarted">
+    /// The process id, as soon as there is one. A caller that wants to do something with the tree
+    /// the command starts - raise its window, say - has no other way to find it.
+    /// </param>
+    public static async Task<int> StreamAsync(ProcessSpec spec, Action<string, bool> onLine,
+        CancellationToken ct, Action<int>? onStarted = null)
     {
         var (file, args) = ShellCommand.Resolve(spec.Command);
         var psi = Info(file, args, spec.Cwd, spec.Env);
@@ -65,6 +70,8 @@ public static class CommandRunner
 
         using (process)
         {
+            onStarted?.Invoke(process.Id);
+
             process.OutputDataReceived += (_, e) => { if (e.Data is not null) onLine(e.Data, false); };
             process.ErrorDataReceived += (_, e) => { if (e.Data is not null) onLine(e.Data, true); };
             process.BeginOutputReadLine();

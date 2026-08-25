@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using QuickRun.App.Commands;
 using QuickRun.App.Daemon;
 using QuickRun.Core;
 using QuickRun.Core.Run;
@@ -269,10 +270,31 @@ public sealed class DashboardWindow : Window
 
             if (run.Error is { } error) card.Children.Add(Muted(error));
 
+            // Where it is reachable and where it lives: the two things a reader of a finished run
+            // actually wants, and both were previously only findable in the log.
+            if (run.Url is { } url) card.Children.Add(Link(url, () => UiCommand.Launch(url)));
+
+            if (run.Workspace is { } workspace)
+                card.Children.Add(new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        Mono(workspace).With(t => t.MaxWidth = 520),
+                        Button("Open folder", () => UiCommand.Launch(workspace)),
+                    },
+                });
+
             if (run.State == RunState.Running)
             {
                 var id = run.Id;
-                card.Children.Add(Button("Stop", () => { _runs.Stop(id); Refresh(); }));
+                var stop = Button("Stop", () => { _runs.Stop(id); Refresh(); });
+
+                // Nothing left to stop: the run is winding down, and a button that does nothing is
+                // worse than one that is visibly unavailable.
+                stop.IsEnabled = run.LiveTasks > 0;
+                card.Children.Add(stop);
             }
 
             _runList.Children.Add(Card(card));
@@ -394,6 +416,29 @@ public sealed class DashboardWindow : Window
             new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap },
         },
     };
+
+    private static TextBlock Mono(string text) => new()
+    {
+        Text = text,
+        FontFamily = new FontFamily("Consolas, Menlo, monospace"),
+        TextWrapping = TextWrapping.Wrap,
+        Opacity = 0.85,
+    };
+
+    /// <summary>An address, shown as one and openable. Avalonia has no hyperlink control.</summary>
+    private static Control Link(string text, Action action)
+    {
+        var button = new Button
+        {
+            Content = Mono(text).With(t => t.Foreground = Brushes.SteelBlue),
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+        };
+        button.Click += (_, _) => action();
+        return button;
+    }
 
     private static Button Button(string text, Action action)
     {

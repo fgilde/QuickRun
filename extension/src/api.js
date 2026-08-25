@@ -82,6 +82,12 @@ export async function stop(runId, { port }) {
   return ok;
 }
 
+/** Asks the daemon to open the run's workspace in the file manager. */
+export async function reveal(runId, { port }) {
+  const { ok } = await request(`/api/runs/${runId}/reveal`, { method: 'POST', port });
+  return ok;
+}
+
 export async function updateStatus({ port }) {
   const { ok, payload } = await request('/api/update', { port });
   return ok ? payload : null;

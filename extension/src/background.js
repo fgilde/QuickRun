@@ -8,6 +8,9 @@ const DOWNLOAD_PAGE = 'https://fgilde.github.io/QuickRun/download';
 /** Live runs, keyed by run id, so the content script can be told where a run has got to. */
 const active = new Map();
 
+/** The log window per run, so it can be raised when the run has something to show. */
+const logWindows = new Map();
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   handle(message, sender)
     .then(respond)
@@ -23,6 +26,8 @@ async function handle(message, sender) {
       return startRun(message.target, sender?.tab?.id);
     case 'stop':
       return stopRun(message.runId);
+    case 'reveal':
+      return revealRun(message.runId);
     case 'openDownloads':
       await chrome.tabs.create({ url: DOWNLOAD_PAGE });
       return { ok: true };
@@ -95,6 +100,12 @@ async function stopRun(runId) {
   return { ok: stopped };
 }
 
+/** The browser cannot open a local folder itself, so the daemon does it. */
+async function revealRun(runId) {
+  const { port } = await api.settings();
+  return { ok: await api.reveal(runId, { port }) };
+}
+
 /**
  * Opens confirm.html and resolves with the user's decision. The window is left open afterwards:
  * once approved it becomes the run's log view, which is where a hundred lines of build output
@@ -110,6 +121,8 @@ async function confirmInWindow(run) {
     height: 720,
   });
 
+  logWindows.set(run.id, created.id);
+
   return new Promise((resolve) => {
     const onMessage = (message, sender, respond) => {
       if (message?.type !== 'confirmResult' || message.runId !== run.id) return false;
@@ -123,6 +136,7 @@ async function confirmInWindow(run) {
     const onRemoved = (windowId) => {
       if (windowId !== created.id) return;
       cleanup();
+      if (logWindows.get(run.id) === windowId) logWindows.delete(run.id);
       resolve(false);
     };
 
@@ -154,6 +168,20 @@ function notify(tabId, runId, event) {
   // be gone, and a run must not care.
   if (tabId !== undefined) chrome.tabs.sendMessage(tabId, message).catch(() => {});
   chrome.runtime.sendMessage(message).catch(() => {});
+
+  // A run the user has stopped watching should say so itself. The moment worth interrupting for is
+  // the outcome, and the moment something became reachable - not every line of build output.
+  if (event.kind === 'taskReady' || event.kind === 'finished' || event.kind === 'failed')
+    raiseLogWindow(runId);
+}
+
+function raiseLogWindow(runId) {
+  const windowId = logWindows.get(runId);
+  if (windowId === undefined) return;
+
+  chrome.windows
+    .update(windowId, { focused: true, drawAttention: true })
+    .catch(() => logWindows.delete(runId));
 }
 
 function sleep(ms) {

@@ -161,11 +161,18 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
             using var watcher = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var watching = WatchReadinessAsync(task, log, options, watcher.Token);
 
+            // A desktop application's window is the only thing the user is waiting for, and it
+            // opens behind whatever they were looking at. Web tasks announce a URL instead, and
+            // the browser raises itself when that is opened, so they are left alone.
+            var raiseWindow = task.OpenReady || task.OpenUrl is not null
+                ? null
+                : new Action<int>(pid => _ = Foreground.RaiseAsync(pid, watcher.Token));
+
             var code = await CommandRunner.StreamAsync(spec, (line, isError) =>
             {
                 lock (log) log.AppendLine(line);
                 Emit(isError ? RunEventKind.Error : RunEventKind.Output, task.Name, line);
-            }, ct);
+            }, ct, raiseWindow);
 
             Emit(RunEventKind.TaskExited, task.Name, $"exited with code {code}");
             SettleTask(task.Name, $"{task.Name} exited with code {code}");

@@ -129,6 +129,26 @@ footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .errors { font-weight: 400; font-size: 12.5px; color: var(--muted); }
 .banner--bad .errors { color: var(--bad-line); }
 
+/* One line per task: what it is doing, and the address it reported. */
+.tasks { display: grid; gap: 6px; margin: 12px 0 4px; }
+.task { display: flex; align-items: center; gap: 10px; }
+.task .name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.task .state {
+  font-size: 11px; padding: 1px 8px; border-radius: 10px;
+  border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.task .state.ok { color: var(--ok-line); border-color: var(--ok-line); }
+.task .state.warn { color: var(--warn-line); border-color: var(--warn-line); }
+
+/* Stopping is not instant, so the banner says it is happening rather than looking stuck. */
+.spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--muted);
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+
 #progress .facts { margin-bottom: 4px; }
 .folder { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .path { flex: 1; min-width: 0; }

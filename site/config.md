@@ -133,6 +133,20 @@ Available in `run`, `cwd`, `env` values and `open`. A reference to an input that
 validation error, not an empty string. Secret inputs are substituted but never written to logs, run
 history or progress text.
 
+## The environment a command gets
+
+From general to specific, later winning:
+
+1. what QuickRun sets - currently `MSBUILDDISABLENODEREUSE=1`, because MSBuild's reusable worker
+   nodes outlive the build that started them and hold its output pipe open, which made a finished
+   `dotnet restore` look like a run frozen at that step. A config that wants them back can just set
+   the variable itself
+2. the config's own `env` block
+3. the value of every input that names an `env`
+4. the task's own `env`
+
+All four are interpolated, so `ADDRESS: http://localhost:${inputs.port}` is a normal thing to write.
+
 ## Shell
 
 Commands run through the platform shell: `cmd /c` on Windows, `/bin/sh -c` elsewhere. A command

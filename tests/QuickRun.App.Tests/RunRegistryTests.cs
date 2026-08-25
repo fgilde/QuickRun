@@ -406,4 +406,39 @@ public class RunRegistryTests
         Assert.Null(summary);
         Assert.Equal("unknown run", error);
     }
+
+    /// <summary>
+    /// Per-task state, because "running" for the whole run says nothing about which of several
+    /// services came up - and the address a task reports belongs next to that task.
+    /// </summary>
+    [Fact]
+    public async Task Each_task_carries_its_own_state_and_address()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml",
+            "tasks:\n  - name: web\n    run: \"echo Now listening on: http://localhost:7654\"\n"
+            + "    readyWhen: {log: 'listening'}\n    open: true\n"
+            + "  - name: once\n    run: echo done\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, error) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.Null(error);
+
+        // Declared before anything runs, so the plan already lists what it is going to start.
+        Assert.Equal(new[] { "web", "once" }, summary!.Tasks!.Select(t => t.Name));
+        Assert.All(summary.Tasks!, t => Assert.Equal("waiting", t.State));
+
+        Assert.True(registry.Confirm(summary.Id));
+        while (registry.Get(summary.Id)!.State == RunState.Running) await Task.Delay(100);
+
+        var tasks = registry.Get(summary.Id)!.Tasks!;
+        var web = tasks.Single(t => t.Name == "web");
+
+        Assert.Equal("exited", web.State);
+        Assert.Equal("http://localhost:7654", web.Url);
+        Assert.Equal("exited", tasks.Single(t => t.Name == "once").State);
+        Assert.Null(tasks.Single(t => t.Name == "once").Url);
+    }
 }

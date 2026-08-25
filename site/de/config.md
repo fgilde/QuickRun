@@ -135,6 +135,20 @@ Verfügbar in `run`, `cwd`, `env`-Werten und `open`. Ein Verweis auf eine nicht 
 ist ein Validierungsfehler, kein leerer String. Secret-Eingaben werden ersetzt, aber nie in Logs,
 Lauf-Historie oder Fortschrittstexte geschrieben.
 
+## Die Umgebung eines Befehls
+
+Von allgemein nach spezifisch, das Spätere gewinnt:
+
+1. was QuickRun setzt — derzeit `MSBUILDDISABLENODEREUSE=1`, weil MSBuilds wiederverwendbare
+   Worker-Knoten den Build überleben, der sie gestartet hat, und dessen Ausgabe-Pipe offen halten.
+   Ein fertiges `dotnet restore` sah dadurch aus wie ein Lauf, der an diesem Schritt hängt. Eine
+   Config, die sie zurückhaben will, setzt die Variable einfach selbst
+2. der `env`-Block der Config
+3. der Wert jedes Inputs, der ein `env` nennt
+4. das `env` des Tasks
+
+Alle vier werden interpoliert, `ADDRESS: http://localhost:${inputs.port}` ist also normal.
+
 ## Shell
 
 Befehle laufen über die Plattform-Shell: `cmd /c` unter Windows, sonst `/bin/sh -c`. Ein Befehl, der

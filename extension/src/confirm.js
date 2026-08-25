@@ -26,6 +26,9 @@ const close = document.getElementById('close');
 let decided = false;
 let errorLines = 0;
 
+/** What each task is doing, by name, in the order they first appeared. */
+const tasks = new Map();
+
 // What "Stop" would actually stop. Tasks report when they start and when they exit, so a run whose
 // processes have all gone gets a disabled button instead of one that does nothing.
 let liveTasks = 0;
@@ -169,9 +172,16 @@ document.getElementById('openDir').addEventListener('click', async () => {
   await chrome.runtime.sendMessage({ type: 'reveal', runId: run?.id });
 });
 
+let stopping = false;
+
 stop.addEventListener('click', async () => {
+  stopping = true;
   stop.disabled = true;
-  setState('Stopping', 'running');
+  stop.textContent = 'Stopping…';
+
+  // Stopping takes as long as the processes take to go, so the banner has to show that something
+  // is happening rather than sit on "Running" until it is over.
+  setState('Stopping', 'running', { busy: true });
   await chrome.runtime.sendMessage({ type: 'stop', runId: run.id });
 });
 
@@ -201,9 +211,20 @@ async function decide(approved) {
  * The outcome, said plainly. "finished" with twenty error lines behind it is not the same thing as
  * "finished", so the count travels with it.
  */
-function setState(label, kind) {
-  document.getElementById('state').textContent = label;
+function setState(label, kind, { busy = false } = {}) {
+  const state = document.getElementById('state');
+  state.textContent = label;
   banner.className = `banner banner--${kind}`;
+
+  const spinner = document.getElementById('spinner');
+  if (busy && !spinner) {
+    const mark = document.createElement('span');
+    mark.id = 'spinner';
+    mark.className = 'spinner';
+    banner.prepend(mark);
+  } else if (!busy) {
+    spinner?.remove();
+  }
 
   const errors = document.getElementById('errors');
   errors.hidden = errorLines === 0;
@@ -235,6 +256,46 @@ function showAddress(url) {
   target.append(link);
 }
 
+/**
+ * One line per task: what it is doing and where it is listening.
+ *
+ * Built with DOM calls because a task name comes out of someone's config, and the address is only a
+ * link when it is http or https - the same rule the summary line follows.
+ */
+function renderTasks() {
+  const host = document.getElementById('tasks');
+  host.textContent = '';
+
+  for (const [name, task] of tasks) {
+    const row = document.createElement('div');
+    row.className = 'task';
+
+    const label = document.createElement('span');
+    label.className = 'name';
+    label.textContent = name;
+
+    const state = document.createElement('span');
+    state.className = `state ${{ ready: 'ok', starting: 'warn' }[task.state] ?? ''}`;
+    state.textContent = task.state;
+
+    row.append(label, state);
+
+    if (task.url) {
+      const safe = httpUrl(task.url);
+      const address = document.createElement(safe ? 'a' : 'span');
+      address.textContent = safe ?? task.url;
+      if (safe) {
+        address.href = safe;
+        address.target = '_blank';
+        address.rel = 'noreferrer';
+      }
+      row.append(address);
+    }
+
+    host.append(row);
+  }
+}
+
 /** Stoppable only while something is actually running. */
 function updateStop() {
   stop.disabled = sawTask && liveTasks === 0;
@@ -256,6 +317,20 @@ chrome.runtime.onMessage.addListener((message) => {
 
   // The runner announces the address it would have opened as an ordinary log line.
   if (event.kind === 'info' && event.text.startsWith('open ')) showAddress(event.text.slice(5).trim());
+
+  // Per task, so a run with five services says which of them is up.
+  if (event.task) {
+    const state = { taskStarted: 'starting', taskReady: 'ready', taskExited: 'exited' }[event.kind];
+    const url = event.kind === 'info' && event.text.startsWith('open ')
+      ? event.text.slice(5).trim()
+      : null;
+
+    if (state || url) {
+      const current = tasks.get(event.task) ?? { state: 'starting', url: null };
+      tasks.set(event.task, { state: state ?? current.state, url: url ?? current.url });
+      renderTasks();
+    }
+  }
 
   if (event.kind === 'taskStarted') {
     sawTask = true;
@@ -287,6 +362,10 @@ chrome.runtime.onMessage.addListener((message) => {
     setState(outcome[0], outcome[1]);
     stop.hidden = true;
     close.hidden = false;
+
+    // Asked to stop, and it stopped: the window has done its job. Long enough to read the banner,
+    // short enough not to be in the way - and only when the user asked for it.
+    if (stopping) setTimeout(() => window.close(), 1500);
   }
 });
 

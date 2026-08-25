@@ -22,6 +22,14 @@ public enum RunState
     Cancelled,
 }
 
+/// <param name="State">
+/// <c>starting</c> until it reports ready, <c>ready</c> once its readiness check passed, and
+/// <c>exited</c> when the process is gone. A task with no readiness check goes straight from
+/// starting to exited, which is the honest answer for something that only had to run once.
+/// </param>
+/// <param name="Url">Where this task said it is listening, when it said anything.</param>
+public sealed record RunTaskStatus(string Name, string State, string? Url);
+
 public sealed record RunSummary(
     string Id,
     string Repo,
@@ -44,7 +52,9 @@ public sealed record RunSummary(
     /// What those inputs currently hold. A secret is listed with a null value: the form has to know
     /// the field exists, and the value must not travel back out of the process that holds it.
     /// </summary>
-    IReadOnlyDictionary<string, string?>? Values = null);
+    IReadOnlyDictionary<string, string?>? Values = null,
+    /// <summary>Every task of the run, in the order the config declares them.</summary>
+    IReadOnlyList<RunTaskStatus>? Tasks = null);
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -274,6 +284,9 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Error = null,
                     Inputs = preparation.Config?.Inputs,
                     Values = Safe(preparation),
+                    Tasks = preparation.Config?.Tasks
+                        .Select(t => new RunTaskStatus(t.Name, "waiting", t.OpenUrl))
+                        .ToList(),
                 };
         }
 
@@ -361,11 +374,58 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Summary = Summary with { LiveTasks = _live };
                 }
 
+                // Per task, because "running" for the whole run says nothing about which of five
+                // services is up and where it is listening.
+                if (e.Task is { } name)
+                {
+                    var state = e.Kind switch
+                    {
+                        RunEventKind.TaskStarted => "starting",
+                        RunEventKind.TaskReady => "ready",
+                        RunEventKind.TaskExited => "exited",
+                        _ => null,
+                    };
+
+                    var address = e.Kind == RunEventKind.Info
+                                  && e.Text.StartsWith("open ", StringComparison.Ordinal)
+                        ? e.Text[5..].Trim()
+                        : null;
+
+                    if (state is not null || address is not null)
+                        Summary = Summary with { Tasks = Update(Summary.Tasks, name, state, address) };
+                }
+
                 _history.Add(e);
                 if (_history.Count > ReplayBufferSize) _history.RemoveAt(0);
 
                 foreach (var subscriber in _subscribers) subscriber.Writer.TryWrite(e);
             }
+        }
+
+        /// <summary>
+        /// One task's row, replaced rather than mutated - the summary is a record everyone else
+        /// reads without locking.
+        /// </summary>
+        private static IReadOnlyList<RunTaskStatus> Update(
+            IReadOnlyList<RunTaskStatus>? tasks, string name, string? state, string? url)
+        {
+            var rows = tasks?.ToList() ?? new List<RunTaskStatus>();
+            var at = rows.FindIndex(t => t.Name == name);
+
+            if (at < 0)
+            {
+                rows.Add(new RunTaskStatus(name, state ?? "starting", url));
+                return rows;
+            }
+
+            // A process that is gone stays gone. Readiness can still fire afterwards - a task that
+            // only launches something, `docker compose up -d`, exits long before its port opens -
+            // and that is worth the address it brings, but not a state that says it is still up.
+            var next = rows[at].State == "exited" && state == "ready" ? "exited" : state ?? rows[at].State;
+
+            rows[at] = rows[at] with { State = next, Url = url ?? rows[at].Url };
+
+            return rows;
         }
 
         public async IAsyncEnumerable<RunEvent> Subscribe(

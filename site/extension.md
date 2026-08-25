@@ -54,9 +54,14 @@ progress counters, every setup step, and everything the repository's own command
 on the page shows only a percentage and a coarse phase — a toolbar button is no place for a hundred
 lines of build output.
 
-**Stop** stops the run and says so: the banner turns to *Stopped* and the window offers Close. It is
-only clickable while something is actually running - a run whose processes have all exited has
-nothing left to stop.
+Once the run starts, every task gets a line of its own: what it is doing - *starting*, *ready*,
+*exited* - and the address it reported, as a link. "Running" for a whole run says nothing about which
+of five services came up.
+
+**Stop** stops the run and says so: the button turns to *Stopping…* with a spinner the moment it is
+clicked, the banner turns to *Stopped* when the processes are gone, and the window closes itself a
+moment later - you asked for it to stop, not for a window to tidy up. It is only clickable while
+something is actually running: a run whose processes have all exited has nothing left to stop.
 
 That window is an extension page, not part of the GitHub page, and that is on purpose: a web page
 can draw a convincing fake panel over its own content, and nobody should ever approve one set of

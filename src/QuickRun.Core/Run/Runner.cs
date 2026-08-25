@@ -336,14 +336,28 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
 
     // ---- environment and paths ---------------------------------------------
 
-    private static IReadOnlyDictionary<string, string> EnvironmentFor(TaskDef? task, RunOptions options)
+    /// <summary>
+    /// The environment a command runs with, from general to specific: what QuickRun sets, then the
+    /// config's own <c>env</c> block, then the values of inputs that name an environment variable,
+    /// then the task's own <c>env</c>. Later wins.
+    /// </summary>
+    private IReadOnlyDictionary<string, string> EnvironmentFor(TaskDef? task, RunOptions options)
     {
-        var config = task is null ? null : task.Env;
-        var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+        var merged = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            // MSBuild's worker nodes outlive the build that started them and keep its output pipe
+            // open, which used to look like a run frozen after `dotnet restore`. A config that wants
+            // them can set this back, because the config's own env is applied after this.
+            ["MSBUILDDISABLENODEREUSE"] = "1",
+        };
+
+        if (_config is { Env.Count: > 0 } config)
+            foreach (var kv in config.Env) merged[kv.Key] = Interpolator.Expand(kv.Value, options.Context);
 
         foreach (var kv in options.ExtraEnv) merged[kv.Key] = Interpolator.Expand(kv.Value, options.Context);
-        if (config is not null)
-            foreach (var kv in config) merged[kv.Key] = Interpolator.Expand(kv.Value, options.Context);
+
+        if (task is not null)
+            foreach (var kv in task.Env) merged[kv.Key] = Interpolator.Expand(kv.Value, options.Context);
 
         return merged;
     }

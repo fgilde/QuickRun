@@ -54,9 +54,14 @@ echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des 
 ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ein Toolbar-Button ist
 kein Ort für hundert Zeilen Build-Ausgabe.
 
-**Stop** stoppt den Lauf und sagt es: das Banner wechselt auf *Stopped*, und das Fenster bietet
-Close an. Klickbar ist es nur, solange wirklich etwas läuft — ein Lauf, dessen Prozesse alle beendet
-sind, hat nichts mehr zu stoppen.
+Sobald der Lauf läuft, bekommt jeder Task eine eigene Zeile: was er tut — *starting*, *ready*,
+*exited* — und die Adresse, die er gemeldet hat, als Link. „Running" für den ganzen Lauf sagt nichts
+darüber, welcher von fünf Diensten oben ist.
+
+**Stop** stoppt den Lauf und sagt es: der Button wechselt beim Klick sofort auf *Stopping…* mit
+Spinner, das Banner auf *Stopped*, sobald die Prozesse weg sind, und das Fenster schließt sich kurz
+danach selbst — du wolltest stoppen, nicht ein Fenster aufräumen. Klickbar ist es nur, solange
+wirklich etwas läuft: ein Lauf, dessen Prozesse alle beendet sind, hat nichts mehr zu stoppen.
 
 Dieses Fenster ist eine Extension-Seite und nicht Teil der GitHub-Seite — und das mit Absicht: eine
 Webseite kann über ihren eigenen Inhalt ein überzeugendes gefälschtes Panel zeichnen, und niemand

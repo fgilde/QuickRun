@@ -20,7 +20,7 @@
     <!-- The config builder's editor and the schema it completes from, so both work offline. -->
     <EmbeddedResource Include="Daemon/monaco/**/*" LogicalName="monaco/%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../schema/quickrun.schema.json" LogicalName="quickrun.schema.json" />
-    <EmbeddedResource Include="../../assets/icon-round-256.png" LogicalName="QuickRun.App.Daemon.icon.png" />
+    <EmbeddedResource Include="../../assets/icon-256.png" LogicalName="QuickRun.App.Daemon.icon.png" />
   </ItemGroup>
 
   <!-- Kestrel for the localhost listener the browser extension talks to. -->

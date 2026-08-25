@@ -72,16 +72,33 @@ public static class CommandRunner
         {
             onStarted?.Invoke(process.Id);
 
-            process.OutputDataReceived += (_, e) => { if (e.Data is not null) onLine(e.Data, false); };
-            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) onLine(e.Data, true); };
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            // Waiting on the process itself, not on its pipes. WaitForExitAsync also waits for the
+            // redirected streams to reach end of file, and a command that leaves a background child
+            // holding those handles - MSBuild's reusable worker nodes are the usual one - never
+            // gives them up. That looked exactly like a run frozen after `dotnet restore`.
+            process.EnableRaisingEvents = true;
+
+            var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            process.Exited += (_, _) => finished.TrySetResult();
+            if (process.HasExited) finished.TrySetResult();
+
+            var reading = Task.WhenAll(
+                PumpAsync(process.StandardOutput, line => onLine(line, false)),
+                PumpAsync(process.StandardError, line => onLine(line, true)));
 
             await using var registration = ct.Register(() => Kill(process));
-            await process.WaitForExitAsync(CancellationToken.None);
+            await finished.Task;
+
+            // The last lines are still in flight, so the output gets a moment to arrive - but only
+            // a moment, because whatever is still holding the pipe is not this process any more.
+            await Task.WhenAny(reading, Task.Delay(OutputDrain, CancellationToken.None));
+
             return process.ExitCode;
         }
     }
+
+    /// <summary>How long output is still collected after the process itself has gone.</summary>
+    private static readonly TimeSpan OutputDrain = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Runs a process directly (no shell), forwarding every line as it arrives and also returning

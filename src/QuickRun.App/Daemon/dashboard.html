@@ -112,6 +112,7 @@ textarea.editor { padding: 10px 12px; background: var(--bg); resize: vertical; }
 .field .required { font-weight: 400; font-size: 11px; color: var(--warn); }
 .field .hint { font-size: 12px; color: var(--muted); }
 .field input[type="checkbox"] { justify-self: start; }
+.row.task { gap: 10px; }
 .issue { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; }
 .issue .where { color: var(--muted); font-size: 12px; min-width: 8em; }
 ol.plan .phase {
@@ -696,6 +697,33 @@ async function prepareRun() {
 starter.repo.addEventListener('change', loadBranches);
 starter.prepare.addEventListener('click', prepareRun);
 
+/**
+ * What each task of a run is doing, and where it is listening.
+ *
+ * "running" for a whole run says nothing about which of five services came up, so every task gets
+ * its own line - with its address as a link the moment it reports one.
+ */
+function taskRows(run) {
+  const tasks = run.tasks ?? [];
+  if (tasks.length === 0) return '';
+
+  const look = {
+    waiting: ['waiting', ''],
+    starting: ['starting', 'warn'],
+    ready: ['ready', 'ok'],
+    exited: ['exited', ''],
+  };
+
+  return tasks.map((task) => {
+    const [label, kind] = look[task.state] ?? [task.state, ''];
+    return `<div class="row task">
+      <span class="mono">${escapeHtml(task.name)}</span>
+      ${pill(label, kind)}
+      ${task.url ? addressLink(task.url) : '<span class="grow"></span>'}
+    </div>`;
+  }).join('');
+}
+
 function renderRuns(runs) {
   const target = document.getElementById('runList');
   if (!runs.length) {
@@ -732,7 +760,8 @@ function renderRuns(runs) {
         <span class="muted" style="min-width:3.2em;text-align:right">${percent}%</span>
       </div>
       <div class="row"><span class="muted grow" data-detail>${escapeHtml(detail)}</span></div>
-      ${run.url ? `<div class="row"><span class="muted">Address</span>${addressLink(run.url)}</div>` : ''}
+      ${taskRows(run)}
+      ${run.url && !(run.tasks ?? []).some((t) => t.url) ? `<div class="row"><span class="muted">Address</span>${addressLink(run.url)}</div>` : ''}
       ${run.workspace ? `<div class="row">
         <code class="grow mono">${escapeHtml(run.workspace)}</code>
         <button class="action" data-reveal="${run.id}">Open folder</button>

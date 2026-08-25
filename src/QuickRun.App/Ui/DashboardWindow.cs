@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -34,6 +35,13 @@ public sealed class DashboardWindow : Window
 
     private readonly StackPanel _runList = Rows();
     private readonly ContentControl _header = new();
+
+    /// <summary>
+    /// Whether the native view is what is on screen. With the page in a WebView there is nothing
+    /// here to redraw, and redrawing it anyway is what made dragging the window stutter: every tick
+    /// rebuilt lists nobody could see, on the thread the WebView needs to answer the mouse.
+    /// </summary>
+    private bool _native;
     private readonly StackPanel _workspaceList = Rows();
     private readonly TextBlock _updateState = Muted("checking…");
     private readonly DispatcherTimer _timer;
@@ -56,9 +64,12 @@ public sealed class DashboardWindow : Window
 
         _timer = new DispatcherTimer { Interval = RefreshInterval };
         _timer.Tick += (_, _) => Refresh();
-        _timer.Start();
+        if (_native) _timer.Start();
 
-        Opened += (_, _) => Refresh();
+        Opened += (_, _) =>
+        {
+            if (_native) Refresh();
+        };
         Closed += (_, _) => _timer.Stop();
 
         _ = CheckUpdateAsync();
@@ -83,14 +94,18 @@ public sealed class DashboardWindow : Window
             Dispatcher.UIThread.Post(() =>
             {
                 Output.Warn($"the embedded browser could not start ({reason}) - using the native view");
+                _native = true;
                 _header.IsVisible = true;
                 shell.Content = NativeLayout();
+                _timer.Start();
+                Refresh();
             }));
 
         // The page has its own header with the same logo and version in it. Two of them, one above
         // the other, is what made the window look wrong.
-        _header.IsVisible = browser is null;
-        shell.Content = browser is null ? NativeLayout() : browser;
+        _native = browser is null;
+        _header.IsVisible = _native;
+        shell.Content = _native ? NativeLayout() : browser;
 
         return new DockPanel
         {
@@ -100,6 +115,13 @@ public sealed class DashboardWindow : Window
                 shell,
             },
         };
+    }
+
+    /// <summary>Reads the disk when the workspaces are looked at, not every two seconds.</summary>
+    private void WhenTabChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is TabControl { SelectedItem: TabItem { Header: "Workspaces" } })
+            _ = RefreshWorkspacesAsync();
     }
 
     private Control NativeLayout()
@@ -117,6 +139,7 @@ public sealed class DashboardWindow : Window
             },
         };
 
+        tabs.SelectionChanged += WhenTabChanged;
         return tabs;
     }
 
@@ -268,9 +291,18 @@ public sealed class DashboardWindow : Window
 
     private void Refresh()
     {
+        // Runs come from the registry in this process: a dictionary read, no I/O.
         RenderRuns();
-        RenderWorkspaces();
+    }
 
+    /// <summary>
+    /// Reads the workspaces from disk on a background thread. Sizes are walked directory by
+    /// directory, which is far too slow to do on the thread that has to keep the window responsive.
+    /// </summary>
+    private async Task RefreshWorkspacesAsync()
+    {
+        var all = await Task.Run(() => _store.List());
+        await Dispatcher.UIThread.InvokeAsync(() => RenderWorkspaces(all));
     }
 
     private void RenderRuns()
@@ -300,9 +332,31 @@ public sealed class DashboardWindow : Window
 
             if (run.Error is { } error) card.Children.Add(Muted(error));
 
+            // Per task, because "running" says nothing about which of five services is up. Each
+            // one carries the address it reported, as something clickable.
+            foreach (var task in run.Tasks ?? Array.Empty<RunTaskStatus>())
+            {
+                var row = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 10,
+                    Children =
+                    {
+                        Mono(task.Name).With(t => t.MinWidth = 90),
+                        Muted(task.State),
+                    },
+                };
+
+                if (task.Url is { } address)
+                    row.Children.Add(Link(address, () => UiCommand.Launch(address)));
+
+                card.Children.Add(row);
+            }
+
             // Where it is reachable and where it lives: the two things a reader of a finished run
             // actually wants, and both were previously only findable in the log.
-            if (run.Url is { } url) card.Children.Add(Link(url, () => UiCommand.Launch(url)));
+            if (run.Url is { } url && !(run.Tasks ?? Array.Empty<RunTaskStatus>()).Any(t => t.Url is not null))
+                card.Children.Add(Link(url, () => UiCommand.Launch(url)));
 
             if (run.Workspace is { } workspace)
                 card.Children.Add(new StackPanel
@@ -340,10 +394,9 @@ public sealed class DashboardWindow : Window
         _ => "cancelled",
     };
 
-    private void RenderWorkspaces()
+    private void RenderWorkspaces(IReadOnlyList<WorkspaceInfo> all)
     {
         _workspaceList.Children.Clear();
-        var all = _store.List();
 
         if (all.Count == 0)
         {
@@ -377,7 +430,7 @@ public sealed class DashboardWindow : Window
                     Button("Remove", () =>
                     {
                         try { _store.Remove(id); } catch (ArgumentException) { }
-                        Refresh();
+                        _ = RefreshWorkspacesAsync();
                     }),
                 },
             };
@@ -389,7 +442,7 @@ public sealed class DashboardWindow : Window
     private void RemoveAllWorkspaces()
     {
         _store.RemoveAll();
-        Refresh();
+        _ = RefreshWorkspacesAsync();
     }
 
     private async Task CheckUpdateAsync()

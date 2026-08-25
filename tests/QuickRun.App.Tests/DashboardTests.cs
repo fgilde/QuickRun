@@ -102,6 +102,17 @@ public class DashboardTests
         Assert.DoesNotContain("innerHTML = def.label", html);
     }
 
+    /// <summary>Per-task state and the address each task reports, as a link.</summary>
+    [Fact]
+    public void The_page_shows_what_each_task_is_doing()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("function taskRows(run)", html);
+        Assert.Contains("run.tasks", html);
+        Assert.Contains("addressLink(task.url)", html);
+    }
+
     /// <summary>A run can be started from this page, which is what makes the extension optional.</summary>
     [Fact]
     public void The_page_can_start_a_run_itself()

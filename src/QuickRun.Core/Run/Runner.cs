@@ -223,7 +223,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
         Emit(RunEventKind.TaskReady, task.Name, "ready");
         SettleTask(task.Name, $"{task.Name} ready");
 
-        if (OpenUrlFor(task) is { } url)
+        if (OpenUrlFor(task, Snapshot) is { } url)
             Emit(RunEventKind.Info, task.Name, $"open {url}");
     }
 
@@ -231,7 +231,12 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
     /// Core never launches a browser - it only reports the URL. Opening it is the CLI's or the
     /// desktop UI's decision.
     /// </summary>
-    private static string? OpenUrlFor(TaskDef task)
+    /// <param name="log">
+    /// The task's output. A task that becomes ready on a log pattern has no declared address, and
+    /// the pattern was matched against the line that almost always contains one - so that line is
+    /// where the address comes from. Loopback only: a build log is full of other links.
+    /// </param>
+    private static string? OpenUrlFor(TaskDef task, Func<string> log)
     {
         if (task.OpenUrl is { } explicitUrl) return explicitUrl;
         if (!task.OpenReady) return null;
@@ -240,6 +245,7 @@ public sealed class Runner(Action<RunEvent> onEvent) : IAsyncDisposable
         {
             { Http: { } url } => url,
             { Port: { } port } => $"http://localhost:{port}",
+            { Log: not null } => LocalAddress.Last(log()),
             _ => null,
         };
     }

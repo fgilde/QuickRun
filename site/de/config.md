@@ -98,6 +98,12 @@ Genau eine dieser Formen, oder den Block weglassen für „fertig, sobald der Pr
 Readiness beschreibt den *Dienst*, nicht den Prozess. `docker compose up -d db` beendet sich lange
 bevor der Port offen ist, deshalb läuft der Readiness-Watcher weiter, wenn ein Task sauber beendet.
 
+`open: true` braucht eine Adresse. Bei `port` oder `http` ist es die deklarierte. Bei `log` gibt es
+keine, deshalb nimmt QuickRun die letzte Loopback-Adresse, die der Task ausgegeben hat — also die
+Zeile, auf die das Muster gewartet hat. Es zählen nur `localhost`, `127.0.0.1`, `0.0.0.0` und
+`[::1]`: ein Build-Log ist voll von Links auf Dokumentation und Advisories, und keiner davon ist der
+Ort, an dem die Anwendung läuft.
+
 ::: warning
 Für ein `log`-Muster einfache Anführungszeichen verwenden. In YAML-Doppelquotes ist `\S` ein
 ungültiges Escape und die Datei parst nicht.

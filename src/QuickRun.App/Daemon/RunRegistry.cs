@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using QuickRun.App.Commands;
 using QuickRun.Core.Config;
@@ -34,33 +33,6 @@ public sealed record RunSummary(
     string? Workspace,
     string? Url,
     int LiveTasks);
-
-/// <summary>
-/// Reads the address a task printed.
-/// <para>
-/// Most repositories never say <c>open:</c> in their config, but almost every server prints where
-/// it is listening. Only loopback addresses count: a build log is full of links to documentation
-/// and advisories, and none of those are where the app is running.
-/// </para>
-/// </summary>
-internal static partial class LocalAddress
-{
-    [GeneratedRegex(@"https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d{1,5})?(?:/[^\s""'<>,;]*)?",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex Pattern();
-
-    public static string? In(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return null;
-
-        var match = Pattern().Match(text);
-        if (!match.Success) return null;
-
-        // 0.0.0.0 means "every interface", which is not an address a browser can open.
-        return match.Value.Replace("0.0.0.0", "localhost", StringComparison.Ordinal)
-            .TrimEnd('.', ',', ')', ']', '"', '\'');
-    }
-}
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.

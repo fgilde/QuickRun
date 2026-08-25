@@ -98,6 +98,11 @@ Exactly one of these, or omit the block to mean "ready as soon as the process st
 Readiness describes the *service*, not the process. `docker compose up -d db` exits long before its
 port opens, so a task that exits cleanly keeps its readiness watcher running.
 
+`open: true` needs an address. With `port` or `http` that is the one you declared. With `log` there
+is none, so QuickRun takes the last loopback address the task printed - which is the line the
+pattern was waiting for. Only `localhost`, `127.0.0.1`, `0.0.0.0` and `[::1]` count: a build log is
+full of links to documentation and advisories, and none of those are where the app is running.
+
 ::: warning
 Use single quotes for a `log` pattern. In double-quoted YAML, `\S` is an invalid escape and the file
 will not parse.

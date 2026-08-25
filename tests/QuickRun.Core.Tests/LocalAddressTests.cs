@@ -1,6 +1,6 @@
-using QuickRun.App.Daemon;
+using QuickRun.Core.Run;
 
-namespace QuickRun.App.Tests;
+namespace QuickRun.Core.Tests;
 
 public class LocalAddressTests
 {
@@ -25,4 +25,25 @@ public class LocalAddressTests
         Assert.Equal("http://localhost:3000", LocalAddress.In("ready at http://localhost:3000."));
         Assert.Equal("http://localhost:8080", LocalAddress.In("(http://localhost:8080)"));
     }
+
+    /// <summary>
+    /// In a whole log the newest address is the true one: a dev server prints its port again after
+    /// rebinding, and the first line may be from the build that preceded it.
+    /// </summary>
+    [Fact]
+    public void The_last_address_in_a_log_wins() =>
+        Assert.Equal("http://localhost:7861", LocalAddress.Last(
+            """
+            Downloading from https://github.com/advisories/GHSA-xxxx
+            Running on local URL:  http://127.0.0.1:7860
+            Port taken, retrying
+            Running on local URL:  http://localhost:7861
+            """));
+
+    [Fact]
+    public void A_log_without_a_local_address_yields_nothing() =>
+        Assert.Null(LocalAddress.Last("""
+            see https://dotnet.microsoft.com/download
+            build succeeded
+            """));
 }

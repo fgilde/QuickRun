@@ -35,7 +35,14 @@ public sealed class GitClient(
     };
 
     /// <summary>Prepended to every git invocation, for the same reason as <see cref="NonInteractive"/>.</summary>
-    private static readonly string[] NonInteractiveArgs = { "-c", "credential.interactive=false" };
+    /// <summary>
+    /// How every git command is invoked: never asking for input, and never refusing a path for
+    /// being long. A workspace lives under the user's app-data directory and a repository can nest
+    /// deeply below that, which on Windows hits the 260-character limit as "invalid path" - a
+    /// checkout failing for arithmetic nobody can see.
+    /// </summary>
+    private static readonly string[] NonInteractiveArgs =
+        { "-c", "credential.interactive=false", "-c", "core.longpaths=true" };
 
     private readonly Func<string, string[], string?, Action<string, bool>?, CommandResult> _run =
         runner ?? ((file, args, cwd, onLine) => onLine is null
@@ -174,7 +181,10 @@ public sealed class GitClient(
 
     private GitOutcome Clone(string url, string @ref, int? pullRequest, string dir)
     {
-        string? lastError = null;
+        // The first failure, not the last: the URL as it was given is the one the user typed, and
+        // "<url>.git does not appear to be a git repository" is a confusing way to report that a
+        // clone of <url> went wrong for some other reason entirely.
+        string? firstError = null;
 
         foreach (var candidate in WithGitSuffix(url))
         {
@@ -183,7 +193,7 @@ public sealed class GitClient(
             if (pullRequest is { } number)
             {
                 var cloned = GitWithProgress(null, "clone", "--depth", "1", candidate, dir);
-                if (cloned.ExitCode != 0) { lastError = cloned.Output; continue; }
+                if (cloned.ExitCode != 0) { firstError ??= cloned.Output; continue; }
 
                 var spec = $"pull/{number}/head";
                 var fetched = GitWithProgress(dir, "fetch", "--depth", "1", "origin", spec);
@@ -197,10 +207,10 @@ public sealed class GitClient(
 
             var result = GitWithProgress(null, "clone", "--depth", "1", "--branch", @ref, candidate, dir);
             if (result.ExitCode == 0) return new(true, null, null);
-            lastError = result.Output;
+            firstError ??= result.Output;
         }
 
-        return new(false, $"git clone failed: {Trim(lastError ?? "")}", null);
+        return new(false, $"git clone failed: {Trim(firstError ?? "")}", null);
     }
 
     /// <summary>

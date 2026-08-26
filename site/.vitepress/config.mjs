@@ -24,18 +24,27 @@ export default defineConfig({
       link: '/',
       themeConfig: {
         nav: [
-          { text: 'Download', link: '/download' },
+          { text: 'Home', link: '/' },
+          { text: 'Download', link: '/get' },
+          { text: 'Screenshots', link: '/tour' },
           { text: 'First run', link: '/install' },
           { text: 'Config reference', link: '/config' },
-          { text: 'Samples', link: '/samples' },
           { text: 'Security', link: '/security' },
         ],
         sidebar: [
           {
             text: 'QuickRun',
             items: [
-              { text: 'Overview', link: '/' },
-              { text: 'Download', link: '/download' },
+              { text: 'Home', link: '/' },
+              { text: 'Download', link: '/get' },
+              { text: 'Screenshots', link: '/tour' },
+              { text: 'Questions', link: '/faq' },
+            ],
+          },
+          {
+            text: 'Documentation',
+            items: [
+              { text: 'Download in detail', link: '/download' },
               { text: 'First run', link: '/install' },
               { text: 'Config reference', link: '/config' },
               { text: 'Config builder', link: '/builder' },
@@ -58,18 +67,27 @@ export default defineConfig({
       link: '/de/',
       themeConfig: {
         nav: [
-          { text: 'Download', link: '/de/download' },
+          { text: 'Startseite', link: '/de/' },
+          { text: 'Download', link: '/de/get' },
+          { text: 'Screenshots', link: '/de/tour' },
           { text: 'Erster Start', link: '/de/install' },
           { text: 'Config-Referenz', link: '/de/config' },
-          { text: 'Beispiele', link: '/de/samples' },
           { text: 'Sicherheit', link: '/de/security' },
         ],
         sidebar: [
           {
             text: 'QuickRun',
             items: [
-              { text: 'Überblick', link: '/de/' },
-              { text: 'Download', link: '/de/download' },
+              { text: 'Startseite', link: '/de/' },
+              { text: 'Download', link: '/de/get' },
+              { text: 'Screenshots', link: '/de/tour' },
+              { text: 'Fragen', link: '/de/faq' },
+            ],
+          },
+          {
+            text: 'Dokumentation',
+            items: [
+              { text: 'Download im Detail', link: '/de/download' },
               { text: 'Erster Start', link: '/de/install' },
               { text: 'Config-Referenz', link: '/de/config' },
               { text: 'Config-Builder', link: '/de/builder' },
@@ -96,6 +114,7 @@ export default defineConfig({
     logo: '/icon.png',
     socialLinks: [{ icon: 'github', link: repo }],
     search: { provider: 'local' },
-    footer: { message: 'MIT licensed', copyright: 'QuickRun' },
+    // The footer comes from SiteFooter.vue through the layout-bottom slot: one footer for the
+    // landing pages and the documentation, with the same links in both.
   },
 });

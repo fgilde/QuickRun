@@ -45,6 +45,7 @@ jobs:
           cp scripts/install.sh site/public/install.sh
           cp assets/icon.png site/public/icon.png
           cp assets/logo.png site/public/logo.png
+          cp assets/logo-dark.png site/public/logo-dark.png
 
       # Served from the site so scoop and Homebrew can install from a URL, with no separate bucket
       # or tap repository. Fetched from the release rather than committed, so they cannot go stale.

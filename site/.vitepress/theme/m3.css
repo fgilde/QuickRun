@@ -1,0 +1,215 @@
+/* Material 3 tokens, in the pastel violet and periwinkle of the QuickRun logo.
+ *
+ * The logo is a lavender-to-periwinkle hexagon; every colour here is derived from those two hues so
+ * the page and the mark belong together. Tokens are named after the Material 3 roles rather than
+ * after what they look like, because the dark set swaps the lightness and keeps the roles.
+ *
+ * Loaded globally: the brand pages use these tokens directly, and the documentation pages get them
+ * mapped onto VitePress's own variables at the bottom, so both halves of the site read as one site.
+ */
+
+:root {
+  /* --- key colours ------------------------------------------------------- */
+  --m3-primary: #5a45d6;
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #e7dfff;
+  --m3-on-primary-container: #1d0a63;
+
+  --m3-secondary: #4b5bd7;
+  --m3-on-secondary: #ffffff;
+  --m3-secondary-container: #dfe3ff;
+  --m3-on-secondary-container: #101a5c;
+
+  --m3-tertiary: #8d4bbd;
+  --m3-tertiary-container: #f5e4ff;
+  --m3-on-tertiary-container: #33064c;
+
+  /* --- surfaces ---------------------------------------------------------- */
+  --m3-surface: #fdfbff;
+  --m3-surface-dim: #f3eff9;
+  --m3-surface-container-low: #f8f4fe;
+  --m3-surface-container: #f2edfb;
+  --m3-surface-container-high: #ebe4f7;
+  --m3-on-surface: #1a1626;
+  --m3-on-surface-variant: #4a4459;
+  --m3-outline: #7b7590;
+  --m3-outline-variant: #ded6ea;
+
+  --m3-success: #2e7d4f;
+  --m3-warning: #8a5a00;
+
+  /* --- shape and elevation ---------------------------------------------- */
+  --m3-radius-xs: 8px;
+  --m3-radius-s: 12px;
+  --m3-radius-m: 18px;
+  --m3-radius-l: 28px;
+  --m3-radius-full: 999px;
+
+  --m3-elevation-1: 0 1px 2px rgba(26, 22, 38, .08), 0 1px 3px 1px rgba(26, 22, 38, .06);
+  --m3-elevation-2: 0 1px 2px rgba(26, 22, 38, .1), 0 2px 6px 2px rgba(26, 22, 38, .07);
+  --m3-elevation-3: 0 4px 8px 3px rgba(26, 22, 38, .08), 0 1px 3px rgba(26, 22, 38, .12);
+
+  /* The two logo hues, for gradients and glows. */
+  --m3-brand-lavender: #c9b3f5;
+  --m3-brand-periwinkle: #6c7cf0;
+}
+
+html.dark {
+  --m3-primary: #cabeff;
+  --m3-on-primary: #2c1a76;
+  --m3-primary-container: #43308f;
+  --m3-on-primary-container: #e7dfff;
+
+  --m3-secondary: #bcc4ff;
+  --m3-on-secondary: #1a2a86;
+  --m3-secondary-container: #32409f;
+  --m3-on-secondary-container: #dfe3ff;
+
+  --m3-tertiary: #eab8ff;
+  --m3-tertiary-container: #6a2a92;
+  --m3-on-tertiary-container: #f9e2ff;
+
+  --m3-surface: #131019;
+  --m3-surface-dim: #0e0c13;
+  --m3-surface-container-low: #191621;
+  --m3-surface-container: #1d1927;
+  --m3-surface-container-high: #272232;
+  --m3-on-surface: #e7e0f0;
+  --m3-on-surface-variant: #c9c1da;
+  --m3-outline: #948da8;
+  --m3-outline-variant: #3b3547;
+
+  --m3-success: #7cd6a0;
+  --m3-warning: #f0c06a;
+
+  --m3-elevation-1: 0 1px 2px rgba(0, 0, 0, .5), 0 1px 3px 1px rgba(0, 0, 0, .3);
+  --m3-elevation-2: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px 2px rgba(0, 0, 0, .35);
+  --m3-elevation-3: 0 4px 8px 3px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .5);
+}
+
+/* --- typography and primitives shared by the brand pages ----------------- */
+
+.m3 {
+  color: var(--m3-on-surface);
+  font-family: "Roboto Flex", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.m3-display {
+  margin: 0;
+  font-size: clamp(2.4rem, 6vw, 3.9rem);
+  line-height: 1.06;
+  letter-spacing: -.02em;
+  font-weight: 700;
+}
+
+.m3-headline {
+  margin: 0;
+  font-size: clamp(1.55rem, 3.2vw, 2.1rem);
+  line-height: 1.18;
+  letter-spacing: -.01em;
+  font-weight: 650;
+}
+
+.m3-title { margin: 0; font-size: 1.12rem; line-height: 1.35; font-weight: 640; }
+.m3-body { margin: 0; font-size: 1rem; line-height: 1.62; color: var(--m3-on-surface-variant); }
+.m3-body-lg { margin: 0; font-size: 1.12rem; line-height: 1.6; color: var(--m3-on-surface-variant); }
+
+.m3-label {
+  display: inline-block;
+  font-size: .74rem;
+  font-weight: 640;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--m3-primary);
+}
+
+.m3-card {
+  border-radius: var(--m3-radius-m);
+  background: var(--m3-surface-container-low);
+  border: 1px solid var(--m3-outline-variant);
+  padding: 24px;
+}
+
+.m3-card--filled { background: var(--m3-primary-container); border-color: transparent; }
+.m3-card--elevated { background: var(--m3-surface); box-shadow: var(--m3-elevation-1); border-color: transparent; }
+
+.m3-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: var(--m3-radius-full);
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+  font: inherit;
+  font-weight: 640;
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow .18s ease, transform .18s ease, background-color .18s ease;
+}
+
+.m3-button:hover { box-shadow: var(--m3-elevation-2); transform: translateY(-1px); }
+.m3-button:active { transform: translateY(0); box-shadow: none; }
+
+.m3-button--tonal { background: var(--m3-secondary-container); color: var(--m3-on-secondary-container); }
+.m3-button--outlined {
+  background: transparent;
+  color: var(--m3-primary);
+  border: 1px solid var(--m3-outline);
+}
+.m3-button--text { background: transparent; color: var(--m3-primary); padding: 12px 12px; }
+
+.m3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--m3-radius-full);
+  border: 1px solid var(--m3-outline-variant);
+  background: var(--m3-surface-container);
+  color: var(--m3-on-surface-variant);
+  font-size: .86rem;
+}
+
+.m3-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .92rem;
+}
+
+.m3-section { padding: 72px 0; }
+.m3-wrap { width: min(1140px, calc(100% - 48px)); margin: 0 auto; }
+
+@media (max-width: 640px) {
+  .m3-section { padding: 48px 0; }
+  .m3-wrap { width: calc(100% - 32px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-button, .m3-button:hover { transition: none; transform: none; }
+}
+
+/* --- the documentation, in the same colours ------------------------------ */
+
+:root {
+  --vp-c-brand-1: #5a45d6;
+  --vp-c-brand-2: #6c56e6;
+  --vp-c-brand-3: #7d68ee;
+  --vp-c-brand-soft: rgba(90, 69, 214, .14);
+  --vp-button-brand-bg: #5a45d6;
+  --vp-button-brand-hover-bg: #6c56e6;
+  --vp-button-brand-active-bg: #4b38bd;
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #6c7cf0, #a37ef0);
+}
+
+html.dark {
+  --vp-c-brand-1: #cabeff;
+  --vp-c-brand-2: #b6a6ff;
+  --vp-c-brand-3: #a08fff;
+  --vp-c-brand-soft: rgba(202, 190, 255, .16);
+  --vp-button-brand-bg: #5a45d6;
+  --vp-button-brand-hover-bg: #6c56e6;
+}

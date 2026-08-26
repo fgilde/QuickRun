@@ -53,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for manifest in quickrun.json quickrun.rb; do
+          for manifest in quickrun.json quickrun.rb quickrun-cask.rb; do
             if gh release download --repo "$GITHUB_REPOSITORY" --pattern "$manifest"                  --dir site/public --clobber; then
               echo "staged $manifest"
             else

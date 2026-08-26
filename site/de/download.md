@@ -37,6 +37,13 @@ Die Formula installiert nur die Kommandozeile:
 brew install fgilde/tap/quickrun   # kein App-Bundle, kein Launchpad-Eintrag, kein quickrun://
 ```
 
+Beide werden auch von dieser Seite ausgeliefert, das Tap braucht es also nicht:
+
+```bash
+brew install --cask https://fgilde.github.io/QuickRun/quickrun-cask.rb
+brew install https://fgilde.github.io/QuickRun/quickrun.rb
+```
+
 In beiden Fällen aktualisiert `brew upgrade quickrun`, und QuickRun lässt seine eigene Binary in
 Ruhe, weil Homebrew sie besitzt.
 

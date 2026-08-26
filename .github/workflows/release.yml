@@ -181,8 +181,12 @@ jobs:
           sh build.sh "${{ steps.version.outputs.value }}"
 
       # --- Homebrew tap ---------------------------------------------------------------------
-      # Needs TAP_TOKEN: a fine-grained PAT with contents:write on fgilde/homebrew-tap.
+      # Needs TAP_TOKEN: a fine-grained PAT with contents:write on fgilde/homebrew-tap, because
       # GITHUB_TOKEN cannot push to another repository.
+      #
+      # Without it this step is skipped and nothing is lost: the tap runs a scheduled workflow of
+      # its own that pulls quickrun.rb and quickrun-cask.rb from the newest release every hour. The
+      # token only makes the tap current immediately rather than within the hour.
       - name: Update the Homebrew tap
         env:
           TAP_TOKEN: ${{ secrets.TAP_TOKEN }}

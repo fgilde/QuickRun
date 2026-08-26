@@ -89,4 +89,25 @@ public static class Readiness
         using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         return (int)response.StatusCode < 500;
     }
+
+    /// <summary>
+    /// What the address actually answered, or null when it could not be asked.
+    /// <para>
+    /// Ready and useful are not the same thing, and the difference is worth a line in the log: a web
+    /// project built in the wrong configuration answers 404 for its entire front end, which counts
+    /// as up by the rule above and is not what anyone was waiting for.
+    /// </para>
+    /// </summary>
+    public static async Task<int?> HttpStatusAsync(string url)
+    {
+        try
+        {
+            using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            return (int)response.StatusCode;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 }

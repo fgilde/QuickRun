@@ -434,4 +434,67 @@ public class RunnerTests
             squatter.Stop();
         }
     }
+
+    /// <summary>
+    /// Ready and useful are not the same thing.
+    /// <para>
+    /// Two repositories built their front end only in Release, so `dotnet run` served a 404 for the
+    /// whole application. That counts as ready - deliberately, because a dev server whose root is
+    /// not routed is still up - and the run opened a browser on an empty page. "It ran, but no
+    /// interface came up." Now it says which of the two it is.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task An_address_that_answers_not_found_is_called_out()
+    {
+        using var repo = new FakeRepo();
+        var log = new Recorder();
+
+        var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        probe.Start();
+        var port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+
+        using var listener = new System.Net.HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        // Up, and with nothing at that address - which is exactly what a Release-only front end
+        // looks like from the outside.
+        var serving = Task.Run(async () =>
+        {
+            while (listener.IsListening)
+            {
+                try
+                {
+                    var context = await listener.GetContextAsync();
+                    context.Response.StatusCode = 404;
+                    context.Response.Close();
+                }
+                catch (Exception) { return; }
+            }
+        });
+
+        try
+        {
+            await using var runner = new Runner(log.Sink);
+
+            var wait = Windows ? "ping -n 3 127.0.0.1 >nul" : "sleep 2";
+            var outcome = await runner.ExecuteAsync(
+                Config($"tasks:\n  - name: web\n    run: {wait}\n    readyWhen:\n      http: http://127.0.0.1:{port}/"),
+                Options(repo.Path), CancellationToken.None);
+
+            Assert.True(outcome.Ok, outcome.Error);
+
+            // Still ready - the rule does not change, only what the log says about it.
+            Assert.Contains(log.Events, e => e.Kind == RunEventKind.TaskReady);
+            Assert.Contains("answers 404", log.Text);
+            Assert.Contains("is not a running application", log.Text);
+        }
+        finally
+        {
+            listener.Stop();
+            await serving;
+        }
+    }
 }

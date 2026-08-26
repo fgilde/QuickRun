@@ -401,8 +401,35 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
         Emit(RunEventKind.TaskReady, task.Name, "ready");
         SettleTask(task.Name, $"{task.Name} ready");
 
+        await WarnIfAnsweringNotFoundAsync(task, options, ct);
+
         if (OpenUrlFor(task, Snapshot) is { } url)
             Emit(RunEventKind.Info, task.Name, $"open {url}");
+    }
+
+    /// <summary>
+    /// Says so when the address is answering, but answering "not found".
+    /// <para>
+    /// Anything below 500 counts as ready on purpose: a dev server whose root path is not routed is
+    /// still up, and waiting for a 200 would hang on it for ever. But a web project built in the
+    /// wrong configuration answers 404 for its entire front end - the server is up, the application
+    /// is not there - and the run then said ready and opened a browser on an empty page. "It ran,
+    /// but no interface came up", in two different repositories, for exactly this reason.
+    /// </para>
+    /// </summary>
+    private async Task WarnIfAnsweringNotFoundAsync(TaskDef task, RunOptions options, CancellationToken ct)
+    {
+        if (task.ReadyWhen is not { Http: { } address }) return;
+
+        var url = Interpolator.Expand(address, options.Context);
+        var status = await Readiness.HttpStatusAsync(url).WaitAsync(PreflightBudget, ct);
+
+        if (status is not >= 400) return;
+
+        Emit(RunEventKind.Error, task.Name,
+            $"{url} answers {status}, which counts as ready but is not a running application - the "
+            + "server is up and what should be at that address is not. A front end that is only "
+            + "built in Release, or a path that is not routed, both look like this.");
     }
 
     /// <summary>

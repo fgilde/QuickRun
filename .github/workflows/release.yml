@@ -219,6 +219,9 @@ jobs:
       # Needs CHROME_EXTENSION_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN.
       # Google still reviews every submission.
       - name: Publish to the Chrome Web Store
+        # The binaries are already published; a store that says no is worth seeing, not worth
+        # turning a finished release red.
+        continue-on-error: true
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
@@ -241,6 +244,9 @@ jobs:
       # --- Firefox Add-ons ------------------------------------------------------------------
       # Needs AMO_JWT_ISSUER and AMO_JWT_SECRET from the addons.mozilla.org API credentials page.
       - name: Publish to Firefox Add-ons
+        # The binaries are already published; a store that says no is worth seeing, not worth
+        # turning a finished release red.
+        continue-on-error: true
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
@@ -250,15 +256,22 @@ jobs:
             exit 0
           fi
 
+          # --approval-timeout 0: upload and stop there. A listed add-on is reviewed by a human,
+          # which takes hours or days, and web-ext waits for that approval by default - so this
+          # would sit until its own timeout and then fail a release whose upload had worked.
           npx --yes web-ext@8 sign \
             --source-dir extension/dist/firefox \
             --channel listed \
+            --approval-timeout 0 \
             --api-key "$AMO_JWT_ISSUER" \
             --api-secret "$AMO_JWT_SECRET"
 
       # --- Edge Add-ons ---------------------------------------------------------------------
       # Needs EDGE_PRODUCT_ID, EDGE_CLIENT_ID and EDGE_API_KEY from Partner Center.
       - name: Publish to Edge Add-ons
+        # The binaries are already published; a store that says no is worth seeing, not worth
+        # turning a finished release red.
+        continue-on-error: true
         env:
           PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
           CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}

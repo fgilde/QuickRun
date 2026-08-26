@@ -12,6 +12,14 @@ on:
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
+  # A release publishes new package manifests, and this workflow is what copies them onto the site -
+  # so the site served 0.7.10 while 0.7.12 was out, and `brew install <site url>` installed the old
+  # one. The release cannot announce itself here by publishing: an event raised with GITHUB_TOKEN
+  # never starts another workflow run. workflow_run is not subject to that rule.
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+
 permissions:
   contents: read
   pages: write
@@ -23,6 +31,8 @@ concurrency:
 
 jobs:
   build:
+    # A failed release has nothing worth staging.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

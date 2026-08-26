@@ -581,4 +581,70 @@ public class RunRegistryTests
         Assert.Equal(0, registry.Get(summary.Id)!.Leftovers);
         Assert.True(registry.Forget(summary.Id));
     }
+
+    /// <summary>
+    /// A run whose task crashed is a failed run.
+    /// <para>
+    /// This is the report that started it: an application that could not bind its port exited with
+    /// 0xE0434352 straight away, the log had the stack trace, and the status said finished with only
+    /// Close on offer. Every task reaching an exit is not the same thing as a run succeeding.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_run_whose_task_crashed_is_reported_as_failed()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        var crash = OSKinds.Current == OSKind.Windows ? "exit /b 3" : "exit 3";
+        repo.Write("quickrun.yml", $"tasks:\n  - name: app\n    run: {crash}\n");
+        repo.Commit("a task that exits badly");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.True(registry.Confirm(summary!.Id));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        while (registry.Get(summary.Id)!.State == RunState.Running && !cts.IsCancellationRequested)
+            await Task.Delay(100, cts.Token);
+
+        var finished = registry.Get(summary.Id)!;
+        Assert.Equal(RunState.Failed, finished.State);
+        Assert.Contains("exited with code 3", finished.Error);
+    }
+
+    /// <summary>
+    /// A restore that prints thousands of lines must not take the run, the history or the reader
+    /// with it. The replay buffer is bounded on purpose: a late subscriber gets the tail, not a
+    /// transcript of everything since the beginning.
+    /// </summary>
+    [Fact]
+    public async Task A_run_that_prints_thousands_of_lines_still_finishes_and_keeps_its_history_bounded()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        var flood = OSKinds.Current == OSKind.Windows
+            ? "for /l %i in (1,1,4000) do @echo line %i"
+            : "seq 1 4000";
+        repo.Write("quickrun.yml", $"tasks:\n  - name: noisy\n    run: {flood}\n");
+        repo.Commit("a task with a lot to say");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+        Assert.True(registry.Confirm(summary!.Id));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        while (registry.Get(summary.Id)!.State == RunState.Running && !cts.IsCancellationRequested)
+            await Task.Delay(100, cts.Token);
+
+        Assert.Equal(RunState.Succeeded, registry.Get(summary.Id)!.State);
+
+        // Subscribing afterwards replays the history, which is capped - so this returns rather than
+        // handing over four thousand lines, and it returns at all rather than filling memory.
+        var replayed = 0;
+        await foreach (var _ in registry.Subscribe(summary.Id, cts.Token)) replayed++;
+
+        Assert.InRange(replayed, 1, 600);
+    }
 }

@@ -544,6 +544,14 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
             lock (_gate)
             {
                 replay = _history.ToList();
+
+                // A run that is already over gets its history and then the end of the stream.
+                // Handing a late reader an open channel that nothing will ever write to again left
+                // it waiting for ever - a log window opened on a finished run never said finished,
+                // and the connection behind it stayed up until something else closed it.
+                if (Summary.State is RunState.Succeeded or RunState.Failed or RunState.Cancelled)
+                    channel.Writer.TryComplete();
+
                 _subscribers.Add(channel);
             }
 

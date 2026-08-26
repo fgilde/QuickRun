@@ -43,6 +43,26 @@ internal static class Program
         if (args.Length == 0 || (args[0].StartsWith('-') && !globalFlags.Contains(args[0], StringComparer.Ordinal)))
             args = ["ui", .. args];
 
+        var app = Build();
+
+        try
+        {
+            return app.Run(args);
+        }
+        catch (Exception e)
+        {
+            Output.Error(e.Message);
+            return 2;
+        }
+    }
+
+    /// <summary>
+    /// The command line as it is configured. Separate so a test can hold it: a command that is
+    /// registered wrongly - a settings type the binder cannot construct, an option declared twice -
+    /// only shows up when someone runs that one command, and that is not the moment to find out.
+    /// </summary>
+    internal static CommandApp Build()
+    {
         var app = new CommandApp();
 
         app.Configure(config =>
@@ -111,14 +131,6 @@ internal static class Program
             config.PropagateExceptions();
         });
 
-        try
-        {
-            return app.Run(args);
-        }
-        catch (Exception e)
-        {
-            Output.Error(e.Message);
-            return 2;
-        }
+        return app;
     }
 }

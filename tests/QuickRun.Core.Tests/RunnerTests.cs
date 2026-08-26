@@ -396,4 +396,42 @@ public class RunnerTests
         // And it says which of the two cases it is, which is the entire point of saying anything.
         Assert.Contains(beats, beat => beat.Text.Contains("is alive", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    /// The other half of the crash that read as a success: the reason the application exited was
+    /// that its port was already taken, by an earlier run of the same repository that was still
+    /// going. Readiness cannot tell two servers apart, so before a task starts is the only chance
+    /// anyone has to notice.
+    /// </summary>
+    [Fact]
+    public async Task An_address_that_already_answers_is_reported_before_the_task_starts()
+    {
+        using var repo = new FakeRepo();
+        var log = new Recorder();
+
+        var squatter = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        squatter.Start();
+        var port = ((System.Net.IPEndPoint)squatter.LocalEndpoint).Port;
+
+        try
+        {
+            await using var runner = new Runner(log.Sink);
+
+            var outcome = await runner.ExecuteAsync(
+                Config($"tasks:\n  - name: app\n    run: echo started\n    readyWhen:\n      port: {port}"),
+                Options(repo.Path), CancellationToken.None);
+
+            Assert.Contains("already listening", log.Text);
+            Assert.Contains($"port {port}", log.Text);
+
+            // And it is a warning, not a refusal: the task still ran. A courtesy that stops a run
+            // would be worse than the thing it warns about.
+            Assert.Contains("started", log.Text);
+            Assert.True(outcome.Ok, outcome.Error);
+        }
+        finally
+        {
+            squatter.Stop();
+        }
+    }
 }

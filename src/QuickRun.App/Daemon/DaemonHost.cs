@@ -10,6 +10,7 @@ using QuickRun.App.Commands;
 using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
+using QuickRun.Core.Run;
 using QuickRun.Core;
 using QuickRun.Core.Update;
 using QuickRun.Core.Workspace;
@@ -569,6 +570,18 @@ public static class DaemonHost
         await using var events = runs.Subscribe(id, context.RequestAborted)
             .GetAsyncEnumerator(context.RequestAborted);
 
+        await PumpAsync(events, frame => Send(context, frame), KeepAlive, context.RequestAborted);
+    }
+
+    /// <summary>
+    /// Writes a run's events as Server-Sent Events, and a comment frame whenever there is nothing
+    /// to write. Separate from the request so it can be tested without a server and without waiting
+    /// ten seconds for the thing under test.
+    /// </summary>
+    /// <param name="send">Writes one frame and flushes it.</param>
+    internal static async Task PumpAsync(
+        IAsyncEnumerator<RunEvent> events, Func<string, Task> send, TimeSpan keepAlive, CancellationToken ct)
+    {
         while (true)
         {
             var next = events.MoveNextAsync().AsTask();
@@ -577,21 +590,23 @@ public static class DaemonHost
             // must not leave a timer behind for every one of them.
             while (!next.IsCompleted)
             {
-                using var tick = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
-                var first = await Task.WhenAny(next, Task.Delay(KeepAlive, tick.Token));
+                using var tick = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var first = await Task.WhenAny(next, Task.Delay(keepAlive, tick.Token));
 
-                // Whichever won, the timer is done with.
+                // Whichever won the race, the timer is done with.
                 await tick.CancelAsync();
                 if (first == next) break;
 
                 // A comment frame: every SSE reader is required to ignore it, and it is enough
                 // traffic to keep the connection - and whatever reads it - alive through a quiet
-                // build.
-                await Send(context, ": keepalive\n\n");
+                // build. Without this a ten-minute silent build sent no bytes at all, the browser
+                // extension's service worker was shut down for being idle, and the log window sat
+                // frozen at the last percentage it had heard.
+                await send(": keepalive\n\n");
             }
 
             if (!await next) return;
-            await Send(context, $"data: {JsonSerializer.Serialize(events.Current, Json)}\n\n");
+            await send($"data: {JsonSerializer.Serialize(events.Current, Json)}\n\n");
         }
     }
 

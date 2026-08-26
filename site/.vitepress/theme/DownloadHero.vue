@@ -62,7 +62,8 @@ const platforms = [
     // Simple Icons ships this monochrome, so it needs inverting on a dark background.
     mono: true,
     tint: '#a2aaad',
-    command: 'brew install fgilde/tap/quickrun',
+    command: 'brew install --cask fgilde/tap/quickrun',
+    alternative: 'brew install fgilde/tap/quickrun',
     builds: [
       { arch: 'arm64', asset: 'quickrun-osx-arm64.tar.gz', label: 'Apple silicon' },
       { arch: 'x64', asset: 'quickrun-osx-x64.tar.gz', label: 'Intel' },

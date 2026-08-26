@@ -19,13 +19,36 @@ Until then use scoop, which installs from the manifest this site serves.
 The Homebrew formula and the scoop manifest are regenerated with every release and served from here,
 so neither needs a separate tap or bucket repository.
 
-### macOS app bundle
+### macOS: the cask, not the formula
 
-macOS registers the `quickrun://` scheme through an app bundle, which a bare binary is not. If you
-want the browser extension to be able to start QuickRun when it is not running, use the bundle:
+```bash
+brew install --cask fgilde/tap/quickrun
+```
+
+This is the install a Mac expects. It puts **QuickRun.app** into `/Applications`, so it appears in
+Launchpad and Spotlight with its icon, it can claim the `quickrun://` scheme - which lives in an app
+bundle's `Info.plist` and cannot be claimed by a bare binary - and it links the binary inside the
+bundle onto your `PATH`, so `quickrun` in a terminal and the app are the same installation.
+
+The formula installs the command line only:
+
+```bash
+brew install fgilde/tap/quickrun   # no app bundle, no Launchpad entry, no quickrun://
+```
+
+Either way, `brew upgrade quickrun` updates it and QuickRun leaves its own binary alone, because
+Homebrew owns it.
+
+The bundle is also a plain download, if you would rather not use Homebrew:
 
 - [QuickRun-osx-arm64.app.zip](https://github.com/fgilde/QuickRun/releases/latest/download/QuickRun-osx-arm64.app.zip) — Apple silicon
 - [QuickRun-osx-x64.app.zip](https://github.com/fgilde/QuickRun/releases/latest/download/QuickRun-osx-x64.app.zip) — Intel
+
+Downloaded by hand, it carries the quarantine flag and macOS calls it damaged. Clear it once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/QuickRun.app
+```
 
 ### Verifying a download
 

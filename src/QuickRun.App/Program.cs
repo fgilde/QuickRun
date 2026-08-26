@@ -1,5 +1,6 @@
 using QuickRun.App;
 using QuickRun.App.Commands;
+using QuickRun.App.Ui;
 using QuickRun.Core;
 using Spectre.Console.Cli;
 
@@ -16,6 +17,16 @@ internal static class Program
     {
         // Before anything writes: bind to the parent console if this was started from a terminal.
         ConsoleAttach.TryAttach();
+
+        // macOS may only be drawn from the thread the process started on, so there the command runs
+        // on a worker and this thread waits to be handed the interface loop. Windows wants the
+        // opposite - a single-threaded-apartment thread of its own for the WebView - and gets it
+        // when the loop is actually needed.
+        return UiHost.WantsFirstThread ? UiHost.Own(() => Execute(args)) : Execute(args);
+    }
+
+    private static int Execute(string[] args)
+    {
 
         // Double-clicking the binary must do something useful. Printing CLI help into a console window
         // that closes again is the worst possible front door, so no command means: start the daemon, put

@@ -19,13 +19,37 @@ Bis dahin scoop nehmen, das aus dem Manifest dieser Seite installiert.
 Homebrew-Formula und scoop-Manifest werden mit jedem Release neu erzeugt und von hier ausgeliefert —
 ein eigenes Tap- oder Bucket-Repository braucht keines davon.
 
-### macOS-App-Bundle
+### macOS: das Cask, nicht die Formula
 
-macOS registriert das `quickrun://`-Schema über ein App-Bundle, was eine nackte Binary nicht ist.
-Wenn die Browser-Erweiterung QuickRun starten können soll, wenn es nicht läuft, nimm das Bundle:
+```bash
+brew install --cask fgilde/tap/quickrun
+```
+
+Das ist die Installation, die ein Mac erwartet. Sie legt **QuickRun.app** in `/Applications` — damit
+erscheint es mit Icon in Launchpad und Spotlight, kann das `quickrun://`-Schema beanspruchen (das
+steckt in der `Info.plist` eines App-Bundles und ist für eine nackte Binary nicht zu haben), und die
+Binary im Bundle wird in den `PATH` verlinkt: `quickrun` im Terminal und die App sind dieselbe
+Installation.
+
+Die Formula installiert nur die Kommandozeile:
+
+```bash
+brew install fgilde/tap/quickrun   # kein App-Bundle, kein Launchpad-Eintrag, kein quickrun://
+```
+
+In beiden Fällen aktualisiert `brew upgrade quickrun`, und QuickRun lässt seine eigene Binary in
+Ruhe, weil Homebrew sie besitzt.
+
+Das Bundle gibt es auch als normalen Download, falls Homebrew nicht in Frage kommt:
 
 - [QuickRun-osx-arm64.app.zip](https://github.com/fgilde/QuickRun/releases/latest/download/QuickRun-osx-arm64.app.zip) — Apple Silicon
 - [QuickRun-osx-x64.app.zip](https://github.com/fgilde/QuickRun/releases/latest/download/QuickRun-osx-x64.app.zip) — Intel
+
+Von Hand geladen trägt es das Quarantäne-Flag, und macOS nennt es beschädigt. Einmal entfernen:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/QuickRun.app
+```
 
 ### Download prüfen
 

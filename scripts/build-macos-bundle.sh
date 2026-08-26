@@ -52,8 +52,12 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
-  <!-- No dock icon: QuickRun is a background daemon with a browser UI. -->
+  <!-- A normal application, not an accessory: it has a window, an icon and a place in Launchpad,
+       and hiding it from the Dock made it look as though nothing had been installed. The tray icon
+       is still there for the times the window is closed. -->
   <key>LSUIElement</key>
+  <false/>
+  <key>NSHighResolutionCapable</key>
   <true/>
   <key>CFBundleURLTypes</key>
   <array>

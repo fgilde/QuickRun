@@ -29,7 +29,11 @@ export const PLATFORMS = [
     mono: true,
     tint: '#a2aaad',
     requirement: 'macOS 12 or later',
-    command: 'brew install fgilde/tap/quickrun',
+    // The cask, not the formula: it installs QuickRun.app into /Applications, so it appears in
+    // Launchpad with its icon and can claim quickrun://, and it links the binary inside onto the
+    // PATH so the terminal command is the same install.
+    command: 'brew install --cask fgilde/tap/quickrun',
+    alternative: 'brew install fgilde/tap/quickrun   # command line only',
     builds: [
       { arch: 'arm64', asset: 'quickrun-osx-arm64.tar.gz', label: 'Apple silicon' },
       { arch: 'x64', asset: 'quickrun-osx-x64.tar.gz', label: 'Intel' },

@@ -99,20 +99,11 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
                     ? () => Launch(url)
                     : () => AppWindows.Show(registry, store, url);
 
-            // On its own single-threaded-apartment thread, not this one. By the time an async
-            // command gets here it is running on a thread pool thread, which is in the
-            // multi-threaded apartment - and the system WebView the window hosts refuses to start
-            // there (RPC_E_CHANGED_MODE). The UI loop needs a thread it can own anyway.
-            var ui = new Thread(() => TrayApp.Run(shutdown.Token), 16 * 1024 * 1024)
-            {
-                Name = "QuickRun UI",
-                IsBackground = false,
-            };
-
-            if (OperatingSystem.IsWindows()) ui.SetApartmentState(ApartmentState.STA);
-
-            ui.Start();
-            ui.Join();
+            // Not on this thread: by the time an async command gets here it is running on a
+            // thread-pool thread, and neither platform accepts that one. UiHost knows which thread
+            // each wants - the process's first on macOS, a single-threaded-apartment thread of its
+            // own on Windows - and returns when the loop has finished.
+            UiHost.RunLoop(() => TrayApp.Run(shutdown.Token));
         }
 
         // Bounded: a connection that refuses to finish must not keep the process alive after the

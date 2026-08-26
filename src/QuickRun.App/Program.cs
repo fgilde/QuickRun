@@ -18,6 +18,11 @@ internal static class Program
         // Before anything writes: bind to the parent console if this was started from a terminal.
         ConsoleAttach.TryAttach();
 
+        // And before anything can throw. An exception on the interface thread ends the process from
+        // inside the UI framework, where there is no frame of ours to catch it - so the only way to
+        // know what happened afterwards is to have written it down as it went.
+        CrashLog.Install();
+
         // macOS may only be drawn from the thread the process started on, so there the command runs
         // on a worker and this thread waits to be handed the interface loop. Windows wants the
         // opposite - a single-threaded-apartment thread of its own for the WebView - and gets it

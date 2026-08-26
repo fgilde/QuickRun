@@ -69,6 +69,7 @@ public sealed class DoctorCommand : AsyncCommand<DoctorCommand.Settings>
             Workspace(),
             Scheme(),
             Autostart(),
+            Crashes(),
         };
 
         findings.AddRange(await ListenerAsync());
@@ -114,6 +115,21 @@ public sealed class DoctorCommand : AsyncCommand<DoctorCommand.Settings>
     {
         var status = SystemIntegration.Status();
         return new("quickrun:// scheme", status.Registered && !status.Stale, status.Detail, Fatal: false);
+    }
+
+    /// <summary>
+    /// Whether this installation has died before. Cheap to ask and the first thing worth knowing:
+    /// a user reporting that something "just closed" now has the reason to hand.
+    /// </summary>
+    private static Finding Crashes()
+    {
+        var newest = CrashLog.Newest();
+
+        return newest is null
+            ? new("crashes", true, "none recorded", Fatal: false)
+            : new("crashes", false,
+                $"{newest.Value.Count} recorded, newest {newest.Value.When:yyyy-MM-dd HH:mm} - "
+                + $"{newest.Value.Summary} ({newest.Value.Path})", Fatal: false);
     }
 
     private static Finding Autostart()

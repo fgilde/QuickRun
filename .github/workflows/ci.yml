@@ -30,10 +30,6 @@ jobs:
           npx vitepress build
           node check-build.mjs
 
-      - name: Extension tests
-        shell: bash
-        run: node --test extension/test/*.test.js
-
       - name: Extension builds for both targets
         shell: bash
         run: |
@@ -41,3 +37,7 @@ jobs:
           sh build.sh 0.0.0-ci
           test -f dist/quickrun-chromium-0.0.0-ci.zip
           test -f dist/quickrun-firefox-0.0.0-ci.zip
+
+      - name: Extension tests
+        shell: bash
+        run: node --test extension/test/*.test.js

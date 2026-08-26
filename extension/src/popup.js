@@ -38,9 +38,10 @@ function button(label, kind, action) {
   actions.append(element);
 }
 
-function say(html) {
-  // Fixed strings only; nothing here comes from a page or a repository.
-  hint.innerHTML = html;
+function say(text) {
+  // textContent, not innerHTML: these are fixed strings, so markup buys nothing - and an unsafe
+  // assignment to innerHTML is a warning every add-on reviewer has to stop and look at.
+  hint.textContent = text;
 }
 
 

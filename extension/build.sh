@@ -40,7 +40,16 @@ for target in ("chromium", "firefox"):
         # Firefox MV3 uses an event page, not a service worker, and requires an explicit id.
         manifest["background"] = {"scripts": ["background.js"], "type": "module"}
         manifest["browser_specific_settings"] = {
-            "gecko": {"id": "quickrun@fgilde.org", "strict_min_version": "121.0"}
+            "gecko": {
+                "id": "quickrun@fgilde.org",
+                "strict_min_version": "121.0",
+                # addons.mozilla.org refuses a new submission without this, and it belongs under
+                # gecko - declared at the root it is silently ignored and the upload still fails.
+                # "none" says what is true: QuickRun talks to 127.0.0.1 and collects nothing, and
+                # "none" must be the only entry. Firefox below 140 treats the key as an unknown
+                # sub-key and installs anyway, so strict_min_version stays where it is.
+                "data_collection_permissions": {"required": ["none"]},
+            }
         }
         # Firefox has no Private Network Access gate, so localhost needs no extra permission dance.
 

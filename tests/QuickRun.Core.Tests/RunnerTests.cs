@@ -369,4 +369,31 @@ public class RunnerTests
 
         Assert.True(outcome.Ok, outcome.Error);
     }
+
+    /// <summary>
+    /// A task that runs and prints nothing used to leave the log ending mid-run, indistinguishable
+    /// from a task whose process had died - which is how "it sat at 85% and did nothing" could not
+    /// be explained by anyone looking at it.
+    /// </summary>
+    [Fact]
+    public async Task A_task_that_prints_nothing_reports_that_it_is_still_alive()
+    {
+        using var repo = new FakeRepo();
+        var log = new Recorder();
+        await using var runner = new Runner(log.Sink, heartbeat: TimeSpan.FromMilliseconds(150));
+
+        var sleep = Windows ? "powershell -NoProfile -Command Start-Sleep -Milliseconds 1200" : "sleep 1.2";
+        var outcome = await runner.ExecuteAsync(
+            Config($"tasks:\n  - name: quiet\n    run: {sleep}"),
+            Options(repo.Path), CancellationToken.None);
+
+        Assert.True(outcome.Ok, outcome.Error);
+
+        var beats = log.Events.Where(e => e.Text.StartsWith("quiet for", StringComparison.Ordinal)).ToList();
+        Assert.NotEmpty(beats);
+        Assert.All(beats, beat => Assert.Equal("quiet", beat.Task));
+
+        // And it says which of the two cases it is, which is the entire point of saying anything.
+        Assert.Contains(beats, beat => beat.Text.Contains("is alive", StringComparison.Ordinal));
+    }
 }

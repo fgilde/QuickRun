@@ -548,18 +548,57 @@ public static class DaemonHost
         return Results.Ok();
     }
 
+    /// <summary>
+    /// How often a silent stream says something anyway.
+    /// <para>
+    /// Well inside the thirty seconds of inactivity after which a browser extension's service
+    /// worker is shut down. A run that builds for ten minutes without printing a line used to send
+    /// no bytes at all for those ten minutes, the worker reading the stream was killed with it, and
+    /// the log window froze at whatever percentage it had reached - looking exactly like a hung run
+    /// while the build went on perfectly well underneath.
+    /// </para>
+    /// </summary>
+    private static readonly TimeSpan KeepAlive = TimeSpan.FromSeconds(10);
+
     private static async Task StreamEventsAsync(HttpContext context, RunRegistry runs, string id)
     {
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
         context.Response.Headers["X-Accel-Buffering"] = "no";
 
-        await foreach (var e in runs.Subscribe(id, context.RequestAborted))
+        await using var events = runs.Subscribe(id, context.RequestAborted)
+            .GetAsyncEnumerator(context.RequestAborted);
+
+        while (true)
         {
-            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(e, Json)}\n\n",
-                context.RequestAborted);
-            await context.Response.Body.FlushAsync(context.RequestAborted);
+            var next = events.MoveNextAsync().AsTask();
+
+            // Only while there is nothing waiting: a restore printing thousands of lines a second
+            // must not leave a timer behind for every one of them.
+            while (!next.IsCompleted)
+            {
+                using var tick = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+                var first = await Task.WhenAny(next, Task.Delay(KeepAlive, tick.Token));
+
+                // Whichever won, the timer is done with.
+                await tick.CancelAsync();
+                if (first == next) break;
+
+                // A comment frame: every SSE reader is required to ignore it, and it is enough
+                // traffic to keep the connection - and whatever reads it - alive through a quiet
+                // build.
+                await Send(context, ": keepalive\n\n");
+            }
+
+            if (!await next) return;
+            await Send(context, $"data: {JsonSerializer.Serialize(events.Current, Json)}\n\n");
         }
+    }
+
+    private static async Task Send(HttpContext context, string frame)
+    {
+        await context.Response.WriteAsync(frame, context.RequestAborted);
+        await context.Response.Body.FlushAsync(context.RequestAborted);
     }
 
     /// <summary>So the dashboard page can show where it is listening.</summary>

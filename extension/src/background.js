@@ -113,10 +113,21 @@ async function supplyInputs(runId, values) {
   return api.supplyInputs(runId, values ?? {}, { port });
 }
 
-/** The run as the daemon sees it, for a window that is waiting for something to finish. */
+/**
+ * The run as the daemon sees it, for a window that is waiting for something to finish.
+ *
+ * Also where a lost stream is picked up again: this worker keeps who-is-watching-what in memory, so
+ * a restart forgets every run it was following. Anyone asking about a run that is still going and
+ * has nobody on it gets a watcher attached again, which is enough to heal the common case - the log
+ * window asks, and its own log starts moving again.
+ */
 async function runState(runId) {
   const { port } = await api.settings();
-  return { run: await api.state(runId, { port }) };
+  const run = await api.state(runId, { port });
+
+  if (run && !TERMINAL.includes(run.state) && !active.has(runId)) follow(runId, undefined, { port });
+
+  return { run };
 }
 
 async function stopRun(runId) {
@@ -245,15 +256,36 @@ async function confirmInWindow(run) {
   });
 }
 
-/** Relays the run's events to the tab that started it, so the button can show progress. */
+const TERMINAL = ['succeeded', 'failed', 'cancelled'];
+
+/**
+ * Relays the run's events to the tab that started it, so the button can show progress.
+ *
+ * Reconnecting, because a stream that ended is not the same thing as a run that ended. This worker
+ * is shut down after thirty seconds without traffic and everything reading the stream dies with it,
+ * which is how a log window came to sit frozen at 85% while the build underneath went on for ten
+ * more minutes. The daemon replays a run's history to a new subscriber, so nothing is lost.
+ */
 function follow(runId, tabId, connection) {
   const controller = new AbortController();
   active.set(runId, controller);
 
-  api
-    .streamEvents(runId, connection, (event) => notify(tabId, runId, event), controller.signal)
-    .catch(() => {})
-    .finally(() => active.delete(runId));
+  (async () => {
+    while (!controller.signal.aborted) {
+      await api
+        .streamEvents(runId, connection, (event) => notify(tabId, runId, event), controller.signal)
+        .catch(() => {});
+
+      if (controller.signal.aborted) break;
+
+      const run = await api.state(runId, connection).catch(() => null);
+      if (!run || TERMINAL.includes(run.state)) break;
+
+      await sleep(1000);
+    }
+
+    active.delete(runId);
+  })();
 }
 
 function notify(tabId, runId, event) {

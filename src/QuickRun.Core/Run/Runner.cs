@@ -3,6 +3,7 @@ using System.Text;
 using QuickRun.Core.Config;
 using QuickRun.Core.Process;
 using QuickRun.Core.Requires;
+using SysProcess = System.Diagnostics.Process;
 
 namespace QuickRun.Core.Run;
 
@@ -44,9 +45,20 @@ public sealed record RunOptions(
 /// Every string handed to the caller passes through <see cref="Emit"/>, which redacts secrets -
 /// that is the one invariant this class must not let anything bypass.
 /// </summary>
-public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null) : IAsyncDisposable
+/// <param name="heartbeat">
+/// How long a task may say nothing before the log reports on it. Injectable so a test need not
+/// wait half a minute for the thing it is testing.
+/// </param>
+public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null, TimeSpan? heartbeat = null)
+    : IAsyncDisposable
 {
     private const int MaxRestarts = 3;
+
+    /// <summary>How long a task may say nothing before the log asks whether it is still there.</summary>
+    private readonly TimeSpan _heartbeat = heartbeat ?? TimeSpan.FromSeconds(30);
+
+    /// <summary>A pre-flight courtesy gets this long and not a second more.</summary>
+    private static readonly TimeSpan PreflightBudget = TimeSpan.FromSeconds(2);
 
     private readonly CancellationTokenSource _stop = new();
     private readonly ConcurrentDictionary<string, StringBuilder> _logs = new();
@@ -219,11 +231,23 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
                 if (wantsWindow) _ = Foreground.RaiseAsync(pid, watcher.Token);
             });
 
+            // A task that runs and says nothing looks exactly like a task that has died, and that
+            // ambiguity is how "it sat at 85% for ever and did nothing" stayed unexplainable. So it
+            // no longer stays quiet: while there is no output, the log says whether the process is
+            // still there, which tells the two apart without anyone having to open a task manager.
+            var lastOutput = DateTimeOffset.UtcNow.Ticks;
+            using var quiet = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var beating = HeartbeatAsync(task, () => Interlocked.Read(ref lastOutput), quiet.Token);
+
             var code = await CommandRunner.StreamAsync(spec, (line, isError) =>
             {
+                Interlocked.Exchange(ref lastOutput, DateTimeOffset.UtcNow.Ticks);
                 lock (log) log.AppendLine(line);
                 Emit(isError ? RunEventKind.Error : RunEventKind.Output, task.Name, line);
             }, ct, raiseWindow, _group);
+
+            await quiet.CancelAsync();
+            await beating;
 
             Emit(RunEventKind.TaskExited, task.Name, $"exited with code {code}");
             SettleTask(task.Name, $"{task.Name} exited with code {code}");
@@ -253,6 +277,54 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
     }
 
     /// <summary>
+    /// Reports a silent task, and whether its process still exists.
+    /// <para>
+    /// A long build prints nothing for minutes; so does a task whose process never started at all.
+    /// Without this the log ends mid-run in both cases and there is nothing to tell them apart.
+    /// </para>
+    /// </summary>
+    private async Task HeartbeatAsync(TaskDef task, Func<long> lastOutput, CancellationToken ct)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(_heartbeat);
+
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                var silence = DateTimeOffset.UtcNow - new DateTimeOffset(lastOutput(), TimeSpan.Zero);
+                if (silence < _heartbeat) continue;
+
+                var pid = _pids.TryGetValue(task.Name, out var id) ? id : (int?)null;
+
+                var process = pid is null
+                    ? "no process yet - it has not started"
+                    : Alive(pid.Value) switch
+                    {
+                        true => $"pid {pid} is alive",
+                        false => $"pid {pid} is gone",
+                        null => $"pid {pid}, cannot tell",
+                    };
+
+                Emit(RunEventKind.Info, task.Name,
+                    $"quiet for {silence.TotalSeconds:0}s: {process}"
+                    + (task.ReadyWhen is null ? "" : $", waiting for {Describe(task.ReadyWhen)}"));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // the task finished, which is the normal way out of here
+        }
+    }
+
+    /// <summary>Whether a pid is still running. Null when the question cannot be answered.</summary>
+    private static bool? Alive(int pid)
+    {
+        try { using var process = SysProcess.GetProcessById(pid); return !process.HasExited; }
+        catch (ArgumentException) { return false; }
+        catch { return null; }
+    }
+
+    /// <summary>
     /// Says so when the address a task waits for is already answering before the task starts.
     /// Readiness cannot tell two servers apart, so this is the only chance to notice.
     /// </summary>
@@ -263,12 +335,17 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null)
 
         try
         {
-            var taken = readyWhen switch
+            // On a budget, because this runs before the task starts: a probe that takes its time -
+            // a proxy that swallows loopback, a name that does not resolve - would delay the very
+            // thing it is trying to warn about, and a courtesy must never be able to do that.
+            var probe = readyWhen switch
             {
-                { Port: { } port } => await Readiness.PortOpenAsync(port),
-                { Http: { } url } => await Readiness.HttpAnsweringAsync(Interpolator.Expand(url, options.Context)),
-                _ => false,
+                { Port: { } port } => Readiness.PortOpenAsync(port),
+                { Http: { } url } => Readiness.HttpAnsweringAsync(Interpolator.Expand(url, options.Context)),
+                _ => Task.FromResult(false),
             };
+
+            var taken = await probe.WaitAsync(PreflightBudget, ct);
 
             if (!taken) return;
 

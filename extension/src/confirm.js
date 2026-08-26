@@ -83,6 +83,7 @@ function attach(current) {
   if (alive) {
     setState(current.state === 'stopping' ? 'Stopping' : 'Running', 'running',
       { busy: current.state === 'stopping' });
+    keepWatching();
   } else {
     conclude(current.state === 'succeeded' ? 'finished'
       : current.state === 'failed' ? 'failed' : 'cancelled');
@@ -265,6 +266,51 @@ stop.addEventListener('click', async () => {
 
 const TERMINAL = ['succeeded', 'failed', 'cancelled'];
 
+/**
+ * Asks the daemon how the run is doing, for as long as it is going.
+ *
+ * The event stream is the fast path, never the source of truth: it can be cut - the extension's
+ * service worker is shut down when nothing is flowing through it, which a quiet ten-minute build
+ * does reliably - and a window that only listened would then sit on the last percentage it heard
+ * for ever. Asking is also what wakes the worker, which reconnects the stream.
+ */
+let watching = null;
+
+function keepWatching() {
+  if (watching !== null) return;
+
+  watching = setInterval(async () => {
+    if (finished) { clearInterval(watching); watching = null; return; }
+
+    const answer = await chrome.runtime.sendMessage({ type: 'runState', runId: run.id })
+      .catch(() => null);
+    const current = answer?.run;
+    if (!current) return;
+
+    // The bar comes from the daemon's own idea of the run, so a window that missed events while it
+    // was not being told anything catches up rather than staying behind.
+    if (current.progress) {
+      document.getElementById('fill').style.width = `${current.progress.percent}%`;
+      document.getElementById('percent').textContent = `${current.progress.percent}%`;
+      document.getElementById('phase').textContent = current.progress.detail || current.progress.phase;
+    }
+
+    for (const task of current.tasks ?? []) {
+      tasks.set(task.name, { state: task.state, url: task.url ?? null, pid: task.pid ?? null });
+    }
+    renderTasks();
+
+    if (current.url) showAddress(current.url);
+
+    if (TERMINAL.includes(current.state) && (current.leftovers ?? 0) === 0) {
+      clearInterval(watching);
+      watching = null;
+      conclude(current.state === 'succeeded' ? 'finished'
+        : current.state === 'failed' ? 'failed' : 'cancelled');
+    }
+  }, 5000);
+}
+
 async function watchUntilDone() {
   const giveUpAt = Date.now() + 60_000;
 
@@ -318,6 +364,7 @@ async function decide(approved) {
   cancel.hidden = true;
   stop.hidden = false;
   setState('Running', 'running');
+  keepWatching();
 }
 
 /**

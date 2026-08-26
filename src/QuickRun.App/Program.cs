@@ -82,6 +82,12 @@ internal static class Program
                 .WithDescription("Handle a quickrun:// URL. Invoked by the operating system.");
 
 
+            config.AddCommand<DoctorCommand>("doctor")
+                .WithDescription("Check that this installation works: listener, extension contract, "
+                                 + "workspace, tray icon, window.")
+                .WithExample("doctor")
+                .WithExample("doctor", "--no-ui");
+
             config.AddCommand<UpdateCommand>("update")
                 .WithDescription("Check for a newer QuickRun and install it when QuickRun owns the binary.")
                 .WithExample("update")

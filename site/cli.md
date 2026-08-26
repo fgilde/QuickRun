@@ -90,6 +90,25 @@ guess, so no selector is a usage error.
 quickrun daemon              # listen on 127.0.0.1:9876
 ```
 
+## `quickrun doctor`
+
+```bash
+quickrun doctor              # check that this installation works, here
+quickrun doctor --no-ui      # skip the window and tray checks, for a machine with no screen
+```
+
+Every check stands for something that actually broke once. It starts a listener of its own on a free
+port and asks it the questions the browser extension asks - including the two that are a security
+boundary: a request to start a run from an ordinary page must be refused, and one from an extension
+must not be. Then it creates a window and a tray icon for real, because showing a window is what
+loads the executable's icon, and a malformed icon there is fatal inside the UI framework rather than
+catchable.
+
+It also reports what it cannot fix by itself: no `git` on the `PATH`, a workspace directory that
+cannot be written, a `quickrun://` registration pointing at an executable that is no longer there,
+no daemon listening where the extension looks for one. A failing check exits non-zero; a warning -
+autostart, the URL scheme - does not, because those are conveniences and not requirements.
+
 ## `quickrun update`
 
 ```bash

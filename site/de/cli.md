@@ -92,6 +92,26 @@ Vermutung — deshalb ist „kein Selektor" ein Benutzungsfehler.
 quickrun daemon              # lauscht auf 127.0.0.1:9876
 ```
 
+## `quickrun doctor`
+
+```bash
+quickrun doctor              # prüft, ob diese Installation hier funktioniert
+quickrun doctor --no-ui      # ohne Fenster- und Tray-Prüfung, für Maschinen ohne Bildschirm
+```
+
+Jede Prüfung steht für etwas, das einmal wirklich kaputt war. Der Befehl startet einen eigenen
+Listener auf einem freien Port und stellt ihm die Fragen, die die Browser-Erweiterung stellt —
+darunter die zwei, die eine Sicherheitsgrenze sind: eine Run-Anfrage von einer normalen Seite muss
+abgelehnt werden, eine aus einer Erweiterung nicht. Danach werden ein Fenster und ein Tray-Icon
+tatsächlich erzeugt, denn das Anzeigen eines Fensters lädt das Icon der Programmdatei — und ein
+kaputtes Icon ist dort im UI-Framework tödlich und nicht abfangbar.
+
+Er nennt auch, was er selbst nicht richten kann: kein `git` im `PATH`, ein Workspace-Verzeichnis,
+in das nicht geschrieben werden kann, eine `quickrun://`-Registrierung, die auf eine Programmdatei
+zeigt, die es nicht mehr gibt, kein Daemon dort, wo die Erweiterung ihn sucht. Eine fehlgeschlagene
+Prüfung beendet den Befehl mit einem Fehlercode; eine Warnung — Autostart, das URL-Schema — nicht,
+denn das sind Annehmlichkeiten und keine Voraussetzungen.
+
 ## `quickrun update`
 
 ```bash

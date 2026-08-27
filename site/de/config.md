@@ -93,6 +93,12 @@ Eine Voraussetzung wird geprüft, bevor irgendetwas läuft. Was fehlt und instal
 |---|---|
 | `dotnet` | Microsofts `dotnet-install`-Script, im Channel, den deine `version` bedeutet (`>=10` heißt 10.0) |
 | `node` | der neueste Build auf nodejs.org, den deine `version` akzeptiert |
+| `pnpm`, `yarn` | npm — das mit dem Node oben mitkommt, wenn die Maschine keinen hat |
+| `pwsh` | das PowerShell-Paket auf NuGet, installiert als .NET-Tool |
+
+Ein Tool, das ein anderes braucht, bringt es mit: `pnpm` installiert auf einer Maschine ohne Node
+erst Node, `pwsh` installiert eine .NET-Runtime zum Laufen. Beides landet mit allem anderen unter
+`~/.quickrun/tools`.
 
 Alles andere wird geprüft und gemeldet, mit deiner `install`-Zeile, falls du eine angegeben hast.
 Das Bestätigungsfenster listet vor der Zustimmung auf, was installiert würde; die CLI schreibt es

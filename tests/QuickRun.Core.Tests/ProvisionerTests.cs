@@ -19,7 +19,11 @@ public class ProvisionerTests
     [InlineData("dotnet", true)]
     [InlineData("DotNet", true)]
     [InlineData("node", true)]
+    [InlineData("pnpm", true)]
+    [InlineData("yarn", true)]
+    [InlineData("pwsh", true)]
     [InlineData("python", false)]
+    // Docker needs a service and administrator rights: nothing that can be put in a folder.
     [InlineData("docker", false)]
     public void It_only_claims_the_tools_it_can_actually_install(string tool, bool handled)
     {
@@ -80,5 +84,44 @@ public class ProvisionerTests
     public void A_tool_it_cannot_install_stays_the_users_problem()
     {
         Assert.Null(Provisioner.PlanFor(Missing("docker", null), "tools"));
+    }
+
+    /// <summary>
+    /// A .NET tool is a launcher that finds its runtime through DOTNET_ROOT, never through the
+    /// PATH. PowerShell installed next to a .NET only QuickRun knows about started and immediately
+    /// said it could not find a runtime, which is what this pins down.
+    /// </summary>
+    [Fact]
+    public void A_dotnet_provisioned_here_is_named_as_the_runtime_root()
+    {
+        using var home = new TempDir();
+        var dotnet = Directory.CreateDirectory(Path.Combine(home.Path, "dotnet")).FullName;
+        File.WriteAllText(Path.Combine(dotnet, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"), "");
+
+        var environment = Provisioner.EnvironmentFor([dotnet], "/usr/bin");
+
+        Assert.Equal(dotnet, environment["DOTNET_ROOT"]);
+        Assert.StartsWith(dotnet, environment["PATH"]);
+        Assert.EndsWith("/usr/bin", environment["PATH"]);
+    }
+
+    /// <summary>Nothing to be root of, so nothing is claimed.</summary>
+    [Fact]
+    public void Without_a_provisioned_dotnet_nothing_claims_to_be_one()
+    {
+        using var home = new TempDir();
+
+        Assert.DoesNotContain("DOTNET_ROOT", Provisioner.EnvironmentFor([home.Path], "/usr/bin").Keys);
+    }
+
+    private sealed class TempDir : IDisposable
+    {
+        public string Path { get; } =
+            Directory.CreateTempSubdirectory("quickrun-provision-").FullName;
+
+        public void Dispose()
+        {
+            try { Directory.Delete(Path, recursive: true); } catch (IOException) { }
+        }
     }
 }

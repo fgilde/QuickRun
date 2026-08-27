@@ -192,14 +192,16 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
             {
                 ReportProgress(RunPhase.Setup, 0, $"installing {check.Requirement.Tool}");
 
-                var directory = await Provisioner
-                    .EnsureAsync(check.Requirement, root,
+                // What has been installed already goes along: pnpm is installed by npm, and a Node
+                // provisioned a moment ago is not on the machine's PATH.
+                var directories = await Provisioner
+                    .EnsureAsync(check.Requirement, root, _toolPaths.ToList(),
                         line => Emit(RunEventKind.Info, "requires", line), ct)
                     .ConfigureAwait(false);
 
-                if (directory is not null)
+                if (directories is not null)
                 {
-                    _toolPaths.Add(directory);
+                    foreach (var directory in directories) _toolPaths.Add(directory);
                     continue;
                 }
             }
@@ -614,9 +616,10 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
         if (!_toolPaths.IsEmpty)
         {
             var inherited = merged.GetValueOrDefault("PATH")
-                            ?? Environment.GetEnvironmentVariable("PATH") ?? "";
+                            ?? Environment.GetEnvironmentVariable("PATH");
 
-            merged["PATH"] = string.Join(Path.PathSeparator, _toolPaths.Append(inherited));
+            foreach (var kv in Provisioner.EnvironmentFor(_toolPaths.ToList(), inherited))
+                merged[kv.Key] = kv.Value;
         }
 
         return merged;

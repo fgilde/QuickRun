@@ -1,3 +1,4 @@
+using System.Text;
 using QuickRun.Core.Process;
 
 namespace QuickRun.Core.Tests;
@@ -83,5 +84,40 @@ public class CommandRunnerTests
 
         var code = await run.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.NotEqual(0, code);
+    }
+
+    /// <summary>
+    /// Output written in UTF-8 arrives as text.
+    /// <para>
+    /// On Windows a redirected stream used to be read in the console's code page, so "LX Family
+    /// läuft" reached the log as "LX Family lÃ¤uft" - every non-ASCII line of every Node, git or
+    /// .NET application that writes UTF-8, which is all of them.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Utf8_output_is_not_mangled()
+    {
+        var directory = Directory.CreateTempSubdirectory("quickrun-utf8-");
+        await File.WriteAllTextAsync(Path.Combine(directory.FullName, "note.txt"),
+            "LX Family läuft auf Straße", new UTF8Encoding(false));
+
+        try
+        {
+            var lines = new List<string>();
+
+            // Read from the working directory by name: a quoted path inside a cmd.exe command line
+            // is a different fight, and not the one being had here.
+            var command = OperatingSystem.IsWindows() ? "type note.txt" : "cat note.txt";
+
+            await CommandRunner.StreamAsync(
+                new ProcessSpec(command, directory.FullName, new Dictionary<string, string>()),
+                (line, _) => lines.Add(line), CancellationToken.None);
+
+            Assert.Contains("LX Family läuft auf Straße", string.Join(Environment.NewLine, lines));
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
     }
 }

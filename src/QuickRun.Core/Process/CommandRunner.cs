@@ -171,11 +171,44 @@ public static class CommandRunner
         {
             var read = await reader.ReadAsync(buffer, 0, buffer.Length);
             if (read == 0) break;
-            splitter.Push(new string(buffer, 0, read), onLine);
+            splitter.Push(new string(buffer, 0, read), line => onLine(Decode(line)));
         }
 
-        splitter.Flush(onLine);
+        splitter.Flush(line => onLine(Decode(line)));
     }
+
+    /// <summary>
+    /// A line of console output, as text.
+    /// <para>
+    /// On Windows the two encodings in play disagree: node, git and the .NET tools write UTF-8,
+    /// while a redirected stream is read in the console's own code page, which turned "LX Family
+    /// läuft" into "LX Family lÃ¤uft" in the log. The streams are therefore read as Latin-1, which
+    /// maps every byte to exactly one character and so loses nothing, and each line is decoded here:
+    /// UTF-8 when the bytes are valid UTF-8, and left alone when they are not - so a message from
+    /// cmd.exe in the machine's own code page still reads correctly.
+    /// </para>
+    /// </summary>
+    private static string Decode(string line)
+    {
+        if (!OperatingSystem.IsWindows() || Ascii.IsValid(line)) return line;
+
+        try
+        {
+            return Strict.GetString(Encoding.Latin1.GetBytes(line));
+        }
+        catch (DecoderFallbackException)
+        {
+            // Not UTF-8. That leaves the console's own code page, which .NET cannot produce without
+            // the code-page provider package, so the bytes are left as they are: a line from a
+            // localised cmd.exe still looks the way it always did, rather than becoming a row of
+            // replacement characters.
+            return line;
+        }
+    }
+
+    private static readonly UTF8Encoding Strict = new(encoderShouldEmitUTF8Identifier: false,
+        throwOnInvalidBytes: true);
+
 
     private static ProcessStartInfo Info(string file, IEnumerable<string> args, string? cwd,
         IReadOnlyDictionary<string, string>? env)
@@ -188,6 +221,14 @@ public static class CommandRunner
             CreateNoWindow = true,
             WorkingDirectory = cwd ?? Environment.CurrentDirectory,
         };
+
+        // Byte-preserving on Windows, so Decode above can tell UTF-8 from the console code page
+        // rather than being handed characters that were already guessed at.
+        if (OperatingSystem.IsWindows())
+        {
+            psi.StandardOutputEncoding = Encoding.Latin1;
+            psi.StandardErrorEncoding = Encoding.Latin1;
+        }
 
         foreach (var a in args) psi.ArgumentList.Add(a);
 

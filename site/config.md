@@ -93,6 +93,11 @@ A requirement is checked before anything runs. What is missing and can be instal
 |---|---|
 | `dotnet` | Microsoft's `dotnet-install` script, at the channel your `version` implies (`>=10` means 10.0) |
 | `node` | the newest build on nodejs.org that your `version` accepts |
+| `pnpm`, `yarn` | npm - which arrives with the Node above when the machine has none |
+| `pwsh` | the PowerShell package on NuGet, installed as a .NET tool |
+
+A tool that needs another one brings it: `pnpm` on a machine without Node installs Node first, and
+`pwsh` installs a .NET runtime to run on. Both stay inside `~/.quickrun/tools` with everything else.
 
 Anything else is checked and reported, with your `install` line if you gave one. The confirmation
 window lists what would be installed before you approve it, and the CLI prints it before it asks.

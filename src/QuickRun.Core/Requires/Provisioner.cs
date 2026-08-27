@@ -26,18 +26,47 @@ public sealed record ProvisionPlan(string Tool, string Version, string Directory
 /// distribution and no other host; without administrator rights; and without touching a version the
 /// machine already has. Nothing here is put on the machine's PATH - the directory is prepended to
 /// the PATH of the run's own processes and nowhere else, so a provisioned toolchain disappears
-/// completely when the workspace is deleted.
+/// completely when that folder is deleted.
+/// </para>
+/// <para>
+/// Some of these need each other: pnpm is installed by npm, and pwsh by the .NET CLI. A missing
+/// helper is provisioned first, into the same folder, so "install pnpm" works on a machine with no
+/// Node at all.
 /// </para>
 /// </summary>
 public static class Provisioner
 {
-    /// <summary>The only hosts anything is downloaded from.</summary>
+    /// <summary>The only hosts this downloads from itself.</summary>
     private static readonly string[] TrustedHosts =
         ["dot.net", "dotnet.microsoft.com", "builds.dotnet.microsoft.com", "nodejs.org"];
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(10) };
 
-    public static bool Handles(string tool) => Name(tool) is "dotnet" or "node";
+    /// <summary>What each tool comes from, in the words the plan shows before anyone approves it.</summary>
+    private static readonly IReadOnlyDictionary<string, string> Sources =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["dotnet"] = "Microsoft's dotnet-install script",
+            ["node"] = "nodejs.org",
+            ["pnpm"] = "npm",
+            ["yarn"] = "npm",
+            ["pwsh"] = "the PowerShell package on NuGet, as a .NET tool",
+        };
+
+    /// <summary>
+    /// What each of these needs to work at all. pnpm is a script that starts Node; PowerShell as a
+    /// .NET tool is a launcher that needs a .NET runtime. Installing one without the other produces
+    /// a tool that reports its version and then fails at the first real command.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string[]> Needs =
+        new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pnpm"] = ["node"],
+            ["yarn"] = ["node"],
+            ["pwsh"] = ["dotnet"],
+        };
+
+    public static bool Handles(string tool) => Sources.ContainsKey(Name(tool));
 
     private static string Name(string tool) => (tool ?? "").Trim().ToLowerInvariant();
 
@@ -56,8 +85,7 @@ public static class Provisioner
             ? tool == "dotnet" ? "LTS" : "latest"
             : check.Requirement.Version!;
 
-        return new ProvisionPlan(tool, wanted, Directory(toolRoot, tool),
-            tool == "dotnet" ? "Microsoft's dotnet-install script" : "nodejs.org");
+        return new ProvisionPlan(tool, wanted, Directory(toolRoot, tool), Sources[tool]);
     }
 
     /// <summary>
@@ -65,28 +93,59 @@ public static class Provisioner
     /// put in front of the run's PATH. Null means it could not be provided - the caller reports
     /// that as the blocked requirement it is, rather than starting a run that cannot work.
     /// </summary>
-    public static async Task<string?> EnsureAsync(
-        ToolRequirement requirement, string toolRoot, Action<string> log, CancellationToken ct)
+    /// <param name="pathAhead">
+    /// Directories of tools provisioned earlier in this run. A toolchain installed a moment ago is
+    /// not on the machine's PATH, and pnpm cannot be installed by a Node that cannot be found.
+    /// </param>
+    public static async Task<IReadOnlyList<string>?> EnsureAsync(
+        ToolRequirement requirement, string toolRoot, IReadOnlyList<string> pathAhead,
+        Action<string> log, CancellationToken ct)
     {
         var tool = Name(requirement.Tool);
         if (!Handles(tool)) return null;
 
         var directory = Directory(toolRoot, tool);
 
+        // Grows while this runs: installing pnpm may install Node first, and the check afterwards
+        // has to be able to find that Node - pnpm's shim is a script that starts it.
+        var context = pathAhead.ToList();
+
         // Installed by an earlier run and still good enough: nothing to download.
-        if (Installed(directory, tool) is { } already
+        foreach (var need in Needs.GetValueOrDefault(tool, []))
+        {
+            if (OnPath(need, context)) continue;
+
+            var provisioned = BinDirectory(Directory(toolRoot, need), need);
+            if (System.IO.Directory.Exists(provisioned)) context.Add(provisioned);
+        }
+
+        if (Installed(directory, tool, context) is { } already
             && VersionCheck.Satisfies(already, requirement.Version))
         {
             log($"{tool} {already} is already in {directory}");
-            return BinDirectory(directory, tool);
+            return Needed(directory, tool, context, pathAhead);
         }
 
         System.IO.Directory.CreateDirectory(directory);
 
-        if (tool == "dotnet") await InstallDotnetAsync(requirement, directory, log, ct);
-        else await InstallNodeAsync(requirement, directory, log, ct);
+        switch (tool)
+        {
+            case "dotnet":
+                await InstallDotnetAsync(requirement, directory, log, ct);
+                break;
+            case "node":
+                await InstallNodeAsync(requirement, directory, log, ct);
+                break;
+            case "pnpm":
+            case "yarn":
+                await InstallNpmToolAsync(tool, requirement, directory, toolRoot, context, log, ct);
+                break;
+            case "pwsh":
+                await InstallPwshAsync(requirement, directory, toolRoot, context, log, ct);
+                break;
+        }
 
-        var version = Installed(directory, tool);
+        var version = Installed(directory, tool, context);
 
         if (version is null)
         {
@@ -101,8 +160,19 @@ public static class Provisioner
         }
 
         log($"{tool} {version} is ready in {directory}");
-        return BinDirectory(directory, tool);
+        return Needed(directory, tool, context, pathAhead);
     }
+
+    /// <summary>
+    /// Everything the run has to carry for this tool: its own folder, and any helper installed here
+    /// that the machine itself does not have. Handing back only the tool's folder was enough to make
+    /// pnpm report its version and then fail with "node is not recognised".
+    /// </summary>
+    private static IReadOnlyList<string> Needed(
+        string directory, string tool, IReadOnlyList<string> context, IReadOnlyList<string> pathAhead) =>
+        context.Where(path => !pathAhead.Contains(path, StringComparer.OrdinalIgnoreCase))
+            .Append(BinDirectory(directory, tool))
+            .ToList();
 
     // ---- dotnet ---------------------------------------------------------------------------
 
@@ -217,6 +287,210 @@ public static class Provisioner
         return null;
     }
 
+    // ---- pnpm and yarn --------------------------------------------------------------------
+
+    /// <summary>
+    /// Installs a package manager with the package manager everyone already has. `npm install
+    /// --global --prefix` is how npm puts an executable somewhere that is not the system: the shim
+    /// lands in the folder itself on Windows and in its <c>bin</c> on everything else.
+    /// </summary>
+    private static async Task InstallNpmToolAsync(
+        string tool, ToolRequirement requirement, string directory, string toolRoot,
+        List<string> path, Action<string> log, CancellationToken ct)
+    {
+        await AlsoAsync("node", toolRoot, path, log, ct);
+
+        if (!OnPath("npm", path))
+        {
+            log($"npm is needed to install {tool}, and is not there");
+            return;
+        }
+
+        // A range becomes a major: npm understands pnpm@9, not pnpm@">=9".
+        var wanted = VersionCheck.Extract(requirement.Version ?? "")?.Split('.')[0];
+        var package = wanted is null ? tool : $"{tool}@{wanted}";
+
+        log($"installing {package} into {directory} (this happens once)");
+
+        var result = Run("npm", ["install", "--global", "--prefix", directory, package], path,
+            timeoutMs: 10 * 60 * 1000);
+
+        foreach (var line in Tail(result.Output)) log(line);
+        if (result.ExitCode != 0) log($"npm exited with code {result.ExitCode}");
+    }
+
+    // ---- pwsh -----------------------------------------------------------------------------
+
+    /// <summary>
+    /// Installs PowerShell as a .NET tool, which is Microsoft's own per-user route: no installer,
+    /// no administrator, no change to the machine's PATH. A build step calling <c>pwsh</c> then
+    /// finds it, which is the whole point - a repository whose build shells out to PowerShell
+    /// should not be a dead end on a machine that only has Windows PowerShell.
+    /// </summary>
+    private static async Task InstallPwshAsync(
+        ToolRequirement requirement, string directory, string toolRoot,
+        List<string> path, Action<string> log, CancellationToken ct)
+    {
+        await AlsoAsync("dotnet", toolRoot, path, log, ct);
+
+        if (!OnPath("dotnet", path))
+        {
+            log("the .NET CLI is needed to install PowerShell, and is not there");
+            return;
+        }
+
+        var version = VersionCheck.Extract(requirement.Version ?? "");
+        var pinned = version is not null && version.Split('.').Length >= 3
+            ? new[] { "--version", version }
+            : [];
+
+        log($"installing PowerShell into {directory} (this happens once)");
+
+        var result = Run("dotnet",
+            ["tool", "install", "--tool-path", directory, "PowerShell", .. pinned],
+            path, timeoutMs: 10 * 60 * 1000);
+
+        foreach (var line in Tail(result.Output)) log(line);
+        if (result.ExitCode != 0) log($"the .NET CLI exited with code {result.ExitCode}");
+    }
+
+    // ---- shared ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Makes sure the tool this installation needs is among these paths, installing it if the
+    /// machine does not have it. A helper the machine already has costs nothing here.
+    /// </summary>
+    private static async Task AlsoAsync(
+        string dependency, string toolRoot, List<string> path, Action<string> log, CancellationToken ct)
+    {
+        if (OnPath(dependency, path)) return;
+
+        log($"{dependency} is needed for this and is missing too");
+
+        var directories = await EnsureAsync(
+            new ToolRequirement(dependency, null, null, Optional: false), toolRoot, path, log, ct);
+
+        if (directories is not null) path.AddRange(directories);
+    }
+
+    /// <summary>Whether a tool can be started with these directories in front of the PATH.</summary>
+    private static bool OnPath(string tool, IReadOnlyList<string> pathAhead) =>
+        Locate(tool, pathAhead) is not null
+        && Run(tool, ToolChecker.ProbeArgs(tool), pathAhead, timeoutMs: 30_000).ExitCode == 0;
+
+    /// <summary>
+    /// Runs one of these tools with the given directories in front of the PATH.
+    /// <para>
+    /// Every argument is passed as an argument rather than pasted into a command line: the paths
+    /// here carry spaces, and quoting them by hand for cmd.exe is how two attempts at this ended up
+    /// handing the quotes themselves to the installer. Only a .cmd shim - which npm, pnpm and yarn
+    /// are on Windows - goes through cmd.exe, because a process cannot be started from one.
+    /// </para>
+    /// </summary>
+    private static CommandResult Run(
+        string program, IReadOnlyList<string> args, IReadOnlyList<string> pathAhead, int timeoutMs)
+    {
+        var file = Locate(program, pathAhead) ?? program;
+        var env = PathEnv(pathAhead);
+
+        if (OperatingSystem.IsWindows()
+            && (file.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase)
+                || file.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
+            return CommandRunner.Capture("cmd.exe", new[] { "/c", file }.Concat(args),
+                cwd: null, env: env, timeoutMs: timeoutMs);
+
+        return CommandRunner.Capture(file, args, cwd: null, env: env, timeoutMs: timeoutMs);
+    }
+
+    /// <summary>The executable a tool name means, looked for in these directories and then the PATH.</summary>
+    private static string? Locate(string tool, IReadOnlyList<string> pathAhead)
+    {
+        var names = OperatingSystem.IsWindows()
+            ? new[] { $"{tool}.exe", $"{tool}.cmd", $"{tool}.bat" }
+            : new[] { tool };
+
+        var directories = pathAhead.Concat(
+            (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator));
+
+        foreach (var directory in directories)
+        {
+            if (string.IsNullOrWhiteSpace(directory)) continue;
+
+            foreach (var name in names)
+            {
+                var candidate = Path.Combine(directory.Trim(), name);
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<string, string>? PathEnv(IReadOnlyList<string> pathAhead) =>
+        pathAhead.Count == 0
+            ? null
+            : EnvironmentFor(pathAhead, Environment.GetEnvironmentVariable("PATH"));
+
+    /// <summary>
+    /// What these tool directories mean for an environment: they go in front of the PATH, and a
+    /// .NET installed here also becomes DOTNET_ROOT.
+    /// <para>
+    /// The second half is not decoration. A .NET tool - PowerShell is one - is a small launcher that
+    /// looks for its runtime through DOTNET_ROOT and the machine's registered install, and never
+    /// through the PATH. Without this, pwsh installed next to a .NET that only QuickRun knows about
+    /// starts and immediately reports that it cannot find a runtime.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> EnvironmentFor(
+        IReadOnlyList<string> paths, string? inheritedPath)
+    {
+        var environment = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["PATH"] = string.Join(Path.PathSeparator, paths.Append(inheritedPath ?? "")),
+        };
+
+        var dotnet = paths.FirstOrDefault(directory => File.Exists(Path.Combine(directory,
+            OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet")));
+
+        if (dotnet is not null) environment["DOTNET_ROOT"] = dotnet;
+
+        return environment;
+    }
+
+    private static string Directory(string toolRoot, string tool) => Path.Combine(toolRoot, tool);
+
+    /// <summary>Where the executables are, which is the directory that goes on the run's PATH.</summary>
+    private static string BinDirectory(string directory, string tool) =>
+        tool is "dotnet" or "pwsh" || OperatingSystem.IsWindows()
+            ? directory
+            : Path.Combine(directory, "bin");
+
+    /// <summary>
+    /// The version installed in QuickRun's own folder, or null if there is nothing there.
+    /// <para>
+    /// The file has to exist here first, and only then is it asked for its version through the
+    /// shell: probing by name alone would find the machine's own copy and report a failed install
+    /// as a success.
+    /// </para>
+    /// </summary>
+    private static string? Installed(string directory, string tool, IReadOnlyList<string> pathAhead)
+    {
+        var bin = BinDirectory(directory, tool);
+        var candidates = OperatingSystem.IsWindows()
+            ? new[] { $"{tool}.exe", $"{tool}.cmd", $"{tool}.bat", tool }
+            : new[] { tool };
+
+        if (!candidates.Any(name => File.Exists(Path.Combine(bin, name)))) return null;
+
+        // With everything provisioned so far behind it: pnpm's shim starts node, and a .NET tool
+        // needs the .NET that was just installed. Probing with only its own folder said "not
+        // installed" about tools that were installed perfectly well.
+        var probe = Run(tool, ToolChecker.ProbeArgs(tool),
+            new[] { bin }.Concat(pathAhead).ToList(), timeoutMs: 60_000);
+
+        return probe.ExitCode == 0 ? VersionCheck.Extract(probe.Output) : null;
+    }
+
     private static async Task ExtractTarGzAsync(string archive, string into, CancellationToken ct)
     {
         await using var file = File.OpenRead(archive);
@@ -236,26 +510,6 @@ public static class Provisioner
         File.Move(from, to, overwrite: true);
     }
 
-    // ---- shared ---------------------------------------------------------------------------
-
-    private static string Directory(string toolRoot, string tool) => Path.Combine(toolRoot, tool);
-
-    /// <summary>Where the executables are, which is the directory that goes on the run's PATH.</summary>
-    private static string BinDirectory(string directory, string tool) =>
-        tool == "node" && !OperatingSystem.IsWindows() ? Path.Combine(directory, "bin") : directory;
-
-    /// <summary>The version installed in QuickRun's own folder, or null if there is nothing there.</summary>
-    private static string? Installed(string directory, string tool)
-    {
-        var executable = Path.Combine(BinDirectory(directory, tool),
-            OperatingSystem.IsWindows() ? $"{tool}.exe" : tool);
-
-        if (!File.Exists(executable)) return null;
-
-        var probe = CommandRunner.Capture(executable, ToolChecker.ProbeArgs(tool), timeoutMs: 30_000);
-        return probe.ExitCode == 0 ? VersionCheck.Extract(probe.Output) : null;
-    }
-
     /// <summary>
     /// Downloads one file, from one of the hosts above and no other. The URL is built here rather
     /// than taken from a config, and this is what keeps it that way.
@@ -264,7 +518,8 @@ public static class Provisioner
     {
         var address = new Uri(url);
 
-        if (address.Scheme != Uri.UriSchemeHttps || !TrustedHosts.Contains(address.Host, StringComparer.OrdinalIgnoreCase))
+        if (address.Scheme != Uri.UriSchemeHttps
+            || !TrustedHosts.Contains(address.Host, StringComparer.OrdinalIgnoreCase))
             throw new InvalidOperationException($"{url} is not a tool distribution URL");
 
         await using var stream = await Http.GetStreamAsync(address, ct);

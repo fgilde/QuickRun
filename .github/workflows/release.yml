@@ -283,17 +283,38 @@ jobs:
           fi
 
           api="https://api.addons.microsoftedge.microsoft.com/v1/products/$PRODUCT_ID/submissions"
+          auth=(-H "Authorization: ApiKey $API_KEY" -H "X-ClientID: $CLIENT_ID")
 
-          curl -fsS -X POST "$api/draft/package" \
-            -H "Authorization: ApiKey $API_KEY" \
-            -H "X-ClientID: $CLIENT_ID" \
+          # The upload is asynchronous: it answers 202 with an operation id in a Location header,
+          # and the package is not part of the draft until that operation succeeds. Publishing
+          # immediately afterwards - which this used to do - races the store's own processing.
+          operation=$(curl -fsS -D - -o /dev/null -X POST "$api/draft/package" "${auth[@]}" \
             -H "Content-Type: application/zip" \
-            --data-binary "@dist/quickrun-extension-chromium.zip"
+            --data-binary "@dist/quickrun-extension-chromium.zip" \
+            | tr -d '\r' | sed -n 's/^[Ll]ocation: //p')
 
-          curl -fsS -X POST "$api" \
-            -H "Authorization: ApiKey $API_KEY" \
-            -H "X-ClientID: $CLIENT_ID" \
-            -H "Content-Length: 0"
+          if [ -z "$operation" ]; then
+            echo "::error::the Edge upload returned no operation to wait on"
+            exit 1
+          fi
+
+          # Five minutes is generous for a package this size, and finite - a stuck operation should
+          # fail the step rather than hold the release open.
+          for _ in $(seq 1 60); do
+            status=$(curl -fsS "$api/draft/package/operations/$operation" "${auth[@]}")
+            echo "$status"
+
+            case "$status" in
+              *'"status":"Succeeded"'*) break ;;
+              *'"status":"Failed"'*) echo "::error::Edge rejected the package"; exit 1 ;;
+            esac
+
+            sleep 5
+          done
+
+          curl -fsS -X POST "$api" "${auth[@]}" \
+            -H "Content-Type: application/json" \
+            -d "{\"notes\":\"QuickRun ${{ steps.version.outputs.value }}\"}"
 
   # wingetcreate is a Windows binary, so its submission is its own job.
   # Needs WINGET_TOKEN: a PAT with public_repo, used to fork microsoft/winget-pkgs and open the

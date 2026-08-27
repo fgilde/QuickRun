@@ -70,7 +70,10 @@ public static class SystemIntegration
         Try("add autostart entry", () =>
         {
             using var run = Registry.CurrentUser.CreateSubKey(RunKey);
-            run.SetValue("QuickRun", $"\"{executable}\" daemon --port {port}");
+            // ui, not daemon: a QuickRun with no tray icon is a QuickRun nobody can see, quit or
+            // get a window out of - and after a login that is the only one running. --no-window
+            // keeps it out of the way until the icon is clicked.
+            run.SetValue("QuickRun", $"\"{executable}\" ui --port {port} --no-window");
             return $@"HKCU\{RunKey}\QuickRun";
         });
 
@@ -187,7 +190,7 @@ public static class SystemIntegration
                 [Desktop Entry]
                 Type=Application
                 Name=QuickRun daemon
-                Exec={executable} daemon --port {port}
+                Exec={executable} ui --port {port} --no-window
                 Icon=quickrun
                 Terminal=false
                 X-GNOME-Autostart-enabled=true
@@ -343,9 +346,10 @@ public static class SystemIntegration
                   <key>ProgramArguments</key>
                   <array>
                     <string>{executable}</string>
-                    <string>daemon</string>
+                    <string>ui</string>
                     <string>--port</string>
                     <string>{port}</string>
+                    <string>--no-window</string>
                   </array>
                   <key>RunAtLoad</key>
                   <true/>

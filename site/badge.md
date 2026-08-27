@@ -27,12 +27,13 @@ German readers can be sent to `/de/run?repo=…`, which is the same page in Germ
 
 1. The badge is a normal link, so GitHub renders it and no one has to install anything to see it.
 2. The page it opens asks `http://127.0.0.1:9876/api/ping` whether QuickRun is on that machine.
-3. If it answers, the page offers **Open in QuickRun**, which follows `quickrun://run?repo=…`.
-4. QuickRun opens its own window with the plan for your repository — the commands, the ref, the
-   resolved commit. Nothing runs until the person confirms it there.
-5. If nothing answers the ping, the page shows the download instead — plus a **Try anyway** button,
-   because "installed but not running" looks exactly the same from a web page. Following the link
-   starts QuickRun when it is installed.
+3. If it answers, **Open in QuickRun** goes straight to QuickRun's own page on `127.0.0.1` - an
+   ordinary http address, so there is no URL scheme, no handler registration and no permission
+   dialog in the way.
+4. QuickRun shows the plan for your repository — the commands, the ref, the resolved commit.
+   Nothing runs until the person confirms it there.
+5. If nothing answers the ping, the button follows `quickrun://run?repo=…` instead, which starts
+   QuickRun when it is installed, and the download is offered next to it for when it is not.
 
 ## Why the badge does not link `quickrun://` directly
 

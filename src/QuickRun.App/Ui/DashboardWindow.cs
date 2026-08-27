@@ -42,6 +42,9 @@ public sealed class DashboardWindow : Window
     /// rebuilt lists nobody could see, on the thread the WebView needs to answer the mouse.
     /// </summary>
     private bool _native;
+
+    /// <summary>The hosted view, when there is one, so a link can be shown in this window.</summary>
+    private Control? _browser;
     private readonly StackPanel _workspaceList = Rows();
     private readonly TextBlock _updateState = Muted("checking…");
     private readonly DispatcherTimer _timer;
@@ -86,6 +89,18 @@ public sealed class DashboardWindow : Window
     /// system WebView - Linux without WebKitGTK, a macOS build, an opt-out, a WebView that fails to
     /// start - the native view appears instead, with the same data from the same registry.
     /// </summary>
+    /// <summary>
+    /// Shows something specific in this window - a repository a link named, as the dashboard's own
+    /// page understands it. Where the window draws the native view instead, there is nothing to
+    /// navigate, and being raised is all that happens.
+    /// </summary>
+    public void GoTo(string hash)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        if (_browser is WebView2Host hosted)
+            hosted.Navigate($"{_listenerUrl}/?shell=window{hash}");
+    }
+
     private Control BuildLayout()
     {
         var shell = new ContentControl();
@@ -106,6 +121,7 @@ public sealed class DashboardWindow : Window
 
         // The page has its own header with the same logo and version in it. Two of them, one above
         // the other, is what made the window look wrong.
+        _browser = browser;
         _native = browser is null;
         _header.IsVisible = _native;
         shell.Content = _native ? NativeLayout() : browser;

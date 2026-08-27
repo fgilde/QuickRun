@@ -95,6 +95,15 @@ internal sealed class WebView2Host : NativeControlHost
     private Window? _window;
     private nint _child;
 
+    /// <summary>
+    /// Points the view at another address. Used when a link arrives for a window that is already
+    /// open: the window is raised and shown the repository, rather than a second one appearing.
+    /// </summary>
+    public void Navigate(string url)
+    {
+        Dispatcher.UIThread.Post(() => _controller?.CoreWebView2.Navigate(url));
+    }
+
     public WebView2Host(string url, Action<string> onFailure, uint background)
     {
         _url = url;

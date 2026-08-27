@@ -16,12 +16,26 @@ const pressed = ref(false);
 
 const DEFAULT_PORT = 9876;
 
-const target = computed(() => {
-  const carried = new URLSearchParams({ repo: repo.value });
-  if (reference.value) carried.set('ref', reference.value);
-  if (pr.value) carried.set('pr', pr.value);
-  return `quickrun://run?${carried}`;
+const carried = computed(() => {
+  const query = new URLSearchParams({ repo: repo.value });
+  if (reference.value) query.set('ref', reference.value);
+  if (pr.value) query.set('pr', pr.value);
+  return query.toString();
 });
+
+/**
+ * Where the Run button goes.
+ *
+ * QuickRun answering means its own page is right there, so that is where this goes: a plain http
+ * address that every browser opens, with no URL scheme, no handler registration and no permission
+ * dialog in the way. quickrun:// is only for the other case - nothing answered, so there is a
+ * daemon to start before there is a page to open - and it is exactly the case where a browser
+ * silently ignores the click when the scheme has no handler, which is why it is not the first
+ * choice any more.
+ */
+const target = computed(() => (running.value
+  ? `http://127.0.0.1:${DEFAULT_PORT}/#run?${carried.value}`
+  : `quickrun://run?${carried.value}`));
 
 /** The snippet a repository owner pastes, for whatever is in the fields above. */
 const snippet = computed(() => {
@@ -113,7 +127,12 @@ async function isRunning() {
 
 function open() {
   pressed.value = true;
-  location.href = target.value;
+
+  // A new tab when QuickRun answered, because that is an ordinary page and this one should stay
+  // where it is; the same tab for quickrun://, where a blank tab would be all that is left if no
+  // handler picks it up.
+  if (running.value) window.open(target.value, '_blank', 'noopener');
+  else location.href = target.value;
 }
 
 const copyLabel = ref('');

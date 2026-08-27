@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Microsoft.AspNetCore.Http;
 using QuickRun.Core.Git;
 using QuickRun.App.Daemon;
 using Spectre.Console.Cli;
@@ -87,63 +88,44 @@ public sealed class HandleCommand : AsyncCommand<HandleCommand.Settings>
         }
 
         // A repository named in the URL - quickrun://run?repo=owner/name - is how a README badge
-        // reaches this machine. It is carried to the local window, which prepares the plan and asks
-        // for confirmation there. Nothing about a link may start anything: the page that produced
-        // it is untrusted, and the window that asks is not.
+        // reaches this machine. It is carried to the window, which prepares the plan and asks for
+        // confirmation there. Nothing about a link may start anything: the page that produced it is
+        // untrusted, and the window that asks is not.
         var target = RunTarget.From(url);
 
-        if (await Reachable(settings.Port, cancellationToken))
+        // This process is not QuickRun. It was started by the operating system for one link, it has
+        // no tray icon and no window, and if it became the daemon there would be a QuickRun running
+        // that nobody can see or quit - which is exactly what it used to do.
+        if (!await SingleInstance.RunningAsync(settings.Port, cancellationToken))
         {
-            // Already running, so this process has nothing to host - it only points the window at
-            // the repository and gets out of the way.
-            if (target is not null) UiCommand.Launch(Dashboard(settings.Port, target));
-            else UiCommand.Launch(Dashboard(settings.Port, null));
+            Output.Info("starting QuickRun");
 
-            return 0;
+            if (!SingleInstance.Start(settings.Port))
+            {
+                Output.Error("could not start QuickRun");
+                return 1;
+            }
+
+            if (!await SingleInstance.WaitAsync(settings.Port, TimeSpan.FromSeconds(20), cancellationToken))
+            {
+                Output.Error("QuickRun did not answer after starting");
+                return 1;
+            }
         }
 
-        Output.Info($"starting the QuickRun daemon on port {settings.Port}");
+        // Its own window, raised by the instance that owns it. Falling back to the browser matters:
+        // an older build has no /api/show, and a QuickRun started with --no-tray has no window to
+        // raise - in both cases the page is still there to open.
+        if (!await SingleInstance.ShowAsync(settings.Port, target, cancellationToken))
+            UiCommand.Launch(Dashboard(settings.Port, target));
 
-        var daemon = new DaemonCommand();
-
-        // Opened once the listener answers, because a browser sent to a port nothing is listening
-        // on shows its own error page and the moment is gone.
-        if (target is not null)
-            _ = Task.Run(async () =>
-            {
-                if (await Reachable(settings.Port, cancellationToken, attempts: 40))
-                    UiCommand.Launch(Dashboard(settings.Port, target));
-            }, cancellationToken);
-
-        return await daemon.RunAsync(new DaemonCommand.Settings { Port = settings.Port }, cancellationToken);
+        return 0;
     }
 
     private static string Dashboard(int port, string? target) =>
         target is null
             ? $"http://127.0.0.1:{port}/"
             : $"http://127.0.0.1:{port}/#run?{target}";
-
-    private static async Task<bool> Reachable(int port, CancellationToken ct, int attempts = 1)
-    {
-        using var http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(700) };
-
-        for (var attempt = 0; attempt < attempts; attempt++)
-        {
-            try
-            {
-                using var response = await http.GetAsync($"http://127.0.0.1:{port}/api/ping", ct);
-                if (response.IsSuccessStatusCode) return true;
-            }
-            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
-            {
-                // Not up yet, or not up at all.
-            }
-
-            if (attempt + 1 < attempts) await Task.Delay(250, ct);
-        }
-
-        return false;
-    }
 }
 
 /// <summary>
@@ -162,8 +144,17 @@ internal static class RunTarget
         // quickrun://run?repo=... and quickrun://run/?repo=... are the same thing to a browser.
         if (!string.Equals(url.Host, "run", StringComparison.OrdinalIgnoreCase)) return null;
 
-        var query = System.Web.HttpUtility.ParseQueryString(url.Query);
-        var repo = query["repo"];
+        var parsed = System.Web.HttpUtility.ParseQueryString(url.Query);
+        return From(name => parsed[name]);
+    }
+
+    /// <summary>The same target out of a request's query string, for <c>/api/show</c>.</summary>
+    public static string? FromQuery(IQueryCollection query) =>
+        From(name => query[name].FirstOrDefault());
+
+    private static string? From(Func<string, string?> query)
+    {
+        var repo = query("repo");
         if (string.IsNullOrWhiteSpace(repo)) return null;
 
         // Narrower than what the CLI accepts, on purpose: typing file:// or ssh:// yourself is a
@@ -180,10 +171,10 @@ internal static class RunTarget
 
         var carried = new List<string> { $"repo={Uri.EscapeDataString(repo)}" };
 
-        if (query["ref"] is { Length: > 0 } reference && reference.Length < 250)
+        if (query("ref") is { Length: > 0 } reference && reference.Length < 250)
             carried.Add($"ref={Uri.EscapeDataString(reference)}");
 
-        if (int.TryParse(query["pr"], out var pr) && pr > 0)
+        if (int.TryParse(query("pr"), out var pr) && pr > 0)
             carried.Add($"pr={pr}");
 
         return string.Join('&', carried);

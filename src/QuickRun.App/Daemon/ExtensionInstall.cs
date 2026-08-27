@@ -93,12 +93,16 @@ public static class ExtensionInstall
     private static async Task UnpackAsync(string family, string folder, CancellationToken ct)
     {
         var asset = AssetFor(family);
-        var url = $"https://github.com/{BuildInfo.Repository}/releases/latest/download/{asset}";
 
-        if (!Updater.IsTrustedAssetUrl(url))
-            throw new HttpRequestException($"{url} is not a release asset URL");
+        // This build's own release, not whatever is newest. The extension and the listener speak a
+        // contract, and pairing a new extension with an older QuickRun is a mismatch nobody would
+        // think to suspect - so the version that ships with this binary is the one installed, and
+        // "latest" is only the fallback for a build that has no release of its own.
+        var pinned = $"https://github.com/{BuildInfo.Repository}/releases/download/v{BuildInfo.Version}/{asset}";
+        var latest = $"https://github.com/{BuildInfo.Repository}/releases/latest/download/{asset}";
 
-        var zip = await Http.GetByteArrayAsync(url, ct);
+        var zip = await FetchAsync(pinned, ct) ?? await FetchAsync(latest, ct)
+            ?? throw new HttpRequestException($"neither {pinned} nor {latest} could be downloaded");
 
         if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
         Directory.CreateDirectory(folder);
@@ -117,6 +121,22 @@ public static class ExtensionInstall
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             entry.ExtractToFile(target, overwrite: true);
+        }
+    }
+
+    /// <summary>One download attempt. Null when that URL has nothing, so the caller can fall back.</summary>
+    private static async Task<byte[]?> FetchAsync(string url, CancellationToken ct)
+    {
+        if (!Updater.IsTrustedAssetUrl(url))
+            throw new HttpRequestException($"{url} is not a release asset URL");
+
+        try
+        {
+            return await Http.GetByteArrayAsync(url, ct);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
         }
     }
 

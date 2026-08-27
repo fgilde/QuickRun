@@ -106,6 +106,13 @@ die Erweiterung die exakten Befehle und wartet auf deine Bestätigung.
 
 ## Aktualisieren
 
+**Über → Auf x.y.z aktualisieren** im Fenster erledigt es: QuickRun lädt das Release für deine
+Plattform, prüft es gegen die mitveröffentlichten Prüfsummen, ersetzt das Binary und startet in die
+neue Version neu. Windows, macOS und Linux gleichermaßen. Die Seite wartet, bis der neue Build
+antwortet, und lädt sich dort hinein — „hat es geklappt" muss niemand fragen.
+
+Dasselbe im Terminal:
+
 ```bash
 quickrun update          # installiert, wenn QuickRun das Binary besitzt
 quickrun update --check  # meldet nur

@@ -99,6 +99,13 @@ exact commands and waits for your confirmation.
 
 ## Updating
 
+**About → Update to x.y.z** in the window does it: it downloads the release for your platform,
+checks it against the checksums published with it, replaces the binary and restarts into the new
+version. Windows, macOS and Linux alike. The page waits for the new build to answer and reloads
+into it, so "did it work" is not a question anyone has to ask.
+
+The same thing from a terminal:
+
 ```bash
 quickrun update          # installs when QuickRun owns the binary
 quickrun update --check  # only reports

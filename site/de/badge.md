@@ -28,12 +28,13 @@ Für englischsprachige Leser führt `…/run?repo=…` ohne `de/` auf dieselbe S
 1. Das Badge ist ein normaler Link. GitHub rendert es, und niemand muss etwas installiert haben, um
    es zu sehen.
 2. Die Seite fragt `http://127.0.0.1:9876/api/ping`, ob QuickRun auf diesem Rechner läuft.
-3. Antwortet es, bietet die Seite **In QuickRun öffnen** an und folgt `quickrun://run?repo=…`.
-4. QuickRun öffnet sein eigenes Fenster mit dem Plan: die Befehle, der Ref, der aufgelöste Commit.
-   Gestartet wird erst, wenn dort bestätigt wird.
-5. Antwortet nichts, zeigt die Seite den Download — dazu **Trotzdem versuchen**, denn „installiert,
-   aber nicht gestartet" sieht von einer Webseite aus genauso aus. Der Versuch startet QuickRun,
-   wenn es installiert ist.
+3. Antwortet es, führt **In QuickRun öffnen** direkt auf QuickRuns eigene Seite auf `127.0.0.1` —
+   eine gewöhnliche http-Adresse, also kein URL-Schema, keine Handler-Registrierung und kein
+   Berechtigungsdialog dazwischen.
+4. QuickRun zeigt den Plan: die Befehle, der Ref, der aufgelöste Commit. Gestartet wird erst, wenn
+   dort bestätigt wird.
+5. Antwortet nichts, folgt der Button stattdessen `quickrun://run?repo=…` — das startet QuickRun,
+   wenn es installiert ist — und daneben steht der Download für den Fall, dass es das nicht ist.
 
 ## Warum das Badge nicht direkt auf `quickrun://` zeigt
 

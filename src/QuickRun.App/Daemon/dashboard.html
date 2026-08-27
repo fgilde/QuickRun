@@ -387,6 +387,7 @@ quickrun --help                every command and flag</pre>
       <div class="row">
         <span class="grow">Updates</span>
         <span id="aboutUpdate" class="muted">checking…</span>
+        <button class="action primary" id="installUpdate" hidden>Update now</button>
         <button class="action" id="checkUpdate">Check now</button>
       </div>
     </div>
@@ -1429,12 +1430,19 @@ async function install(browser, button, detail) {
     const result = await api(`/api/dashboard/browsers/${browser.id}/install`, { method: 'POST' });
     detail.textContent = result.message;
 
-    // The folder is the thing the browser's file picker needs, so it is worth having in reach.
+    // The browser's file picker wants a path typed into it, and this click is a user gesture, which
+    // is the only moment a page may put something on the clipboard. So the last manual step becomes
+    // paste-and-enter instead of finding a folder by hand.
     if (result.folder) {
-      const path = document.createElement('span');
-      path.className = 'mono';
-      path.textContent = ` ${result.folder}`;
-      detail.append(path);
+      try {
+        await navigator.clipboard.writeText(result.folder);
+        detail.textContent += ' The folder is on your clipboard - paste it into the picker.';
+      } catch {
+        const path = document.createElement('span');
+        path.className = 'mono';
+        path.textContent = ` ${result.folder}`;
+        detail.append(path);
+      }
     }
   } catch (failure) {
     detail.textContent = failure.message;
@@ -1446,14 +1454,21 @@ async function install(browser, button, detail) {
 function renderUpdate(update) {
   const badge = document.getElementById('updateBadge');
   const line = document.getElementById('aboutUpdate');
+  const install = document.getElementById('installUpdate');
 
   if (!update) {
     line.textContent = 'could not check';
+    install.hidden = true;
     return;
   }
 
   line.textContent = update.advice;
   badge.innerHTML = update.updateAvailable ? pill(`update ${update.latest}`, 'warn') : '';
+
+  // Offered only where QuickRun owns the file: where a package manager installed it, the advice
+  // above already names the command, and two updaters writing one binary is worse than a step.
+  install.hidden = !(update.updateAvailable && update.source === 'standalone');
+  install.textContent = `Update to ${update.latest}`;
 }
 
 function escapeHtml(value) {
@@ -1497,6 +1512,60 @@ document.getElementById('cleanAll').addEventListener('click', async () => {
   await api('/api/dashboard/workspaces', { method: 'DELETE' });
   loadWorkspaces();
 });
+
+document.getElementById('installUpdate').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const line = document.getElementById('aboutUpdate');
+
+  button.disabled = true;
+  line.textContent = 'downloading and verifying…';
+
+  try {
+    const result = await api('/api/dashboard/update/install', { method: 'POST' });
+
+    if (!result.updated) {
+      line.textContent = result.message ?? 'nothing to update';
+      button.disabled = false;
+      return;
+    }
+
+    button.hidden = true;
+
+    if (!result.restarting) {
+      line.textContent = `installed ${result.version} - restart QuickRun to use it`;
+      return;
+    }
+
+    // It is stopping as this is read, so the page waits for the new one to answer and reloads into
+    // it. Saying "restarting" and leaving a dead page behind is how an update looks like a crash.
+    line.textContent = `installed ${result.version} - restarting…`;
+    waitForRestart();
+  } catch (failure) {
+    line.textContent = failure.message;
+    button.disabled = false;
+  }
+});
+
+/** Reloads once the new build answers. Gives up saying so rather than spinning for ever. */
+async function waitForRestart() {
+  const line = document.getElementById('aboutUpdate');
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    try {
+      const answer = await fetch('/api/ping', { cache: 'no-store' });
+      if (answer.ok) {
+        location.reload();
+        return;
+      }
+    } catch {
+      // Still down, which is the expected half of a restart.
+    }
+  }
+
+  line.textContent = 'the new version did not come back - start QuickRun again';
+}
 
 document.getElementById('checkUpdate').addEventListener('click', async () => {
   document.getElementById('aboutUpdate').textContent = 'checking…';

@@ -68,91 +68,21 @@ public sealed class UpdateCommand : AsyncCommand<UpdateCommand.Settings>
             return 0;
         }
 
-        return await InstallAsync(checker, executable, status.Latest!);
-    }
+        var outcome = await SelfUpdate.RunAsync(executable, source, Output.Info, checker);
 
-    private static async Task<int> InstallAsync(UpdateChecker checker, string executable, string version)
-    {
-        var release = await checker.LatestAsync();
-        if (release is null)
+        if (outcome.Error is { } failure)
         {
-            Output.Error("release details unavailable");
+            Output.Error(failure);
             return 1;
         }
 
-        var rid = RuntimeInformation.RuntimeIdentifier;
-        var asset = release.AssetFor(rid);
-        if (asset is null)
+        if (!outcome.Ok)
         {
-            Output.Error($"release {release.Tag} has no asset for {rid}");
-            return 1;
+            Output.Info("up to date");
+            return 0;
         }
 
-        Output.Info($"downloading {asset.Name}");
-        var (archive, error) = await new Updater().FetchVerifiedAsync(release, asset.Name);
-        if (error is { } fetchError)
-        {
-            Output.Error(fetchError);
-            return 1;
-        }
-
-        var binary = ExtractBinary(archive!, asset.Name);
-        if (binary is null)
-        {
-            Output.Error($"{asset.Name} did not contain a quickrun binary");
-            return 1;
-        }
-
-        var result = Updater.Swap(executable, binary, version);
-        if (!result.Ok)
-        {
-            Output.Error(result.Error ?? "update failed");
-            return 1;
-        }
-
-        Output.Info($"updated to {version} - restart the daemon to use it");
+        Output.Info($"updated to {outcome.Version} - restart QuickRun to use it");
         return 0;
     }
-
-    /// <summary>Pulls the quickrun executable out of the release archive, in memory.</summary>
-    private static byte[]? ExtractBinary(byte[] archive, string assetName)
-    {
-        using var source = new MemoryStream(archive);
-
-        return assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
-            ? FromZip(source)
-            : FromTarGz(source);
-    }
-
-    private static byte[]? FromZip(Stream source)
-    {
-        using var zip = new ZipArchive(source, ZipArchiveMode.Read);
-        var entry = zip.Entries.FirstOrDefault(e => IsBinary(e.Name));
-        if (entry is null) return null;
-
-        using var stream = entry.Open();
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return buffer.ToArray();
-    }
-
-    private static byte[]? FromTarGz(Stream source)
-    {
-        using var gzip = new GZipStream(source, CompressionMode.Decompress);
-        using var tar = new TarReader(gzip);
-
-        while (tar.GetNextEntry() is { } entry)
-        {
-            if (entry.DataStream is null || !IsBinary(Path.GetFileName(entry.Name))) continue;
-
-            using var buffer = new MemoryStream();
-            entry.DataStream.CopyTo(buffer);
-            return buffer.ToArray();
-        }
-
-        return null;
-    }
-
-    private static bool IsBinary(string name) =>
-        name is "quickrun" or "quickrun.exe";
 }

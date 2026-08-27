@@ -103,6 +103,7 @@ public static class DaemonHost
         builder.Services.AddSingleton(new RunRegistry(store, UiCommand.Launch));
         builder.Services.AddSingleton(new Dashboard());
         builder.Services.AddSingleton(new ListenerPort(port));
+        builder.Services.AddSingleton(new HostControl());
 
         var app = builder.Build();
 
@@ -194,6 +195,43 @@ public static class DaemonHost
 
             var source = InstallSources.DetectCurrent(store.Root);
             return Results.Json(await new UpdateChecker().CheckAsync(BuildInfo.Version, source), Json);
+        });
+
+        // Updating from the window, which is the only place most people will ever do it. The same
+        // act as `quickrun update`: same download, same checksum, same refusal when a package
+        // manager owns the binary.
+        app.MapPost("/api/dashboard/update/install", async (HttpContext context, Dashboard dashboard, WorkspaceStore store, HostControl host) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            if (Environment.ProcessPath is not { } executable)
+                return Results.Json(new { error = "cannot tell which file is running" }, Json, statusCode: 500);
+
+            var source = InstallSources.DetectCurrent(store.Root);
+            var outcome = await SelfUpdate.RunAsync(executable, source);
+
+            if (outcome.Error is { } error)
+                return Results.Json(new { error }, Json, statusCode: 500);
+
+            if (!outcome.Ok)
+                return Results.Json(new { updated = false, message = "already up to date" }, Json);
+
+            // The link has to point at the new binary, and on Windows the old one has just been
+            // renamed aside - so a registration written before this moment now names a file that
+            // will be deleted on the next start.
+            var step = SystemIntegration.RegisterScheme(executable);
+
+            // After the answer has been sent: the page is asking the process that is about to go.
+            if (host.Restart is { } restart)
+                _ = Task.Run(async () => { await Task.Delay(500); restart(); });
+
+            return Results.Json(new
+            {
+                updated = true,
+                version = outcome.Version,
+                restarting = host.Restart is not null,
+                scheme = step.Ok,
+            }, Json);
         });
 
         // ---- the config builder ---------------------------------------------------------------
@@ -643,6 +681,24 @@ public static class DaemonHost
     /// <summary>So the dashboard page can show where it is listening.</summary>
     public sealed record ListenerPort(int Value);
 
+    /// <summary>
+    /// What the process around this listener can be asked to do: show its window, or replace itself
+    /// with a build that has just been downloaded.
+    /// <para>
+    /// Held per host rather than in a static, because both are set by whoever owns the process and a
+    /// static would leak one test's window into the next one's - and, worse, one instance's into
+    /// another's.
+    /// </para>
+    /// </summary>
+    public sealed class HostControl
+    {
+        /// <summary>Raises the window, on the repository a link named. Null when running headless.</summary>
+        public Action<string>? ShowWindow { get; set; }
+
+        /// <summary>Stops and starts the binary that is now on disk. Null where nothing can restart.</summary>
+        public Action? Restart { get; set; }
+    }
+
     private static void ApplyCors(HttpContext context)
     {
         var origin = context.Request.Headers.Origin.ToString();
@@ -655,8 +711,24 @@ public static class DaemonHost
         context.Response.Headers.AccessControlMaxAge = "600";
     }
 
+
     private static void MapEndpoints(WebApplication app)
     {
+        // What a second start does instead of failing on a port that is taken: hand its reason for
+        // existing to the instance that already exists. A quickrun:// link arrives here too, which
+        // is why it takes the same repository target the dashboard understands.
+        app.MapPost("/api/show", (HttpContext context, HostControl host) =>
+        {
+            if (!Authorized(context)) return Unauthorized();
+
+            var target = RunTarget.FromQuery(context.Request.Query);
+
+            if (host.ShowWindow is not { } show) return Results.Json(new { shown = false }, Json);
+
+            show(target is null ? "" : $"#run?{target}");
+            return Results.Json(new { shown = true }, Json);
+        });
+
         // No token, and readable by any origin: telling a page that QuickRun exists is the entire
         // point of it, and this is all it reveals - no repository names, no paths, no run contents.
         // A README badge on the project's own site asks exactly this, to decide between "press Run"

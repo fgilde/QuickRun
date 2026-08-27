@@ -38,6 +38,9 @@
          parent console when there is one, which keeps the CLI usable from a terminal. -->
     <OutputType>WinExe</OutputType>
     <AssemblyName>quickrun</AssemblyName>
+    <!-- What Windows shows as the file description. Without it, that field is the assembly name in
+         lower case, which is one more way an unsigned binary looks like it was thrown together. -->
+    <AssemblyTitle>QuickRun</AssemblyTitle>
     <RootNamespace>QuickRun.App</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

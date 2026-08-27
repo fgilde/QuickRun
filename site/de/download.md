@@ -79,12 +79,30 @@ QuickRun ist noch nicht code-signiert:
   ```bash
   xattr -d com.apple.quarantine ./quickrun
   ```
-- **Windows** zeigt beim ersten Start eine SmartScreen-Warnung. Installationen über `scoop` oder
-  `winget` umgehen das.
+- **Windows** zeigt beim ersten Start eine SmartScreen-Warnung, und ein frisch veröffentlichter
+  Download wird gelegentlich direkt mit **„Virus gefunden"** abgelehnt. Das ist die
+  Machine-Learning-Heuristik von Defender — das Urteil lautet `Trojan:Script/Wacatac.B!ml`, wobei
+  `!ml` „sieht nach etwas aus" heißt und nicht „ist bekanntermaßen etwas". Reagiert wird auf die
+  Form: ein 140 MB großes, sich selbst entpackendes Binary, heruntergeladen Minuten nach dem Bau,
+  von niemandem signiert. Dieselbe Datei, lokal gebaut, wird sauber gescannt, und ältere Releases
+  werden nicht mehr gemeldet, sobald genug Leute sie ausgeführt haben.
+
+  Was bei einem blockierten Download hilft:
+
+  1. Die Datei gegen die `SHA256SUMS` des Releases prüfen — stimmt der Hash, hast du exakt das,
+     was der Build erzeugt hat:
+     ```powershell
+     Get-FileHash .\quickrun-win-x64.zip -Algorithm SHA256
+     ```
+  2. Über `winget` oder `scoop` installieren; die laufen nicht über den Download-Pfad des Browsers.
+  3. Oder einen Tag warten: solche Urteile verfallen, sobald die Datei nicht mehr neu ist.
+
 - **Linux** interessiert es nicht.
 
-Signatur-Zertifikate kosten jährlich Geld und bringen nichts, solange es keine Nutzer zu schützen
-gibt — deshalb warten sie.
+Die eigentliche Abhilfe ist eine Signatur — sie trägt Reputation von einem Release zum nächsten,
+statt dass jede Version bei null anfängt. Der Release-Workflow signiert Windows-Builds, sobald die
+Signatur-Zugangsdaten hinterlegt sind; bis dahin sind die Prüfsummen oben der Beleg, dass ein
+Download die Datei ist, die er zu sein behauptet.
 
 ## Die Browser-Erweiterung
 

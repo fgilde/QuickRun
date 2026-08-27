@@ -11,5 +11,20 @@
          reference a WindowsBase nothing here loads. Only Core is used, so the conflict is noise -
          in the app and in anything that references it. -->
     <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+
+    <!-- Who this is, in the file itself.
+
+         Not decoration: a 140 MB unsigned executable whose version resource says "quickrun" three
+         times and names no publisher is exactly the shape Defender's machine-learning model calls
+         Trojan:Script/Wacatac.B!ml, which is what a fresh release download got greeted with. The
+         metadata is not the cure - a signature is - but a file that says who wrote it, what it is
+         and where it comes from is the cheap half of looking like software rather than a dropper. -->
+    <Company>Florian Gilde</Company>
+    <Authors>Florian Gilde</Authors>
+    <Product>QuickRun</Product>
+    <Description>Run any git repository with one click.</Description>
+    <Copyright>Copyright (c) Florian Gilde</Copyright>
+    <PackageProjectUrl>https://fgilde.github.io/QuickRun/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/fgilde/QuickRun</RepositoryUrl>
   </PropertyGroup>
 </Project>

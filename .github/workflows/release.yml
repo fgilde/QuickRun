@@ -26,6 +26,9 @@ jobs:
           - { os: macos-latest,   rid: osx-x64 }
           - { os: macos-latest,   rid: osx-arm64 }
     runs-on: ${{ matrix.os }}
+    # Job level, because a step cannot read an env it declares itself in its own condition.
+    env:
+      SIGNING_ACCOUNT: ${{ secrets.SIGNING_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,6 +56,33 @@ jobs:
             -p:Version=${{ steps.version.outputs.value }} \
             -p:InformationalVersion=${{ steps.version.outputs.value }} \
             -o out/${{ matrix.rid }}
+
+      # --- Windows code signing --------------------------------------------------------------
+      #
+      # The reason this exists: a fresh, unsigned, 140 MB self-extracting binary with no publisher
+      # has no reputation at all, and Defender's machine-learning model greets exactly that shape
+      # with Trojan:Script/Wacatac.B!ml - so a download of v0.8.3 was refused by Chrome as "virus
+      # detected" while the same file built locally scanned clean. A signature is what fixes it:
+      # it carries reputation across versions instead of every release starting from zero.
+      #
+      # Azure Trusted Signing, because a certificate now has to live in an HSM anyway and Microsoft
+      # rents one for about ten dollars a month. Skips itself when the secrets are absent, like the
+      # store steps do, so a release never fails over a credential that is not set up yet.
+      - name: Sign the Windows binary
+        if: startsWith(matrix.rid, 'win-') && env.SIGNING_ACCOUNT != ''
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.SIGNING_TENANT_ID }}
+          azure-client-id: ${{ secrets.SIGNING_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.SIGNING_CLIENT_SECRET }}
+          endpoint: ${{ secrets.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.SIGNING_PROFILE }}
+          files-folder: out/${{ matrix.rid }}
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
 
       # macOS needs an app bundle for CFBundleURLTypes; a bare single-file binary
       # cannot register the quickrun:// scheme.

@@ -169,7 +169,8 @@ Requires the .NET 10 SDK. Releases ship as a self-contained single-file binary p
 users need no runtime installed. That single file is around 128 MB: it carries the .NET runtime
 and the native libraries the tray icon needs, and bundling them is what keeps the download to one
 file with nothing to install. See [docs/publishing.md](docs/publishing.md) for how a release is
-cut.
+cut, and [docs/store-credentials.md](docs/store-credentials.md) for the credentials each store
+wants and where they come from.
 
 ## License
 

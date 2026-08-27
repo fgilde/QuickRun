@@ -11,6 +11,25 @@ const link = (path) => withBase(`${home.value}${path}`);
 
 const gallery = computed(() => shots(de.value));
 
+// QuickRun's own quickrun.yml, which is what the button on this repository runs. Written out here
+// rather than imported: a landing page showing a config that drifted from the real one would be
+// the worst possible advertisement for a tool about running what a repository actually says.
+const sample = `name: QuickRun
+description: Build and test QuickRun, then show the CLI help.
+
+requires:
+  - tool: dotnet
+    version: ">=10.0"
+    install: https://dot.net
+
+setup:
+  - dotnet restore
+  - dotnet test --nologo
+
+tasks:
+  - name: cli
+    run: dotnet run --project src/QuickRun.App -- --help`;
+
 const t = computed(() => (de.value
   ? {
       eyebrow: 'Windows · macOS · Linux · quelloffen',
@@ -20,6 +39,10 @@ const t = computed(() => (de.value
       primary: 'Herunterladen',
       secondary: 'Dokumentation',
       heroNote: 'Oder direkt im Terminal:',
+      heroShotAlt: 'Die Branch-Zeile eines GitHub-Repositories, mit einem Run-this-Button daneben',
+      heroDialogAlt: 'Das Bestätigungsfenster mit Repository, Ref, Commit und drei Befehlen',
+      heroShotCaption: 'Der Button sitzt neben dem Branch. Ein Klick, und das Fenster zeigt jeden Befehl, '
+        + 'bevor irgendetwas läuft.',
       trust: [
         'Kein Adminrecht nötig',
         'Nichts läuft ohne Bestätigung',
@@ -67,6 +90,14 @@ const t = computed(() => (de.value
             + 'dieselben Workspaces, dieselbe Bestätigung.',
         },
       ],
+      configLabel: 'quickrun.yml',
+      configTitle: 'Ein paar Zeilen, und das Repository startet sich selbst',
+      configText: 'Wer sein Repository startbar machen will, legt eine quickrun.yml daneben. Sie sagt, '
+        + 'welche Werkzeuge nötig sind, was vorbereitet werden muss, was läuft und woran man erkennt, '
+        + 'dass es steht. Ohne sie liest QuickRun das Repository und schlägt selbst etwas vor — nur '
+        + 'steht dann im Fenster, dass es geraten ist.',
+      configShotCaption: 'Dieselbe Config im lokalen Fenster — mit den Werten, die sie abfragt.',
+      configLink: 'Alle Felder',
       stepsLabel: 'In drei Schritten',
       stepsTitle: 'Einmal einrichten, dann klicken',
       steps: [
@@ -99,8 +130,8 @@ const t = computed(() => (de.value
         + 'Seite, jede Zeile aus einem Repository wird als Text behandelt und nie als HTML, und der '
         + 'Listener auf 127.0.0.1 nimmt nur Aufrufe an, deren Herkunft der Browser selbst setzt.',
       securityLink: 'Was genau geprüft wird',
-      ctaTitle: 'Bereit?',
-      ctaText: 'Ein Binary, ein Klick, und das Repository läuft.',
+      ctaTitle: 'Nimm das nächste Repository, das du findest',
+      ctaText: 'Installieren dauert länger als der erste Lauf.',
       ctaPrimary: 'Download',
       ctaSecondary: 'Auf GitHub ansehen',
     }
@@ -112,6 +143,10 @@ const t = computed(() => (de.value
       primary: 'Download',
       secondary: 'Documentation',
       heroNote: 'Or straight from a terminal:',
+      heroShotAlt: 'The branch row of a GitHub repository, with a Run this button beside it',
+      heroDialogAlt: 'The confirmation window showing repository, ref, commit and three commands',
+      heroShotCaption: 'The button sits next to the branch. One click, and the window shows every '
+        + 'command before anything runs.',
       trust: [
         'No administrator rights',
         'Nothing runs unconfirmed',
@@ -159,6 +194,14 @@ const t = computed(() => (de.value
             + 'same workspaces, the same confirmation.',
         },
       ],
+      configLabel: 'quickrun.yml',
+      configTitle: 'A few lines, and a repository starts itself',
+      configText: 'To make your own repository runnable, commit a quickrun.yml next to it. It names the '
+        + 'tools it needs, what to prepare, what to run, and how to tell that it is up. Without one '
+        + 'QuickRun reads the repository and proposes something itself - and says in the window that '
+        + 'it guessed.',
+      configShotCaption: 'The same config in the local window, with the values it asks for.',
+      configLink: 'Every field',
       stepsLabel: 'Three steps',
       stepsTitle: 'Set it up once, then click',
       steps: [
@@ -191,8 +234,8 @@ const t = computed(() => (de.value
         + 'a repository is treated as text and never as HTML, and the listener on 127.0.0.1 accepts only '
         + 'callers whose origin the browser itself sets.',
       securityLink: 'What exactly is guarded',
-      ctaTitle: 'Ready?',
-      ctaText: 'One binary, one click, and the repository is running.',
+      ctaTitle: 'Try it on the next repository you find',
+      ctaText: 'Installing takes longer than the first run does.',
       ctaPrimary: 'Download',
       ctaSecondary: 'View on GitHub',
     }));
@@ -241,9 +284,14 @@ const icons = {
           </ul>
         </div>
 
-        <div class="qr-hero-shot">
-          <img :src="withBase('/screenshots/runs.png')" alt="" loading="eager" decoding="async">
-        </div>
+        <!-- The whole story in one picture: the button where it sits, and what pressing it asks. -->
+        <figure class="qr-hero-shot">
+          <img class="qr-hero-row" :src="withBase('/screenshots/github-button-close.png')"
+               :alt="t.heroShotAlt" loading="eager" decoding="async" width="790" height="64">
+          <img class="qr-hero-dialog" :src="withBase('/screenshots/github-confirm-close.png')"
+               :alt="t.heroDialogAlt" loading="eager" decoding="async" width="726" height="524">
+          <figcaption class="qr-hero-caption">{{ t.heroShotCaption }}</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -264,6 +312,29 @@ const icons = {
             <p class="m3-body">{{ feature.text }}</p>
           </article>
         </div>
+      </div>
+    </section>
+
+    <!-- what a config looks like, and what you approve -->
+    <section class="m3-section qr-config-section">
+      <div class="m3-wrap qr-config">
+        <div class="qr-config-copy">
+          <span class="m3-label">{{ t.configLabel }}</span>
+          <h2 class="m3-headline qr-section-title">{{ t.configTitle }}</h2>
+          <p class="m3-body">{{ t.configText }}</p>
+
+          <pre class="qr-config-code"><code>{{ sample }}</code></pre>
+
+          <p>
+            <a class="m3-button m3-button--outlined" :href="link('config')">{{ t.configLink }}</a>
+          </p>
+        </div>
+
+        <figure class="qr-config-shot">
+          <img :src="withBase('/screenshots/plan.png')" :alt="t.configShotCaption"
+               loading="lazy" decoding="async">
+          <figcaption>{{ t.configShotCaption }}</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -382,7 +453,72 @@ const icons = {
   box-shadow: var(--m3-elevation-3);
 }
 
+.qr-hero-shot {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+
 .qr-hero-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--m3-radius-s);
+  background: var(--m3-surface);
+}
+
+/* The dialog is the answer to the row above it, and sits slightly inset to read that way. */
+.qr-hero-dialog {
+  width: calc(100% - 28px);
+  margin-left: auto;
+  box-shadow: var(--m3-elevation-2);
+}
+
+.qr-hero-caption,
+.qr-config-shot figcaption {
+  margin: 10px 2px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--m3-on-surface-variant);
+}
+
+/* --- the config, and what it turns into --- */
+.qr-config {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .qr-config { grid-template-columns: 1fr; }
+}
+
+.qr-config-code {
+  margin: 20px 0;
+  padding: 18px 20px;
+  overflow-x: auto;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: var(--m3-radius-m);
+  background: var(--m3-surface-container-low);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.qr-config-shot {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--m3-radius-l);
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--m3-brand-periwinkle) 34%, var(--m3-surface-container)),
+    color-mix(in srgb, var(--m3-brand-lavender) 26%, var(--m3-surface-container)));
+  box-shadow: var(--m3-elevation-2);
+}
+
+.qr-config-shot img {
   display: block;
   width: 100%;
   height: auto;

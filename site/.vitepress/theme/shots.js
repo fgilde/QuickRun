@@ -1,12 +1,22 @@
 // The screenshots, and what each one is showing.
 //
-// Captured from a real run of a real repository (fgilde/MudBlazor.Extensions) against a released
-// build, by scripts/capture-screenshots.mjs - nothing here is a mockup, which is the point: the
-// window on the landing page is the window you get.
+// Captured from real runs of real repositories against released builds - the first two on GitHub
+// itself, the rest by scripts/capture-screenshots.mjs. Nothing here is a mockup, which is the
+// point: what the landing page shows is what you get.
 
 export function shots(de) {
   return de
     ? [
+        {
+          file: 'github-button.png',
+          title: 'Der Button, wo du ihn brauchst',
+          text: 'Neben dem Branch-Dropdown auf GitHub. Kein Klonen, kein Terminal, keine Setup-Doku.',
+        },
+        {
+          file: 'github-confirm.png',
+          title: 'Jeder Befehl, bevor er läuft',
+          text: 'Repository, Ref, Commit und die vollständige Befehlsliste — in einem Fenster, das keine Webseite überlagern kann.',
+        },
         {
           file: 'runs.png',
           title: 'Was läuft',
@@ -34,6 +44,16 @@ export function shots(de) {
         },
       ]
     : [
+        {
+          file: 'github-button.png',
+          title: 'The button where you need it',
+          text: 'Next to the branch dropdown on GitHub. No clone, no terminal, no setup documentation.',
+        },
+        {
+          file: 'github-confirm.png',
+          title: 'Every command, before it runs',
+          text: 'Repository, ref, commit and the full command list - in a window no web page can draw over.',
+        },
         {
           file: 'runs.png',
           title: 'What is running',

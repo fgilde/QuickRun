@@ -497,4 +497,43 @@ public class RunnerTests
             await serving;
         }
     }
+
+    /// <summary>
+    /// A readiness condition may use the same input the command does.
+    /// <para>
+    /// It could not, and the failure was silent in the worst way: a config waiting for
+    /// <c>http://localhost:${inputs.port}</c> waited for a host called "${inputs.port}", which
+    /// never answered, so an application that had started perfectly well sat at 85% until the
+    /// timeout. What is checked here is the resolved address, not the literal one.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_readiness_url_is_expanded_like_every_other_value()
+    {
+        using var repo = new FakeRepo();
+        var log = new Recorder();
+        await using var runner = new Runner(log.Sink);
+
+        var options = new RunOptions(repo.Path,
+            new InterpolationContext(new Dictionary<string, string?> { ["port"] = "54321" },
+                repo.Path, "app", "main", _ => null),
+            new Dictionary<string, string>(), Array.Empty<string>(), TimeSpan.FromMilliseconds(300),
+            SkipRequires: true);
+
+        var config = Config("""
+            inputs:
+              - id: port
+                type: number
+                default: "54321"
+            tasks:
+              - name: web
+                run: echo started
+                readyWhen: {http: "http://127.0.0.1:${inputs.port}/health"}
+            """);
+
+        await runner.ExecuteAsync(config, options, CancellationToken.None);
+
+        Assert.Contains("http://127.0.0.1:54321/health", log.Text);
+        Assert.DoesNotContain("${inputs.port}", log.Text);
+    }
 }

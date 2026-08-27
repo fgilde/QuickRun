@@ -168,7 +168,8 @@ starten dann, sobald sie anläuft — was selten gemeint ist.
 | `${repo.name}` | den Repository-Namen |
 | `${repo.ref}` | Branch, Tag oder Commit, der läuft |
 
-Verfügbar in `run`, `cwd`, `env`-Werten und `open`. Ein Verweis auf eine nicht existierende Eingabe
+Verfügbar in `run`, `cwd`, `env`-Werten, `open` und `readyWhen` — ein Task, der auf
+`${inputs.port}` startet, kann also auch auf diesen Port warten. Ein Verweis auf eine nicht existierende Eingabe
 ist ein Validierungsfehler, kein leerer String. Secret-Eingaben werden ersetzt, aber nie in Logs,
 Lauf-Historie oder Fortschrittstexte geschrieben.
 

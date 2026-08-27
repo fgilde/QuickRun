@@ -176,6 +176,8 @@ public static class ConfigValidator
             yield return ($"tasks.{task.Name}", task.Run);
             if (task.Cwd is { } cwd) yield return ($"tasks.{task.Name}.cwd", cwd);
             if (task.OpenUrl is { } url) yield return ($"tasks.{task.Name}.open", url);
+            if (task.ReadyWhen?.Http is { } http) yield return ($"tasks.{task.Name}.readyWhen.http", http);
+            if (task.ReadyWhen?.Log is { } pattern) yield return ($"tasks.{task.Name}.readyWhen.log", pattern);
             foreach (var kv in task.Env) yield return ($"tasks.{task.Name}.env.{kv.Key}", kv.Value);
         }
     }

@@ -164,7 +164,8 @@ start as soon as it launches, which is rarely what was meant.
 | `${repo.name}` | the repository name |
 | `${repo.ref}` | the branch, tag or commit being run |
 
-Available in `run`, `cwd`, `env` values and `open`. A reference to an input that does not exist is a
+Available in `run`, `cwd`, `env` values, `open` and `readyWhen` - so a task that starts on
+`${inputs.port}` can wait for that port too. A reference to an input that does not exist is a
 validation error, not an empty string. Secret inputs are substituted but never written to logs, run
 history or progress text.
 

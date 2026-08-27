@@ -232,8 +232,13 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
             ct, group: _group);
     }
 
-    private async Task RunTaskAsync(TaskDef task, RunOptions options, CancellationToken ct)
+    private async Task RunTaskAsync(TaskDef declared, RunOptions options, CancellationToken ct)
     {
+        // Readiness and the address to open are written by the same hand as the command and often
+        // point at the same input: a config that starts on ${inputs.port} has to be able to wait
+        // for that port too. Expanded once, here, so everything below sees resolved values.
+        var task = Resolved(declared, options);
+
         await WaitForDependenciesAsync(task, options, ct);
         if (ct.IsCancellationRequested) { Complete(task.Name); return; }
 
@@ -417,6 +422,21 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
             if (ct.IsCancellationRequested) return;
         }
+    }
+
+    /// <summary>The task with its readiness condition and open address expanded.</summary>
+    private static TaskDef Resolved(TaskDef task, RunOptions options)
+    {
+        string? Expand(string? value) =>
+            value is null ? null : Interpolator.Expand(value, options.Context);
+
+        return task with
+        {
+            ReadyWhen = task.ReadyWhen is { } ready
+                ? ready with { Http = Expand(ready.Http), Log = Expand(ready.Log) }
+                : null,
+            OpenUrl = Expand(task.OpenUrl),
+        };
     }
 
     private async Task WatchReadinessAsync(TaskDef task, StringBuilder log, RunOptions options, CancellationToken ct)

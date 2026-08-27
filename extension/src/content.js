@@ -251,12 +251,6 @@ async function onClick(button, target) {
 
   const result = await send({ type: 'run', target: asTarget(target) });
 
-  if (result.cancelled) {
-    setState(button, 'ready');
-    setLabel(button, target.label);
-    return;
-  }
-
   if (result.error) {
     setState(button, 'error');
     setLabel(button, result.error.slice(0, 60));
@@ -264,6 +258,15 @@ async function onClick(button, target) {
   }
 
   button.dataset.runId = result.runId;
+
+  // The plan is on screen and nothing has started yet. Saying "Running" here would be a lie for as
+  // long as the person takes to read it - and the answer arrives as an event either way.
+  if (result.state === 'awaitingConfirmation') {
+    setState(button, 'working');
+    setLabel(button, 'Confirm to start...');
+    return;
+  }
+
   setState(button, 'running');
   setLabel(button, 'Running...');
 }

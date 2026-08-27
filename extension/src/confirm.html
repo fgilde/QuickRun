@@ -31,6 +31,11 @@
       <p id="inputError" class="muted"></p>
     </section>
 
+    <section id="provisionSection" hidden>
+      <h2>QuickRun will install first</h2>
+      <ul id="provisions"></ul>
+    </section>
+
     <h2 id="commandsHeading">These commands will run on your machine</h2>
     <ol id="commands"></ol>
 
@@ -38,6 +43,8 @@
       QuickRun executes these commands with your privileges, outside any sandbox. Only continue if
       you would be willing to run them by hand.
     </p>
+
+    <p id="startError" class="warning" role="alert" hidden></p>
   </section>
 
   <section id="progress" hidden>

@@ -34,12 +34,13 @@ const t = computed(() => (de.value
       title: 'Dieses Repository starten',
       asking: 'Suche QuickRun auf diesem Rechner…',
       found: 'QuickRun läuft auf diesem Rechner.',
-      missing: 'QuickRun antwortet nicht auf diesem Rechner.',
+      missing: 'QuickRun antwortet hier nicht — installiert und nicht gestartet sieht von einer '
+        + 'Webseite genauso aus wie gar nicht installiert. Der Versuch klärt es.',
       run: 'In QuickRun öffnen',
       runNote: 'Es öffnet sich das QuickRun-Fenster mit dem Plan. Gestartet wird erst, wenn du dort '
         + 'bestätigst — diese Seite kann nichts auf deinem Rechner ausführen.',
-      tryAnyway: 'Trotzdem versuchen',
-      tryNote: 'Installiert, aber nicht gestartet? Der Versuch startet QuickRun mit.',
+      tryNote: 'Öffnen startet QuickRun, wenn es installiert ist. Passiert nichts, führt der '
+        + 'Download-Button zur passenden Version.',
       download: 'QuickRun herunterladen',
       nothing: 'Kein Repository angegeben. Diese Seite wird von einem Badge in einer README '
         + 'aufgerufen und bekommt das Repository von dort.',
@@ -54,12 +55,13 @@ const t = computed(() => (de.value
       title: 'Run this repository',
       asking: 'Looking for QuickRun on this machine…',
       found: 'QuickRun is running on this machine.',
-      missing: 'QuickRun is not answering on this machine.',
+      missing: 'QuickRun is not answering here - installed but not running looks the same from a '
+        + 'web page as not installed at all. Opening it settles that.',
       run: 'Open in QuickRun',
       runNote: 'The QuickRun window opens with the plan. Nothing starts until you confirm it there '
         + '- this page cannot run anything on your machine.',
-      tryAnyway: 'Try anyway',
-      tryNote: 'Installed but not started? The attempt starts QuickRun too.',
+      tryNote: 'Opening starts QuickRun when it is installed. If nothing happens, the download '
+        + 'button has the version for your machine.',
       download: 'Download QuickRun',
       nothing: 'No repository given. This page is opened by a badge in a README, which is where the '
         + 'repository comes from.',
@@ -78,15 +80,36 @@ onMounted(async () => {
   reference.value = query.get('ref') ?? '';
   pr.value = query.get('pr') ?? '';
 
-  // http from an https page is allowed for loopback, which browsers treat as trustworthy. It says
-  // only whether QuickRun exists - every endpoint that could start or read a run refuses a page.
-  try {
-    const answer = await fetch(`http://127.0.0.1:${DEFAULT_PORT}/api/ping`, { cache: 'no-store' });
-    running.value = answer.ok;
-  } catch {
-    running.value = false;
-  }
+  running.value = await isRunning();
 });
+
+/**
+ * Whether QuickRun answers on this machine.
+ *
+ * http from an https page is allowed for loopback, which browsers treat as trustworthy. The answer
+ * says only that QuickRun exists - every endpoint that could start or read a run refuses a page.
+ *
+ * Two attempts, because a QuickRun older than this page allows only extension origins to read the
+ * answer: the first attempt reads it, and the second only asks whether anything answered at all.
+ * An opaque response tells us nothing except that something is listening there, which is exactly
+ * the question.
+ */
+async function isRunning() {
+  const url = `http://127.0.0.1:${DEFAULT_PORT}/api/ping`;
+
+  try {
+    return (await fetch(url, { cache: 'no-store' })).ok;
+  } catch {
+    // Not readable. Either nothing is there, or it is a version that does not let a page read it.
+  }
+
+  try {
+    await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function open() {
   pressed.value = true;
@@ -120,9 +143,11 @@ async function copy() {
         </p>
 
         <div class="qr-run-actions">
-          <button v-if="running !== false" class="m3-button" type="button" @click="open">{{ t.run }}</button>
-          <button v-else class="m3-button m3-button--tonal" type="button" @click="open">{{ t.tryAnyway }}</button>
-          <a v-if="running === false" class="m3-button" :href="withBase(de ? '/de/get' : '/get')">{{ t.download }}</a>
+          <!-- Opening is always the first offer, whatever the ping said. It costs nothing when
+               QuickRun is not there, and it starts it when it is installed but not running. -->
+          <button class="m3-button" type="button" @click="open">{{ t.run }}</button>
+          <a v-if="running === false" class="m3-button m3-button--outlined"
+             :href="withBase(de ? '/de/get' : '/get')">{{ t.download }}</a>
         </div>
 
         <p class="m3-body qr-run-note">{{ running === false && !pressed ? t.tryNote : t.runNote }}</p>

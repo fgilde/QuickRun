@@ -125,6 +125,27 @@ function attach(current) {
   }
 }
 
+/**
+ * What is missing on this machine and would be installed before anything runs.
+ *
+ * Installing a runtime changes the machine, so it belongs next to the command list rather than in
+ * the log where it would only be read afterwards.
+ */
+function showProvisions(run) {
+  const list = document.getElementById('provisions');
+  const lines = run.provisions ?? [];
+
+  list.textContent = '';
+  for (const line of lines) {
+    const item = document.createElement('li');
+    // textContent: the tool name comes from the repository's own config.
+    item.textContent = line;
+    list.append(item);
+  }
+
+  document.getElementById('provisionSection').hidden = lines.length === 0;
+}
+
 function render(run) {
   text('name', run.displayName || run.repo);
   text('subtitle', run.commands.length === 0
@@ -134,6 +155,7 @@ function render(run) {
   text('ref', run.ref);
   text('commit', run.commit ? run.commit.slice(0, 10) : 'unknown');
   showOrigin(run);
+  showProvisions(run);
   text('dir', run.workspace ?? '');
 
   // What the repository says it is, when its config says anything. textContent: this is the
@@ -417,14 +439,31 @@ async function watchUntilDone() {
 async function decide(approved) {
   if (decided) return;
   decided = true;
+  approve.disabled = true;
 
-  await chrome.runtime.sendMessage({ type: 'confirmResult', runId: run?.id, approved });
-  await chrome.storage.session.remove('pendingRun');
+  const answer = await chrome.runtime
+    .sendMessage({ type: 'confirmResult', runId: run?.id, approved })
+    .catch((error) => ({ error: String(error) }));
 
   if (!approved) {
+    await chrome.storage.session.remove('pendingRun');
     window.close();
     return;
   }
+
+  // A window that says "Running" over a run that never started is how this hid for two releases:
+  // it looked busy while nothing at all was happening. If the start did not happen, the plan stays
+  // on screen with the reason, and the button can be pressed again.
+  if (answer?.error) {
+    decided = false;
+    approve.disabled = false;
+    const failure = document.getElementById('startError');
+    failure.textContent = answer.error;
+    failure.hidden = false;
+    return;
+  }
+
+  await chrome.storage.session.remove('pendingRun');
 
   // Hand the window over to the run.
   document.getElementById('name').textContent = run.displayName || run.repo;
@@ -435,6 +474,10 @@ async function decide(approved) {
   stop.hidden = false;
   setState('Running', 'running');
   keepWatching();
+
+  // Its own stream, rather than lines relayed by the worker: the worker is shut down whenever it
+  // goes quiet, and this window should not go quiet with it.
+  replay(run.id);
 }
 
 /**

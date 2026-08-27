@@ -9,8 +9,31 @@ const DOWNLOAD_PAGE = 'https://fgilde.github.io/QuickRun/download';
 /** Live runs, keyed by run id, so the content script can be told where a run has got to. */
 const active = new Map();
 
-/** The log window per run, so it can be raised when the run has something to show. */
-const logWindows = new Map();
+/**
+ * What has to outlive this worker.
+ *
+ * A service worker is shut down after thirty seconds without an event, and reading a command list
+ * takes longer than that. So nothing that a decision depends on may live in a variable here: the
+ * window that comes back with "yes" thirty-one seconds later must find a worker that still knows
+ * what to do with it. Session storage is cleared when the browser closes, which is exactly the
+ * lifetime these two want.
+ *
+ * `pendingRuns`: run id to { tabId, windowId } while its window is asking.
+ * `runWindows`:  run id to the window showing it, so the window can be raised rather than duplicated.
+ */
+const PENDING = 'pendingRuns';
+const WINDOWS = 'runWindows';
+
+async function remembered(key) {
+  const stored = await chrome.storage.session.get({ [key]: {} });
+  return stored[key] ?? {};
+}
+
+async function remember(key, change) {
+  const all = await remembered(key);
+  change(all);
+  await chrome.storage.session.set({ [key]: all });
+}
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   handle(message, sender)
@@ -25,6 +48,8 @@ async function handle(message, sender) {
       return status();
     case 'run':
       return startRun(message.target, sender?.tab?.id);
+    case 'confirmResult':
+      return decideRun(message.runId, Boolean(message.approved));
     case 'inputs':
       return supplyInputs(message.runId, message.values);
     case 'stop':
@@ -99,14 +124,53 @@ async function startRun(target, tabId) {
 
   // The command list is confirmed in an extension window, not in the page: a page can overlay a
   // convincing fake panel, and the user must never approve one set of commands while another runs.
-  const approved = await confirmInWindow(run);
-  if (!approved) return { cancelled: true };
+  //
+  // Nothing is awaited here. Waiting for the answer was the bug: this worker is shut down thirty
+  // seconds after the last event, and a plan people actually read takes longer than that - so the
+  // promise holding the answer died with the worker, the window's Run button pressed into nothing,
+  // and the run sat waiting for a confirmation that could no longer arrive. The answer comes back
+  // as its own message instead, to whichever worker is alive by then.
+  const windowId = await openWindow(run, 'confirm.html');
+  await remember(PENDING, (all) => { all[run.id] = { tabId: tabId ?? null, windowId }; });
 
-  const started = await api.confirm(run.id, { port });
-  if (started.error) return { error: started.error };
+  return { runId: run.id, state: 'awaitingConfirmation' };
+}
 
-  follow(run.id, tabId, { port });
-  return { runId: run.id, state: 'running' };
+/**
+ * The answer from the confirmation window: start the run, or let it go.
+ *
+ * Everything it needs is either in the message or in session storage, so it works just as well in a
+ * worker that was started by this very message and knows nothing else.
+ */
+async function decideRun(runId, approved) {
+  if (!runId) return { error: 'no run to decide about' };
+
+  const { port } = await api.settings();
+
+  const pending = (await remembered(PENDING))[runId] ?? null;
+  await remember(PENDING, (all) => { delete all[runId]; });
+
+  // Already decided - a second answer for the same run changes nothing.
+  if (!pending) return { ok: true, ignored: true };
+
+  const tabId = pending.tabId ?? undefined;
+
+  if (!approved) {
+    // The daemon is holding a prepared run that nobody wants. Stopping it releases it.
+    await api.stop(runId, { port });
+    notify(tabId, runId, { kind: 'cancelled', text: 'not confirmed' });
+    return { ok: true, approved: false };
+  }
+
+  const started = await api.confirm(runId, { port });
+
+  if (started.error) {
+    notify(tabId, runId, { kind: 'failed', text: started.error });
+    return { error: started.error };
+  }
+
+  follow(runId, tabId, { port });
+  return { ok: true, approved: true };
 }
 
 /** The values for a config's inputs, and the plan they produce. */
@@ -177,14 +241,14 @@ async function activeRun(target) {
  * has to be possible - otherwise a run keeps going with nowhere to watch it.
  */
 async function showLog(runId, tabId) {
-  const existing = logWindows.get(runId);
+  const existing = (await remembered(WINDOWS))[runId];
 
   if (existing !== undefined) {
     const raised = await chrome.windows.update(existing, { focused: true, drawAttention: true })
       .then(() => true)
       .catch(() => false);
     if (raised) return { ok: true, reopened: false };
-    logWindows.delete(runId);
+    await remember(WINDOWS, (all) => { delete all[runId]; });
   }
 
   const { port } = await api.settings();
@@ -193,16 +257,7 @@ async function showLog(runId, tabId) {
 
   // The window opens attached to a run that is already going: no plan to approve, straight to the
   // log and a Stop.
-  await chrome.storage.session.set({ attachedRun: run });
-
-  const created = await chrome.windows.create({
-    url: chrome.runtime.getURL('confirm.html?attach=1'),
-    type: 'popup',
-    width: 760,
-    height: 720,
-  });
-
-  logWindows.set(runId, created.id);
+  await openWindow(run, 'confirm.html?attach=1');
   if (!active.has(runId)) follow(runId, tabId, { port });
 
   return { ok: true, reopened: true };
@@ -215,47 +270,44 @@ async function revealRun(runId) {
 }
 
 /**
- * Opens confirm.html and resolves with the user's decision. The window is left open afterwards:
- * once approved it becomes the run's log view, which is where a hundred lines of build output
- * belong - not in a toolbar button.
+ * Opens the window for a run: the plan to approve, or - with `?attach=1` - the log of one that is
+ * already going. It stays open after approval and becomes the run's log view, which is where a
+ * hundred lines of build output belong, not in a toolbar button.
  */
-async function confirmInWindow(run) {
-  await chrome.storage.session.set({ pendingRun: run });
+async function openWindow(run, page) {
+  await chrome.storage.session.set(page.includes('attach') ? { attachedRun: run } : { pendingRun: run });
 
   const created = await chrome.windows.create({
-    url: chrome.runtime.getURL('confirm.html'),
+    url: chrome.runtime.getURL(page),
     type: 'popup',
     width: 760,
     height: 720,
   });
 
-  logWindows.set(run.id, created.id);
+  await remember(WINDOWS, (all) => { all[run.id] = created.id; });
 
-  return new Promise((resolve) => {
-    const onMessage = (message, sender, respond) => {
-      if (message?.type !== 'confirmResult' || message.runId !== run.id) return false;
-      cleanup();
-      respond({ ok: true });
-      resolve(Boolean(message.approved));
-      return true;
-    };
+  return created.id;
+}
 
-    // A closed window is a rejection: silence must never mean approval.
-    const onRemoved = (windowId) => {
-      if (windowId !== created.id) return;
-      cleanup();
-      if (logWindows.get(run.id) === windowId) logWindows.delete(run.id);
-      resolve(false);
-    };
+/**
+ * A closed window is a rejection: silence must never mean approval.
+ *
+ * Closing a window wakes this worker whether or not it was running, which is the point - the
+ * decision is looked up rather than remembered.
+ */
+// The promise is returned rather than dropped: the browser ignores it, a test can wait for it.
+chrome.windows.onRemoved.addListener((windowId) => windowClosed(windowId));
 
-    function cleanup() {
-      chrome.runtime.onMessage.removeListener(onMessage);
-      chrome.windows.onRemoved.removeListener(onRemoved);
-    }
+async function windowClosed(windowId) {
+  const windows = await remembered(WINDOWS);
+  const runId = Object.keys(windows).find((id) => windows[id] === windowId);
+  if (!runId) return;
 
-    chrome.runtime.onMessage.addListener(onMessage);
-    chrome.windows.onRemoved.addListener(onRemoved);
-  });
+  await remember(WINDOWS, (all) => { delete all[runId]; });
+
+  // Only a run still waiting for an answer is affected; one that was approved keeps going, which is
+  // what closing its log window has always meant.
+  if ((await remembered(PENDING))[runId]) await decideRun(runId, false);
 }
 
 const TERMINAL = ['succeeded', 'failed', 'cancelled'];
@@ -302,16 +354,16 @@ function notify(tabId, runId, event) {
   // the outcome, and the moment something became reachable - not every line of build output.
   if (event.kind === 'taskReady' || event.kind === 'finished' || event.kind === 'failed'
       || event.kind === 'cancelled')
-    raiseLogWindow(runId);
+    void raiseLogWindow(runId);
 }
 
-function raiseLogWindow(runId) {
-  const windowId = logWindows.get(runId);
+async function raiseLogWindow(runId) {
+  const windowId = (await remembered(WINDOWS))[runId];
   if (windowId === undefined) return;
 
-  chrome.windows
+  await chrome.windows
     .update(windowId, { focused: true, drawAttention: true })
-    .catch(() => logWindows.delete(runId));
+    .catch(() => remember(WINDOWS, (all) => { delete all[runId]; }));
 }
 
 function sleep(ms) {

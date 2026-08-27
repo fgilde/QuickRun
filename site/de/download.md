@@ -79,29 +79,28 @@ QuickRun ist noch nicht code-signiert:
   ```bash
   xattr -d com.apple.quarantine ./quickrun
   ```
-- **Windows** zeigt beim ersten Start eine SmartScreen-Warnung, und ein frisch veröffentlichter
-  Download wird gelegentlich direkt mit **„Virus gefunden"** abgelehnt. Das ist die
-  Machine-Learning-Heuristik von Defender — das Urteil lautet `Trojan:Script/Wacatac.B!ml`, wobei
-  `!ml` „sieht nach etwas aus" heißt und nicht „ist bekanntermaßen etwas". Reagiert wird auf die
-  Form: ein 140 MB großes, sich selbst entpackendes Binary, heruntergeladen Minuten nach dem Bau,
-  von niemandem signiert. Dieselbe Datei, lokal gebaut, wird sauber gescannt, und ältere Releases
-  werden nicht mehr gemeldet, sobald genug Leute sie ausgeführt haben.
+- **Windows** zeigt beim ersten Start eine SmartScreen-Warnung, weil das Binary noch nicht
+  signiert ist. Installationen über `scoop` oder `winget` umgehen das.
 
-  Was bei einem blockierten Download hilft:
+  Ein Release, v0.8.3, ging weiter: die veröffentlichte Zip-Datei wurde von Browsern mit „Virus
+  gefunden" abgelehnt, weil Defenders Machine-Learning-Modell sie `Trojan:Script/Wacatac.B!ml`
+  nannte — `!ml` ist eine Vermutung anhand der Form, kein Treffer gegen etwas Bekanntes. Sie war
+  falsch, und sie betraf genau diese eine Datei: derselbe Quellcode lokal gebaut wurde sauber
+  gescannt, und derselbe Quellcode erneut in der CI gebaut ließ sich sauber herunterladen. Jeder
+  Windows-Build wird jetzt auf dem Build-Rechner geprüft, bevor er veröffentlicht wird — ein
+  Release, das abgelehnt würde, scheitert dort statt bei dir.
 
-  1. Die Datei gegen die `SHA256SUMS` des Releases prüfen — stimmt der Hash, hast du exakt das,
-     was der Build erzeugt hat:
-     ```powershell
-     Get-FileHash .\quickrun-win-x64.zip -Algorithm SHA256
-     ```
-  2. Über `winget` oder `scoop` installieren; die laufen nicht über den Download-Pfad des Browsers.
-  3. Oder einen Tag warten: solche Urteile verfallen, sobald die Datei nicht mehr neu ist.
+  Falls doch einmal ein Download blockiert wird: das Erhaltene gegen die `SHA256SUMS` des Releases
+  prüfen,
+  ```powershell
+  Get-FileHash .\quickrun-win-x64.zip -Algorithm SHA256
+  ```
+  und über `winget` oder `scoop` installieren — die laufen nicht über den Download-Pfad des Browsers.
 
 - **Linux** interessiert es nicht.
 
-Die eigentliche Abhilfe ist eine Signatur — sie trägt Reputation von einem Release zum nächsten,
-statt dass jede Version bei null anfängt. Der Release-Workflow signiert Windows-Builds, sobald die
-Signatur-Zugangsdaten hinterlegt sind; bis dahin sind die Prüfsummen oben der Beleg, dass ein
+Die dauerhafte Antwort ist eine Signatur; der Release-Workflow signiert Windows-Builds, sobald die
+Signatur-Zugangsdaten hinterlegt sind. Bis dahin sind die Prüfsummen oben der Beleg, dass ein
 Download die Datei ist, die er zu sein behauptet.
 
 ## Die Browser-Erweiterung

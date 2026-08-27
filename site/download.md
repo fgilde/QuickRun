@@ -78,30 +78,26 @@ QuickRun is not code-signed yet:
   ```bash
   xattr -d com.apple.quarantine ./quickrun
   ```
-- **Windows** shows a SmartScreen warning on first run, and a brand-new release download is
-  sometimes refused outright with **"virus detected"**. That is Defender's machine-learning
-  heuristic - the verdict is `Trojan:Script/Wacatac.B!ml`, where `!ml` means "this looks like
-  something", not "this is known to be something". What it is reacting to is shape: a 140 MB
-  self-contained binary that unpacks itself, downloaded minutes after it was built, signed by
-  nobody. The same file built on your own machine scans clean, and older releases stop being
-  flagged once enough people have run them.
+- **Windows** shows a SmartScreen warning on first run, because the binary is not signed yet.
+  `scoop` and `winget` installs avoid it.
 
-  What to do with a download that was blocked:
+  One release, v0.8.3, went further: the published zip was refused by browsers as "virus detected",
+  because Defender's machine-learning model called it `Trojan:Script/Wacatac.B!ml` - `!ml` being a
+  guess from shape rather than a match against anything known. It was wrong, and it was about that
+  one file: the same source built locally scanned clean, and the same source rebuilt in CI
+  downloaded clean. Every Windows build is now scanned on the build machine before it is published,
+  so a release that would be refused fails there instead of reaching you.
 
-  1. Check the file against the release's own `SHA256SUMS` - if the hash matches, you have exactly
-     what the build produced:
-     ```powershell
-     Get-FileHash .\quickrun-win-x64.zip -Algorithm SHA256
-     ```
-  2. Install through `winget` or `scoop` instead, which do not go through the browser's download
-     path.
-  3. Or wait a day: these verdicts expire as the file becomes less novel.
+  If a download is ever blocked anyway: check what you got against the release's own `SHA256SUMS`,
+  ```powershell
+  Get-FileHash .\quickrun-win-x64.zip -Algorithm SHA256
+  ```
+  and install through `winget` or `scoop`, which do not go through the browser's download path.
 
 - **Linux** does not care.
 
-The real cure is a signature, which carries reputation from one release to the next instead of every version
-starting from zero. The release workflow signs Windows builds as soon as the
-signing credentials are configured; until then, the checksums above are what proves a download is
+A signature is the permanent answer, and the release workflow signs Windows builds as soon as the
+signing credentials are configured. Until then the checksums above are what proves a download is
 the file it claims to be.
 
 ## The browser extension

@@ -179,11 +179,12 @@ for any id at all, including ones that do not exist.
 
 ## Windows code signing
 
-**Why this is not optional any more.** A download of v0.8.3 was refused by Chrome with "virus
-detected": Defender's machine-learning model called it `Trojan:Script/Wacatac.B!ml`. Not a
-signature match - `!ml` is a guess from shape, and the shape it dislikes is a large, self-extracting,
-unsigned binary that nobody has ever run. Every unsigned release starts from zero reputation and
-can be greeted this way. A signature is what carries reputation across versions.
+**Why this is worth paying for.** A download of v0.8.3 was refused by Chrome with "virus detected":
+Defender's machine-learning model called it `Trojan:Script/Wacatac.B!ml`, `!ml` being a guess from
+shape rather than a match against anything known. It was a misclassification of that one published
+file - the same source built locally scanned clean, and the same source rebuilt in CI downloaded
+clean. Windows builds are now scanned on the build machine before they are published, which catches
+a repeat, and a signature is what stops a build being judged on shape in the first place.
 
 **Azure Trusted Signing**, because a code-signing key must live in an HSM now, and Microsoft rents
 one for about ten dollars a month instead of several hundred a year for a certificate plus a token.

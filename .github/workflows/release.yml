@@ -118,6 +118,36 @@ jobs:
             (cd "bundle/$rid" && zip -qry "../../dist/QuickRun-$rid.app.zip" QuickRun.app)
           fi
 
+      # --- what a user's machine will say about this file ---------------------------------------
+      #
+      # v0.8.3 shipped and then would not download: Defender called the published zip
+      # Trojan:Script/Wacatac.B!ml. The same source built locally was clean, and a rebuild of the
+      # same source in CI was clean - the verdict was on that one artifact. Which is worth knowing
+      # before it is published rather than from someone who cannot install it, so the runner asks
+      # the same scanner the user has, and a release that would be refused fails here instead.
+      - name: Scan the Windows build
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: |
+          $scanner = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
+          if (-not (Test-Path $scanner)) {
+            Write-Host "::notice::no Defender on this runner - nothing to ask"
+            exit 0
+          }
+
+          # Fresh definitions, or the answer is about last month's model.
+          & $scanner -SignatureUpdate | Out-Null
+
+          $file = (Resolve-Path "dist/quickrun-${{ matrix.rid }}.zip").Path
+          $output = & $scanner -Scan -ScanType 3 -File $file
+          $output | ForEach-Object { Write-Host $_ }
+
+          # MpCmdRun exits 0 for "clean" and 2 for "found something", and says so in its output.
+          if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -match "found") {
+            Write-Host "::error::Defender flagged $file - publishing it would ship a download nobody can open"
+            exit 1
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.rid }}

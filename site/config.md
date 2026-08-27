@@ -84,6 +84,24 @@ stop:                          # optional, run when you stop the app
   - docker compose down
 ```
 
+## `requires`
+
+A requirement is checked before anything runs. What is missing and can be installed **is** installed
+- into QuickRun's own folder, never into the system:
+
+| Tool | Where it comes from |
+|---|---|
+| `dotnet` | Microsoft's `dotnet-install` script, at the channel your `version` implies (`>=10` means 10.0) |
+| `node` | the newest build on nodejs.org that your `version` accepts |
+
+Anything else is checked and reported, with your `install` line if you gave one. The confirmation
+window lists what would be installed before you approve it, and the CLI prints it before it asks.
+
+Three things it will not do: touch a version the machine already has (a satisfied requirement
+installs nothing), install for an `optional: true` requirement, or write to your PATH - the
+downloaded toolchain is put in front of the PATH of that run's own processes and nowhere else.
+Everything lands under `~/.quickrun/tools`, so deleting that folder undoes it completely.
+
 ## `readyWhen`
 
 Exactly one of these, or omit the block to mean "ready as soon as the process started":

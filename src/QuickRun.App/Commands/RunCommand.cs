@@ -3,6 +3,7 @@ using System.Diagnostics;
 using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
+using QuickRun.Core.Requires;
 using QuickRun.Core.Run;
 using QuickRun.Core.Workspace;
 using Spectre.Console;
@@ -91,6 +92,12 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         foreach (var candidate in preparation.OtherCandidates)
             Output.Info($"also detected: {candidate.Label} - use --config or commit a quickrun.yml to choose");
 
+        // What is missing and would be installed, before the question is asked rather than after.
+        foreach (var check in ToolChecker.CheckAll(config.Requires))
+            if (Provisioner.PlanFor(check, Path.Combine(store.Root, "tools")) is { } provision)
+                Output.Info($"{provision.Tool} {provision.Version} is missing - QuickRun will install "
+                            + $"it into {provision.Directory} from {provision.Source}");
+
         foreach (var conflict in PortScan.Occupied(config))
             Output.Warn($"port {conflict.Port} (needed by task '{conflict.Task}') is already in use - "
                         + "the readiness check may match another application");
@@ -108,7 +115,10 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
                 RunPipeline.RepoName(plan.Repo), plan.Ref),
             InputResolver.ToEnv(config.Inputs, preparation.Values!),
             secrets,
-            Readiness.DefaultTimeout);
+            Readiness.DefaultTimeout,
+            // A missing toolchain is installed here rather than reported: everything QuickRun puts
+            // on a machine lives under its own root, and this is where that root is.
+            ToolRoot: Path.Combine(store.Root, "tools"));
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Console.CancelKeyPress += (_, e) =>

@@ -697,6 +697,18 @@ function planList(run) {
 }
 
 /**
+ * What is missing on this machine and would be installed first. Part of the plan, because
+ * installing a runtime changes the machine and that is not something to read about afterwards.
+ */
+function provisionList(run) {
+  const lines = run.provisions ?? [];
+  if (lines.length === 0) return '';
+
+  return `<p class="muted" style="margin:10px 0 0">QuickRun will install first:</p>
+    <ul class="plan">${lines.map((line) => `<li><code>${escapeHtml(line)}</code></li>`).join('')}</ul>`;
+}
+
+/**
  * The plan, and nothing else: this is the confirmation gate, so it shows the commands that would
  * run before anything has run. Every command is repository content and is escaped as such.
  */
@@ -715,6 +727,7 @@ function renderPlan(run, panel = starter.plan) {
     ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
     ${run.workspace ? `<div class="row"><code class="grow mono">${escapeHtml(run.workspace)}</code></div>` : ''}
     <div data-inputs></div>
+    ${provisionList(run)}
     <div data-commands>${planList(run)}</div>
     <p class="muted" data-plan-state style="margin:10px 0 0">${waiting ? escapeHtml(run.error ?? '') : ''}</p>
     <div class="row" style="margin-top:12px">

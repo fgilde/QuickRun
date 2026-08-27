@@ -5,6 +5,7 @@ using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
 using QuickRun.Core.Process;
+using QuickRun.Core.Requires;
 using QuickRun.Core.Run;
 using QuickRun.Core.Workspace;
 
@@ -75,7 +76,13 @@ public sealed record RunSummary(
     /// launcher's scripts, or QuickRun reading the repository. Approving a plan means trusting it,
     /// and how much trust it deserves depends on who wrote it.
     /// </summary>
-    string Origin = "repository");
+    string Origin = "repository",
+    /// <summary>
+    /// Tools this run needs, the machine does not have, and QuickRun would install before starting
+    /// - said before anyone approves anything, because installing a runtime is a change to the
+    /// machine and nobody should find out about it from the log.
+    /// </summary>
+    IReadOnlyList<string>? Provisions = null);
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -176,7 +183,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
             return (entry.Summary, preparation.Error);
         }
 
-        entry.Prepared(preparation);
+        entry.Prepared(preparation, Provisions(preparation.Config, Path.Combine(store.Root, "tools")));
 
         // Where the plan came from, before the first command scrolls past: a config derived from
         // another launcher's scripts, or from guessing, is not the same promise as a quickrun.yml.
@@ -184,6 +191,22 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
             entry.Publish(new RunEvent(RunEventKind.Info, null, note));
 
         return (entry.Summary, null);
+    }
+
+    /// <summary>
+    /// What QuickRun would install before this run, in the words the confirmation window shows.
+    /// Asked here rather than at execution time so the plan on screen is the whole plan.
+    /// </summary>
+    private static IReadOnlyList<string> Provisions(RunConfig? config, string toolRoot)
+    {
+        if (config is null || config.Requires.Count == 0) return Array.Empty<string>();
+
+        return ToolChecker.CheckAll(config.Requires)
+            .Select(check => Provisioner.PlanFor(check, toolRoot))
+            .OfType<ProvisionPlan>()
+            .Select(plan => $"{plan.Tool} {plan.Version} is missing - QuickRun will install it "
+                            + $"into {plan.Directory} from {plan.Source}")
+            .ToList();
     }
 
     /// <summary>Starts a prepared run. Returns false if the run is unknown or already started.</summary>
@@ -250,7 +273,10 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                 RunPipeline.RepoName(preparation.Plan!.Repo), preparation.Plan.Ref),
             InputResolver.ToEnv(config.Inputs, preparation.Values!),
             secrets,
-            Readiness.DefaultTimeout);
+            Readiness.DefaultTimeout,
+            // A missing toolchain is installed here rather than reported: everything QuickRun puts
+            // on a machine lives under its own root, and this is where that root is.
+            ToolRoot: Path.Combine(store.Root, "tools"));
 
         var opened = new HashSet<string>(StringComparer.Ordinal);
 
@@ -341,7 +367,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
         public CancellationToken StopToken => _stop.Token;
 
-        public void Prepared(RunPreparation preparation)
+        public void Prepared(RunPreparation preparation, IReadOnlyList<string> provisions)
         {
             Preparation = preparation;
             var plan = preparation.Plan!;
@@ -361,6 +387,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Inputs = preparation.Config?.Inputs,
                     Values = Safe(preparation),
                     Origin = preparation.Origin.ToString().ToLowerInvariant(),
+                    Provisions = provisions,
                     Tasks = preparation.Config?.Tasks
                         .Select(t => new RunTaskStatus(t.Name, "waiting", t.OpenUrl))
                         .ToList(),

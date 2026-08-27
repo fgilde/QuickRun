@@ -84,6 +84,25 @@ stop:                          # optional, läuft beim Stoppen
   - docker compose down
 ```
 
+## `requires`
+
+Eine Voraussetzung wird geprüft, bevor irgendetwas läuft. Was fehlt und installiert werden kann,
+**wird** installiert — in QuickRuns eigenen Ordner, nie ins System:
+
+| Tool | Woher |
+|---|---|
+| `dotnet` | Microsofts `dotnet-install`-Script, im Channel, den deine `version` bedeutet (`>=10` heißt 10.0) |
+| `node` | der neueste Build auf nodejs.org, den deine `version` akzeptiert |
+
+Alles andere wird geprüft und gemeldet, mit deiner `install`-Zeile, falls du eine angegeben hast.
+Das Bestätigungsfenster listet vor der Zustimmung auf, was installiert würde; die CLI schreibt es
+hin, bevor sie fragt.
+
+Drei Dinge passieren nicht: eine Version anfassen, die die Maschine schon hat (eine erfüllte
+Voraussetzung installiert nichts), für `optional: true` installieren, oder in deinen PATH schreiben
+— die geladene Toolchain steht nur im PATH der Prozesse dieses Laufs. Alles liegt unter
+`~/.quickrun/tools`; diesen Ordner zu löschen macht es vollständig rückgängig.
+
 ## `readyWhen`
 
 Genau eine dieser Formen, oder den Block weglassen für „fertig, sobald der Prozess gestartet ist":

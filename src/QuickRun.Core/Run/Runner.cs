@@ -38,7 +38,12 @@ public sealed record RunOptions(
     IReadOnlyDictionary<string, string> ExtraEnv,
     IReadOnlyList<string> Secrets,
     TimeSpan ReadyTimeout,
-    bool SkipRequires = false);
+    bool SkipRequires = false,
+    /// <summary>
+    /// Where QuickRun may install a missing tool. Null means it may not - the CLI's
+    /// <c>--no-install</c>, and every test that has no business downloading a runtime.
+    /// </summary>
+    string? ToolRoot = null);
 
 /// <summary>
 /// Runs a config: prerequisites, setup steps, then the tasks with their dependencies and readiness.
@@ -67,6 +72,9 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
     /// <summary>The process each task is currently running as, for the window probe and the log.</summary>
     private readonly ConcurrentDictionary<string, int> _pids = new();
+
+    /// <summary>Directories of tools installed for this run, to go in front of its PATH.</summary>
+    private readonly ConcurrentBag<string> _toolPaths = new();
 
     /// <summary>
     /// Tasks that ended badly, with the exit code they ended on.
@@ -100,7 +108,7 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
         if (!options.SkipRequires)
         {
-            var blockers = Blockers(config);
+            var blockers = await EnsureRequirementsAsync(config, options, linked.Token);
             if (blockers.Length > 0) return Fail(string.Join("\n", blockers));
         }
 
@@ -161,13 +169,48 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
     // ---- phases -------------------------------------------------------------
 
-    private static string[] Blockers(RunConfig config) =>
-        ToolChecker.CheckAll(config.Requires)
-            .Where(result => result.Blocks)
-            .Select(result => result.Requirement.Install is { } install
-                ? $"{result.Describe()} - install from {install}"
-                : result.Describe())
-            .ToArray();
+    /// <summary>
+    /// Checks what the config requires and installs what is missing, where that can be done.
+    /// Returns what is still missing afterwards - which is what stops the run.
+    /// <para>
+    /// "Install .NET 10 first" is setup documentation, and a tool whose whole promise is that you
+    /// do not have to read the setup documentation should not end at one. So a missing toolchain
+    /// QuickRun knows how to fetch is fetched into its own folder and put in front of this run's
+    /// PATH only - the machine is left exactly as it was.
+    /// </para>
+    /// </summary>
+    private async Task<string[]> EnsureRequirementsAsync(
+        RunConfig config, RunOptions options, CancellationToken ct)
+    {
+        var blockers = new List<string>();
+
+        foreach (var check in ToolChecker.CheckAll(config.Requires))
+        {
+            if (!check.Blocks) continue;
+
+            if (options.ToolRoot is { } root && Provisioner.Handles(check.Requirement.Tool))
+            {
+                ReportProgress(RunPhase.Setup, 0, $"installing {check.Requirement.Tool}");
+
+                var directory = await Provisioner
+                    .EnsureAsync(check.Requirement, root,
+                        line => Emit(RunEventKind.Info, "requires", line), ct)
+                    .ConfigureAwait(false);
+
+                if (directory is not null)
+                {
+                    _toolPaths.Add(directory);
+                    continue;
+                }
+            }
+
+            blockers.Add(check.Requirement.Install is { } install
+                ? $"{check.Describe()} - install from {install}"
+                : check.Describe());
+        }
+
+        return blockers.ToArray();
+    }
 
     private static IEnumerable<Step> Applicable(IReadOnlyList<Step> steps)
     {
@@ -544,6 +587,17 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
         if (task is not null)
             foreach (var kv in task.Env) merged[kv.Key] = Interpolator.Expand(kv.Value, options.Context);
+
+        // A toolchain QuickRun installed for this run goes in front of the PATH of this run's
+        // processes, and nowhere else: the machine's own PATH is never written to, so a tool the
+        // machine already has keeps winning everywhere except here.
+        if (!_toolPaths.IsEmpty)
+        {
+            var inherited = merged.GetValueOrDefault("PATH")
+                            ?? Environment.GetEnvironmentVariable("PATH") ?? "";
+
+            merged["PATH"] = string.Join(Path.PathSeparator, _toolPaths.Append(inherited));
+        }
 
         return merged;
     }

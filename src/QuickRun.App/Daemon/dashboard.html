@@ -442,9 +442,38 @@ document.querySelectorAll('nav button').forEach((tab) => {
 
 /** A tab can be linked to: the tray menu and the docs point at #builder. */
 function openTabFromHash() {
-  const wanted = location.hash.replace('#', '');
-  const tab = wanted && document.querySelector(`nav button[data-tab="${CSS.escape(wanted)}"]`);
+  const hash = location.hash.replace('#', '');
+
+  // A repository handed over by quickrun://, which is how a README badge reaches this window. The
+  // plan is prepared and shown; nothing runs until it is confirmed here, in this window - which is
+  // the whole reason the badge sends people to a local page instead of starting anything itself.
+  if (hash.startsWith('run?')) {
+    const wanted = new URLSearchParams(hash.slice(4));
+    const repo = wanted.get('repo');
+    if (repo) prefillRun(repo, wanted.get('ref'), wanted.get('pr'));
+    return;
+  }
+
+  const tab = hash && document.querySelector(`nav button[data-tab="${CSS.escape(hash)}"]`);
   if (tab) tab.click();
+}
+
+/** Fills the run form from a link and prepares the plan, leaving the decision on screen. */
+function prefillRun(repo, ref, pr) {
+  document.querySelector('nav button[data-tab="runs"]')?.click();
+
+  starter.repo.value = repo;
+
+  // The picker is what chosenRef() reads while it is visible, and it has no options yet - a branch
+  // named in the link would be dropped. So the link's ref goes in as a typed one, which it is.
+  if (ref) {
+    typedRef();
+    starter.ref.value = ref;
+  }
+
+  if (pr) starter.pr.value = pr;
+
+  prepareRun();
 }
 
 addEventListener('hashchange', openTabFromHash);

@@ -657,14 +657,24 @@ public static class DaemonHost
 
     private static void MapEndpoints(WebApplication app)
     {
-        // No token: telling any page that QuickRun exists is the entire point, and this is the
-        // only thing it reveals - no repository names, no paths, no run contents.
-        app.MapGet("/api/ping", (RunRegistry runs) => Results.Json(new
+        // No token, and readable by any origin: telling a page that QuickRun exists is the entire
+        // point of it, and this is all it reveals - no repository names, no paths, no run contents.
+        // A README badge on the project's own site asks exactly this, to decide between "press Run"
+        // and "download it first".
+        //
+        // This is the one endpoint with an open door. Everything that could start, stop or read a
+        // run stays behind Authorized(), which no web page can pass.
+        app.MapGet("/api/ping", (HttpContext context, RunRegistry runs) =>
         {
-            product = "QuickRun",
-            version = BuildInfo.Version,
-            busy = runs.AnyActive,
-        }, Json));
+            context.Response.Headers.AccessControlAllowOrigin = "*";
+
+            return Results.Json(new
+            {
+                product = "QuickRun",
+                version = BuildInfo.Version,
+                busy = runs.AnyActive,
+            }, Json);
+        });
 
         // What a repository carries, so the extension can be set to show its button only where
         // QuickRun has real instructions to follow. Reveals nothing the repository page does not

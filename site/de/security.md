@@ -39,6 +39,19 @@ funktionieren weiter, geänderte Befehle nicht.
 - Es gibt keinen Pairing-Token mehr. Er schützte vor genau dem, wovor die Origin-Prüfung schützt,
   kostete aber jeden Nutzer einen Einrichtungsschritt.
 
+## Was ein Link mitbringen darf
+
+Ein `quickrun://`-Link — dem ein [README-Badge](/de/badge) am Ende folgt — ist eine Zeichenkette,
+die geschrieben hat, wer die Seite geschrieben hat. Genau so wird er behandelt:
+
+- Nur `repo`, `ref` und `pr` überleben. Ein Befehl, eine Config, ein Token oder ein lokaler Pfad im
+  Link wird kommentarlos verworfen — nichts davon war je unsere Sache.
+- `repo` muss `owner/name` oder eine `https://`-URL sein. `ssh://`, `file://` und
+  `git@host:owner/name` werden aus einem Link abgelehnt: sie selbst auf der CLI zu tippen ist eine
+  Entscheidung, ein Link, der es tut, ist keine.
+- Der Link startet nie etwas. Er öffnet QuickRuns eigenes Fenster beim Repository, wo der Plan
+  gebaut wird und der Bestätigungsdialog genauso gilt wie überall sonst.
+
 ## Secrets
 
 Werte aus `password`-Eingaben bleiben für den Lauf im Speicher, gehen als Umgebungsvariablen an die

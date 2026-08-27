@@ -3,6 +3,9 @@
 The extension puts a Run button where you already are: next to the branch dropdown on a repository
 page, in a pull request header, and on every row of the branch list.
 
+Without the extension there is still the [README badge](/badge): a link a repository owner puts in
+their own README, which reaches the same local window through an https page.
+
 ## Why it needs the local listener
 
 A browser cannot be asked whether a URL scheme has a handler. That is deliberate — it would be a

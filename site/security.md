@@ -36,6 +36,18 @@ keep working, changed commands do not.
 - There is no pairing token any more. It guarded against exactly what the origin check guards
   against, while costing every user a setup step.
 
+## What a link may carry
+
+A `quickrun://` link - what a [README badge](/badge) ends up following - is a string written by
+whoever wrote the page. So it is treated as one:
+
+- Only `repo`, `ref` and `pr` survive. A command, a config, a token or a local path in the link is
+  dropped without comment, because none of it was ever ours to accept.
+- `repo` must be `owner/name` or an `https://` URL. `ssh://`, `file://` and `git@host:owner/name`
+  are refused from a link - typing them on the CLI yourself is a choice, a link doing it is not.
+- The link never starts anything. It opens QuickRun's own window at the repository, where the plan
+  is prepared and the confirmation gate applies exactly as it does everywhere else.
+
 ## Secrets
 
 Values from `password` inputs are held in memory for the run, passed to child processes as

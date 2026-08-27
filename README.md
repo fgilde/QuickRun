@@ -8,7 +8,8 @@
   <a href="https://fgilde.github.io/QuickRun/download">Download</a> ·
   <a href="https://fgilde.github.io/QuickRun/">Documentation (English)</a> ·
   <a href="https://fgilde.github.io/QuickRun/de/">Dokumentation (Deutsch)</a> ·
-  <a href="samples/">Example configs</a>
+  <a href="samples/">Example configs</a> ·
+  <a href="https://fgilde.github.io/QuickRun/badge">README badge</a>
 </p>
 
 ---
@@ -145,6 +146,23 @@ sh build.sh     # dist/chromium for Chrome, Edge and Opera; dist/firefox for Fir
 
 Store listings are pending review. Until then the [download page](https://fgilde.github.io/QuickRun/download)
 has the builds and the steps to load them unpacked.
+
+## README badge
+
+Put a badge in your own README and anyone reading it is one click from running your project — no
+extension on their side:
+
+```markdown
+[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](https://fgilde.github.io/QuickRun/run?repo=owner/repo)
+```
+
+The badge links to a page that asks the local listener whether QuickRun is there. If it is, the page
+hands the repository over and QuickRun opens its own window with the plan; if it is not, the page
+offers the download. GitHub strips unknown link schemes from a rendered README, which is why the
+badge cannot link `quickrun://` itself.
+
+The link may carry `repo`, `ref` and `pr` and nothing else — no command, no config, no token, no
+local path. Details: [README badge](https://fgilde.github.io/QuickRun/badge).
 
 ## Updating
 

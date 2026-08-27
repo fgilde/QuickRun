@@ -3,6 +3,9 @@
 Die Erweiterung setzt einen Run-Button dorthin, wo du schon bist: neben das Branch-Dropdown auf der
 Repository-Seite, in den Header eines Pull Requests und in jede Zeile der Branch-Liste.
 
+Ohne Erweiterung bleibt das [README-Badge](/de/badge): ein Link, den ein Repository-Besitzer in sein
+eigenes README setzt und der über eine https-Seite dasselbe lokale Fenster erreicht.
+
 ## Warum sie den lokalen Listener braucht
 
 Ein Browser lässt sich nicht fragen, ob für ein URL-Schema ein Handler registriert ist. Das ist

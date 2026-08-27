@@ -22,6 +22,7 @@ const t = computed(() => (de.value
         builder: 'Config-Builder',
         cli: 'Kommandozeile',
         extension: 'Browser-Erweiterung',
+        badge: 'README-Badge',
         security: 'Sicherheit',
         privacy: 'Datenschutz',
         releases: 'Releases',
@@ -46,6 +47,7 @@ const t = computed(() => (de.value
         builder: 'Config builder',
         cli: 'Command line',
         extension: 'Browser extension',
+        badge: 'README badge',
         security: 'Security',
         privacy: 'Privacy',
         releases: 'Releases',
@@ -78,6 +80,7 @@ const columns = computed(() => {
         { text: l.builder, href: withBase(`${base}builder`) },
         { text: l.cli, href: withBase(`${base}cli`) },
         { text: l.extension, href: withBase(`${base}extension`) },
+        { text: l.badge, href: withBase(`${base}badge`) },
       ],
     },
     {

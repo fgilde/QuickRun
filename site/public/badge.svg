@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="20" role="img" aria-label="QuickRun: Run this">
+  <title>QuickRun: Run this</title>
+
+  <!-- The usual badge gloss, so it sits beside the ones a README already has. -->
+  <linearGradient id="qr-gloss" x2="0" y2="100%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".7"/>
+    <stop offset=".1" stop-color="#aaa" stop-opacity=".1"/>
+    <stop offset=".9" stop-color="#000" stop-opacity=".3"/>
+    <stop offset="1" stop-color="#000" stop-opacity=".5"/>
+  </linearGradient>
+
+  <clipPath id="qr-round">
+    <rect width="150" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+
+  <g clip-path="url(#qr-round)">
+    <rect width="84" height="20" fill="#2b2735"/>
+    <!-- QuickRun's own violet, not a shields.io default: the badge should look like the tool. -->
+    <rect x="84" width="66" height="20" fill="#6d4ac4"/>
+    <rect width="150" height="20" fill="url(#qr-gloss)"/>
+  </g>
+
+  <!-- A play mark, which is what the button on GitHub does. -->
+  <g transform="translate(6 5)">
+    <path d="M0 0 L9 5 L0 10 Z" fill="#c9b6ff"/>
+  </g>
+
+  <g fill="#fff" text-anchor="middle"
+     font-family="Verdana,DejaVu Sans,Geneva,sans-serif" font-size="11">
+    <text x="50" y="15" fill="#010101" fill-opacity=".3">QuickRun</text>
+    <text x="50" y="14">QuickRun</text>
+    <text x="117" y="15" fill="#010101" fill-opacity=".3">Run this</text>
+    <text x="117" y="14">Run this</text>
+  </g>
+</svg>

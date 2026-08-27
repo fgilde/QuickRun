@@ -9,6 +9,9 @@ export async function settings() {
   return chrome.storage.local.get({
     port: DEFAULT_PORT,
     useProtocolFallback: true,
+    // Where the button appears: 'always', 'known' (a quickrun.yml or Pinokio scripts), or
+    // 'quickrun' (a quickrun.yml and nothing else).
+    showOn: 'always',
   });
 }
 
@@ -123,6 +126,21 @@ export async function reveal(runId, { port }) {
 
 export async function updateStatus({ port }) {
   const { ok, payload } = await request('/api/update', { port });
+  return ok ? payload : null;
+}
+
+/**
+ * What a repository carries, as far as QuickRun can tell without cloning it.
+ *
+ * Asked of the daemon rather than of GitHub directly: reaching raw.githubusercontent.com from the
+ * extension would mean a host permission for it, and a question at every store review, for
+ * something the daemon may already do.
+ */
+export async function probe(target, { port }) {
+  const query = new URLSearchParams({ repo: target.repo });
+  if (target.ref) query.set('reference', target.ref);
+
+  const { ok, payload } = await request(`/api/probe?${query}`, { port, timeoutMs: 6000 });
   return ok ? payload : null;
 }
 

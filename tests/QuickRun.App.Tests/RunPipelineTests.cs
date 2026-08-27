@@ -337,4 +337,41 @@ public class RunPipelineTests
 
         Assert.Equal("Theirs", Prepare(Args(repo.Url), home).Plan!.DisplayName);
     }
+
+    /// <summary>
+    /// Where a plan came from travels with it.
+    /// <para>
+    /// A quickrun.yml the repository committed and a plan QuickRun worked out by reading the files
+    /// are different promises, and the window that asks for approval can only say which one it is
+    /// showing if the preparation carries the answer.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void A_repository_with_a_config_says_the_config_is_where_the_plan_came_from()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var preparation = Prepare(Args(repo.Url), home);
+
+        Assert.Equal(0, preparation.ExitCode);
+        Assert.Equal(ConfigOrigin.Repository, preparation.Origin);
+    }
+
+    [Fact]
+    public void A_repository_without_one_says_the_plan_was_worked_out()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("package.json", "{\n  \"scripts\": { \"dev\": \"node server.js\" }\n}\n");
+        repo.Commit("a project with no quickrun.yml");
+
+        var preparation = Prepare(Args(repo.Url), home);
+
+        Assert.Equal(0, preparation.ExitCode);
+        Assert.Equal(ConfigOrigin.Detected, preparation.Origin);
+        Assert.Contains(preparation.Notes, note => note.Contains("no quickrun.yml"));
+    }
 }

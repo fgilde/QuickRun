@@ -62,6 +62,9 @@ function makeButton(target) {
   progress.className = 'quickrun-progress';
 
   button.append(icon, label, progress);
+  // What this button says when it has nothing to report. Kept on the element because the message
+  // listener below sees the button and not the target it was built from.
+  button.dataset.idleLabel = target.label;
   setLabel(button, target.label);
 
   button.addEventListener('click', (event) => {
@@ -182,6 +185,39 @@ function phaseOf(progress) {
   }
 }
 
+/**
+ * The button's line while a run is going.
+ *
+ * A finished bar reading "100% starting" is a contradiction, and it is what the button showed for
+ * the whole time an application was actually up: the tasks phase ends at a hundred, and the word
+ * for that is running.
+ */
+function describe(progress) {
+  if (progress.phase === 'tasks' && progress.percent >= 100) return 'Running';
+  return `${progress.percent}% ${phaseOf(progress)}`;
+}
+
+/**
+ * Says how it ended, then goes back to offering a run.
+ *
+ * A button left reading "Stopped" is a dead end: the run is gone, the next click would start a new
+ * one, and nothing on the button says so.
+ */
+function goIdleLater(button) {
+  clearTimeout(Number(button.dataset.idleTimer));
+
+  const timer = setTimeout(() => {
+    // Unless a new run started in the meantime, which owns the button now.
+    if (button.dataset.runId) return;
+
+    setState(button, 'ready');
+    setLabel(button, button.dataset.idleLabel ?? 'Run');
+    button.style.removeProperty('--quickrun-progress');
+  }, 6000);
+
+  button.dataset.idleTimer = String(timer);
+}
+
 function setLabel(button, text) {
   const label = button.querySelector('.quickrun-label');
   if (label) label.textContent = text;
@@ -240,10 +276,18 @@ chrome.runtime.onMessage.addListener((message) => {
 
   const { kind, progress, text } = message.event;
 
+  if (kind === 'taskReady') {
+    // Something answered. Starting is over, whatever the percentage says.
+    setState(button, 'running');
+    setLabel(button, 'Running');
+    button.style.setProperty('--quickrun-progress', '100%');
+    return;
+  }
+
   if (progress) {
     setState(button, 'running');
-    // Coarse action only; the full log lives in the confirmation window.
-    setLabel(button, `${progress.percent}% ${phaseOf(progress)}`);
+    // Coarse action only; the full log lives in the log window.
+    setLabel(button, describe(progress));
     button.style.setProperty('--quickrun-progress', `${progress.percent}%`);
     return;
   }
@@ -262,7 +306,10 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 
   // Over, so the next click starts a run again rather than opening a menu about a dead one.
-  if (kind === 'finished' || kind === 'failed' || kind === 'cancelled') delete button.dataset.runId;
+  if (kind === 'finished' || kind === 'failed' || kind === 'cancelled') {
+    delete button.dataset.runId;
+    goIdleLater(button);
+  }
 });
 
 function send(message) {
@@ -274,6 +321,11 @@ async function inject() {
 
   for (const target of targets()) {
     if (!target.anchor || target.anchor.querySelector(`.${BUTTON_CLASS}`)) continue;
+
+    // A setting decides whether this repository gets a button at all: every repository, only the
+    // ones carrying instructions, or only the ones with a quickrun.yml.
+    const verdict = await send({ type: 'shouldShow', target: asTarget(target) });
+    if (verdict && verdict.show === false) continue;
 
     const button = makeButton(target);
     setState(button, status.state === 'ready' ? 'ready' : status.state);
@@ -296,8 +348,8 @@ async function adopt(button, target) {
   button.dataset.runId = run.id;
   setState(button, 'running');
   setLabel(button, run.state === 'stopping' ? 'Stopping...'
-    : run.progress ? `${run.progress.percent}% ${phaseOf(run.progress)}`
-    : run.leftovers > 0 ? 'Still running' : 'Running...');
+    : run.progress ? describe(run.progress)
+    : run.leftovers > 0 ? 'Still running' : 'Running');
   if (run.progress) button.style.setProperty('--quickrun-progress', `${run.progress.percent}%`);
 }
 

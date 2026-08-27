@@ -34,7 +34,35 @@ public sealed record RunPreparation(
     IReadOnlyDictionary<string, string?>? Values,
     string? Error,
     IReadOnlyList<Candidate> OtherCandidates,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    /// <summary>
+    /// Where the instructions came from. A plan a repository committed and a plan QuickRun worked
+    /// out by reading the files deserve different amounts of trust, and a reader can only weigh
+    /// that if they are told which one is in front of them.
+    /// </summary>
+    ConfigOrigin Origin = ConfigOrigin.Repository);
+
+/// <summary>Where a run's instructions came from.</summary>
+public enum ConfigOrigin
+{
+    /// <summary>A quickrun.yml committed to the repository.</summary>
+    Repository,
+
+    /// <summary>A config saved on this machine for this repository, which wins over the above.</summary>
+    Local,
+
+    /// <summary>A config handed in for this run - from the editor, or --config-text.</summary>
+    Supplied,
+
+    /// <summary>A file named with --config.</summary>
+    Explicit,
+
+    /// <summary>Scripts written for another launcher. Pinokio, so far.</summary>
+    Foreign,
+
+    /// <summary>Nothing to go on, so QuickRun read the repository and decided for itself.</summary>
+    Detected,
+}
 
 /// <summary>
 /// Everything up to but not including execution: normalise, check out, load or detect a config,
@@ -95,7 +123,7 @@ public static class RunPipeline
                 // Not a dead end: the caller may be a window that can ask for the missing values.
                 // The config travels with the failure, so whoever asked knows which fields to show.
                 return new(1, null, config, workspace, values,
-                    string.Join("\n", errors.Select(e => e.Message)), Empty, loaded.Notes);
+                    string.Join("\n", errors.Select(e => e.Message)), Empty, loaded.Notes, loaded.Origin);
         }
 
         var context = new InterpolationContext(values, workspace, RepoName(repo), reference);
@@ -110,7 +138,7 @@ public static class RunPipeline
             return Failed(e.Message);
         }
 
-        return new(0, plan, config, workspace, values, null, loaded.Others, loaded.Notes);
+        return new(0, plan, config, workspace, values, null, loaded.Others, loaded.Notes, loaded.Origin);
     }
 
     /// <summary>
@@ -151,7 +179,8 @@ public static class RunPipeline
     /// named on the command line, your own override for this repository, the repository's own
     /// quickrun.yml, another launcher's scripts, and only then detection.
     /// </summary>
-    private static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others, IReadOnlyList<string> Notes) LoadConfig(
+    private static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others,
+        IReadOnlyList<string> Notes, ConfigOrigin Origin) LoadConfig(
         string root, RunArgs args, string repo, ConfigOverrides overrides)
     {
         var explicitPath = args.ConfigPath;
@@ -161,11 +190,12 @@ public static class RunPipeline
             try
             {
                 return (ConfigParser.Parse(supplied, OSKinds.Current), null, Empty,
-                    new[] { "using the config you supplied, not the one in the repository" });
+                    new[] { "using the config you supplied, not the one in the repository" },
+                    ConfigOrigin.Supplied);
             }
             catch (ConfigException e)
             {
-                return (null, $"the config you supplied: {e.Message}", Empty, NoNotes);
+                return (null, $"the config you supplied: {e.Message}", Empty, NoNotes, ConfigOrigin.Supplied);
             }
         }
 
@@ -175,9 +205,18 @@ public static class RunPipeline
 
         if (file is not null)
         {
-            if (!File.Exists(file)) return (null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes);
-            try { return (ConfigParser.Parse(File.ReadAllText(file), OSKinds.Current), null, Empty, NoNotes); }
-            catch (ConfigException e) { return (null, $"{Path.GetFileName(file)}: {e.Message}", Empty, NoNotes); }
+            if (!File.Exists(file))
+                return (null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
+
+            try
+            {
+                return (ConfigParser.Parse(File.ReadAllText(file), OSKinds.Current), null, Empty,
+                    new[] { $"using {explicitPath}, which you named" }, ConfigOrigin.Explicit);
+            }
+            catch (ConfigException e)
+            {
+                return (null, $"{Path.GetFileName(file)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Explicit);
+            }
         }
 
         // Your own config for this repository. It beats the repository's, which is the point - but
@@ -188,24 +227,32 @@ public static class RunPipeline
                 ? "using your local config for this repository"
                 : "using your local config for this repository, not the quickrun.yml it ships";
 
-            try { return (ConfigParser.Parse(mine, OSKinds.Current), null, Empty, new[] { note }); }
+            try { return (ConfigParser.Parse(mine, OSKinds.Current), null, Empty, new[] { note }, ConfigOrigin.Local); }
             catch (ConfigException e)
             {
-                return (null, $"your local config for {repo}: {e.Message}", Empty, NoNotes);
+                return (null, $"your local config for {repo}: {e.Message}", Empty, NoNotes, ConfigOrigin.Local);
             }
         }
 
         if (ConfigParser.FindConfigFile(root) is { } own)
         {
-            try { return (ConfigParser.Parse(File.ReadAllText(own), OSKinds.Current), null, Empty, NoNotes); }
-            catch (ConfigException e) { return (null, $"{Path.GetFileName(own)}: {e.Message}", Empty, NoNotes); }
+            try
+            {
+                return (ConfigParser.Parse(File.ReadAllText(own), OSKinds.Current), null, Empty, NoNotes,
+                    ConfigOrigin.Repository);
+            }
+            catch (ConfigException e)
+            {
+                return (null, $"{Path.GetFileName(own)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Repository);
+            }
         }
 
         // A repository written for another launcher says how to start itself, which beats anything
         // guessing from file names: Pinokio's own scripts come before the detector.
         if (Pinokio.Load(root, OSKinds.Current) is { } foreign)
             return (foreign.Config, null, Empty,
-                foreign.Notes.Prepend($"no quickrun.yml - running this repository from its {foreign.Kind} scripts").ToList());
+                foreign.Notes.Prepend($"no quickrun.yml - running this repository from its {foreign.Kind} scripts").ToList(),
+                ConfigOrigin.Foreign);
 
         // The detector already ranks a root run script highest, so there is no separate lookup.
         var candidates = Detector.Detect(root, OSKinds.Current);
@@ -213,7 +260,7 @@ public static class RunPipeline
         {
             var yaml = Detector.ToYaml(candidates[0], RepoName(repo));
             return (ConfigParser.Parse(yaml, OSKinds.Current), null, candidates.Skip(1).ToList(),
-                new[] { $"no quickrun.yml - detected {candidates[0].Label}" });
+                new[] { $"no quickrun.yml - detected {candidates[0].Label}" }, ConfigOrigin.Detected);
         }
 
         // A Pinokio repository whose scripts are JavaScript functions is a real case, and "nothing
@@ -224,7 +271,7 @@ public static class RunPipeline
 
         return (null,
             $"no quickrun.yml, no run script and nothing detectable in {repo}{pinokio} - see {ConfigDocs}",
-            Empty, NoNotes);
+            Empty, NoNotes, ConfigOrigin.Detected);
     }
 
     private static string Describe(ValidationIssue issue) =>

@@ -6,6 +6,7 @@
 
 import { httpUrl } from './safeurl.js';
 import { inputForm } from './inputs.js';
+import { baseUrl, settings } from './api.js';
 
 // Two ways in: a plan waiting to be approved, or a run that is already going and wants watching
 // again. Closing this window never stopped the run, so getting back to it has to be possible.
@@ -44,8 +45,42 @@ if (!run) {
 } else if (attaching) {
   render(run);
   attach(run);
+  replay(run.id);
 } else {
   render(run);
+}
+
+/**
+ * Reads the run's event stream directly, from the beginning.
+ *
+ * A window opened on a run that is already going used to start with an empty log: the extension's
+ * worker had been streaming since the run started and only passes on what arrives next, so
+ * everything before this window existed was simply missing. The daemon replays a run's history to
+ * every new subscriber - so this window subscribes for itself and gets the log it came for.
+ *
+ * While this is on, the messages relayed by the worker are ignored, or every line would arrive
+ * twice.
+ */
+async function replay(runId) {
+  const { port } = await settings();
+  const source = new EventSource(`${baseUrl(port)}/api/runs/${runId}/events`);
+
+  ownStream = true;
+
+  source.onmessage = (message) => {
+    try {
+      consume(JSON.parse(message.data));
+    } catch {
+      // A frame that is not an event is not worth taking the window down for.
+    }
+  };
+
+  source.onerror = () => {
+    // The run is over, or the daemon went away. Either way the poll in keepWatching() is what
+    // decides how this window ends, and the relayed messages are welcome again.
+    source.close();
+    ownStream = false;
+  };
 }
 
 /**
@@ -98,6 +133,7 @@ function render(run) {
   text('repo', run.repo);
   text('ref', run.ref);
   text('commit', run.commit ? run.commit.slice(0, 10) : 'unknown');
+  showOrigin(run);
   text('dir', run.workspace ?? '');
 
   // What the repository says it is, when its config says anything. textContent: this is the
@@ -112,6 +148,40 @@ function render(run) {
 
   renderInputs(run);
   renderCommands(run);
+}
+
+/**
+ * Who wrote the commands about to be approved.
+ *
+ * A quickrun.yml the repository committed, a config saved on this machine, scripts written for
+ * another launcher, or QuickRun's own reading of the files - these are four different promises, and
+ * the one that involves guessing is the one worth knowing about before clicking Run.
+ */
+const ORIGINS = {
+  repository: ["the repository's quickrun.yml", ''],
+  local: ['your own config for this repository', 'saved on this machine, and it wins over the one the repository ships'],
+  supplied: ['the config you supplied', 'not the one in the repository'],
+  explicit: ['the config file you named', ''],
+  foreign: ["this repository's Pinokio scripts", 'written for another launcher, read by QuickRun'],
+  detected: ['QuickRun, from reading the repository', 'there is no config here, so these commands are a considered guess'],
+};
+
+function showOrigin(run) {
+  const cell = document.getElementById('origin');
+  const [what, detail] = ORIGINS[run.origin] ?? ORIGINS.repository;
+
+  cell.textContent = '';
+  cell.append(document.createTextNode(what));
+
+  if (detail) {
+    const note = document.createElement('span');
+    note.className = 'muted';
+    note.textContent = ` - ${detail}`;
+    cell.append(note);
+  }
+
+  // Guessed commands are the case where reading the list below actually matters.
+  cell.classList.toggle('origin--guessed', run.origin === 'detected');
 }
 
 /** The form the config asks for, and the button that applies it. */
@@ -469,11 +539,19 @@ function updateStop() {
   stop.title = stop.disabled ? 'nothing is running any more' : '';
 }
 
+/**
+ * True while this window reads the daemon's stream itself, in which case the same events relayed by
+ * the extension's worker are duplicates.
+ */
+let ownStream = false;
+
 chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type !== 'runEvent' || message.runId !== run?.id) return;
+  if (message?.type !== 'runEvent' || message.runId !== run?.id || ownStream) return;
+  consume(message.event);
+});
 
-  const event = message.event;
-
+/** One event, from wherever it came. */
+function consume(event) {
   if (event.progress) {
     document.getElementById('fill').style.width = `${event.progress.percent}%`;
     document.getElementById('percent').textContent = `${event.progress.percent}%`;
@@ -527,7 +605,7 @@ chrome.runtime.onMessage.addListener((message) => {
 
   // Terminal, one way or another: what is left to do is read the log and close the window.
   if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') conclude(event.kind);
-});
+}
 
 /** The run is over, however it got there. */
 function conclude(kind) {
@@ -571,6 +649,15 @@ function append(line, kind) {
   requestAnimationFrame(flushLog);
 }
 
+/**
+ * Every line, kept as text even after it has scrolled out of the visible log.
+ *
+ * The window shows the last few hundred lines because a restore prints thousands and the DOM is
+ * what gives out first. Copying or saving a log that stops where the display does would be a quiet
+ * lie, so the text is kept apart from it - a string per line, and nothing else.
+ */
+const allLines = [];
+
 function flushLog() {
   flushingLog = false;
 
@@ -579,12 +666,16 @@ function flushLog() {
 
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
   const batch = document.createDocumentFragment();
+  const needle = filterText();
 
   for (const [line, kind] of lines) {
+    allLines.push(line);
+
     const entry = document.createElement('span');
     if (kind) entry.className = kind;
     // textContent: log lines are whatever the repository's commands printed.
     entry.textContent = `${line}\n`;
+    if (needle && !line.toLowerCase().includes(needle)) entry.hidden = true;
     batch.append(entry);
   }
 
@@ -596,5 +687,73 @@ function flushLog() {
     shownLines -= 1;
   }
 
+  if (needle) countMatches();
   if (atBottom) log.scrollTop = log.scrollHeight;
 }
+
+/* ---- reading the log ---------------------------------------------------------------------- */
+
+const filter = document.getElementById('filter');
+const filterCount = document.getElementById('filterCount');
+
+function filterText() {
+  return filter.value.trim().toLowerCase();
+}
+
+function applyFilter() {
+  const needle = filterText();
+
+  for (const entry of log.children) {
+    entry.hidden = needle !== '' && !entry.textContent.toLowerCase().includes(needle);
+  }
+
+  countMatches();
+}
+
+function countMatches() {
+  const needle = filterText();
+
+  if (!needle) {
+    filterCount.textContent = '';
+    return;
+  }
+
+  const shown = [...log.children].filter((entry) => !entry.hidden).length;
+  filterCount.textContent = `${shown} of ${log.children.length} shown`;
+}
+
+filter.addEventListener('input', applyFilter);
+
+/** What the filter leaves, or everything when nothing is filtered - scrolled-off lines included. */
+function logText() {
+  const needle = filterText();
+  const lines = needle ? allLines.filter((line) => line.toLowerCase().includes(needle)) : allLines;
+  return lines.join('\n');
+}
+
+document.getElementById('copyLog').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+
+  try {
+    await navigator.clipboard.writeText(logText());
+    button.textContent = 'Copied';
+  } catch {
+    button.textContent = 'Could not copy';
+  }
+
+  setTimeout(() => { button.textContent = 'Copy'; }, 1500);
+});
+
+document.getElementById('saveLog').addEventListener('click', () => {
+  const name = (run?.displayName || run?.repo || 'quickrun').replace(/[^a-z0-9._-]+/gi, '-');
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+  const url = URL.createObjectURL(new Blob([logText()], { type: 'text/plain;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${name}-${stamp}.log`;
+  link.click();
+
+  // The object URL holds the whole log in memory until it is let go.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+});

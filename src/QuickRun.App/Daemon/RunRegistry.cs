@@ -69,7 +69,13 @@ public sealed record RunSummary(
     /// exited. A finished run with leftovers is exactly the case where "stopped" was a lie, so it is
     /// reported rather than assumed away, and stopping stays on offer.
     /// </summary>
-    int Leftovers = 0);
+    int Leftovers = 0,
+    /// <summary>
+    /// Where these commands came from: the repository's quickrun.yml, a config of your own, another
+    /// launcher's scripts, or QuickRun reading the repository. Approving a plan means trusting it,
+    /// and how much trust it deserves depends on who wrote it.
+    /// </summary>
+    string Origin = "repository");
 
 /// <summary>
 /// Tracks the runs the listener has been asked for.
@@ -161,7 +167,8 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
             // be filled in, and the caller gets the fields rather than a dead end.
             if (preparation.Config is { Inputs.Count: > 0 } config)
             {
-                entry.NeedsInput(config, preparation.Values, preparation.Error ?? "values are missing");
+                entry.NeedsInput(config, preparation.Values, preparation.Error ?? "values are missing",
+                    preparation.Origin.ToString().ToLowerInvariant());
                 return (entry.Summary, preparation.Error);
             }
 
@@ -313,7 +320,8 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         /// The config declares inputs and the values are not there yet. Secrets are listed without
         /// their value: the form needs the field, and a password must not travel back out.
         /// </summary>
-        public void NeedsInput(RunConfig config, IReadOnlyDictionary<string, string?>? values, string error)
+        public void NeedsInput(RunConfig config, IReadOnlyDictionary<string, string?>? values, string error,
+            string origin)
         {
             var secrets = InputResolver.SecretIds(config.Inputs);
             var safe = (values ?? new Dictionary<string, string?>())
@@ -327,6 +335,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Description = config.Description,
                     Inputs = config.Inputs,
                     Values = safe,
+                    Origin = origin,
                 };
         }
 
@@ -351,6 +360,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Error = null,
                     Inputs = preparation.Config?.Inputs,
                     Values = Safe(preparation),
+                    Origin = preparation.Origin.ToString().ToLowerInvariant(),
                     Tasks = preparation.Config?.Tasks
                         .Select(t => new RunTaskStatus(t.Name, "waiting", t.OpenUrl))
                         .ToList(),

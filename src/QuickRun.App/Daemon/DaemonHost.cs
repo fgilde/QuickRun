@@ -642,6 +642,18 @@ public static class DaemonHost
             busy = runs.AnyActive,
         }, Json));
 
+        // What a repository carries, so the extension can be set to show its button only where
+        // QuickRun has real instructions to follow. Reveals nothing the repository page does not
+        // already: whether two well-known file names exist in a public repository.
+        app.MapGet("/api/probe", async (HttpContext context, string repo, string? reference) =>
+        {
+            if (!Authorized(context)) return Unauthorized();
+            if (string.IsNullOrWhiteSpace(repo)) return Results.BadRequest(new { error = "repo is required" });
+
+            var contents = await RepoProbe.LookAsync(repo, reference, context.RequestAborted);
+            return Results.Json(contents, Json);
+        });
+
         app.MapPost("/api/run", async (RunRequest request, HttpContext context, RunRegistry runs) =>
         {
             if (!Authorized(context)) return Unauthorized();

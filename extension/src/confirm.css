@@ -177,6 +177,52 @@ button.linkish {
   transition: width .3s ease;
 }
 
+/* A radio and its explanation, so the label is readable rather than a run-on line. */
+.choice {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.choice > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* A guessed plan is the one worth a second look before approving. */
+.origin--guessed { color: var(--warn-line); }
+
+.log-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+
+.log-tools input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
+.log-tools input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.log-tools .muted {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 #log {
   margin: 0;
   padding: 10px 12px;

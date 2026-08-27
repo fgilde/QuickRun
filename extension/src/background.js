@@ -33,6 +33,8 @@ async function handle(message, sender) {
       return runState(message.runId);
     case 'activeRun':
       return activeRun(message.target);
+    case 'shouldShow':
+      return shouldShow(message.target);
     case 'showLog':
       return showLog(message.runId, sender?.tab?.id);
     case 'reveal':

@@ -21,6 +21,7 @@
     <dt>Repository</dt><dd id="repo"></dd>
     <dt>Ref</dt><dd id="ref"></dd>
     <dt>Commit</dt><dd id="commit"></dd>
+    <dt>Instructions</dt><dd id="origin"></dd>
   </dl>
 
   <section id="review">
@@ -62,6 +63,14 @@
       <span id="percent" class="muted"></span>
     </h2>
     <div class="bar"><div id="fill"></div></div>
+
+    <div class="log-tools">
+      <input id="filter" type="search" placeholder="Filter the log" aria-label="Filter the log">
+      <span id="filterCount" class="muted"></span>
+      <button id="copyLog" type="button" class="linkish">Copy</button>
+      <button id="saveLog" type="button" class="linkish">Save</button>
+    </div>
+
     <pre id="log" aria-live="polite"></pre>
   </section>
 

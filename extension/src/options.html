@@ -25,6 +25,46 @@
   </p>
   <p><button id="save" type="button">Save</button> <span id="saveResult" class="muted"></span></p>
 
+  <h2>Where the button appears</h2>
+  <p class="muted">
+    QuickRun can start almost any repository: if there is no configuration it reads the files and
+    works out a plan itself. That plan is a considered guess, and you always see the exact commands
+    before anything runs - but you may prefer the button only where the repository says how it wants
+    to be started.
+  </p>
+  <p>
+    <label class="choice">
+      <input type="radio" name="showOn" value="always">
+      <span>
+        <strong>On every repository</strong>
+        <span class="muted">Including ones QuickRun would have to work out for itself.</span>
+      </span>
+    </label>
+  </p>
+  <p>
+    <label class="choice">
+      <input type="radio" name="showOn" value="known">
+      <span>
+        <strong>Where there are instructions to follow</strong>
+        <span class="muted">A <code>quickrun.yml</code>, or scripts written for Pinokio.</span>
+      </span>
+    </label>
+  </p>
+  <p>
+    <label class="choice">
+      <input type="radio" name="showOn" value="quickrun">
+      <span>
+        <strong>Only with a quickrun.yml</strong>
+        <span class="muted">The repository has committed a QuickRun configuration.</span>
+      </span>
+    </label>
+  </p>
+  <p class="muted">
+    The last two ask QuickRun on your machine whether those files exist, once per repository. That
+    check needs QuickRun to be running; when it is not, the button appears anyway rather than
+    disappearing without explanation.
+  </p>
+
   <h2>Not installed?</h2>
   <p class="muted">
     QuickRun is a small tool that runs on your machine.

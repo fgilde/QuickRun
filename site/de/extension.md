@@ -92,6 +92,28 @@ und ist erlaubt. Es läuft ohnehin mit deinen Rechten, der Daemon gibt ihm also 
 |---|---|
 | Port | 9876 |
 | `quickrun://` versuchen, wenn QuickRun nicht antwortet | an |
+| Wo der Button erscheint | bei jedem Repository |
+
+### Wo der Button erscheint
+
+QuickRun startet fast jedes Repository: Gibt es keine Konfiguration, liest es die Dateien und baut
+sich selbst einen Plan. Dieser Plan ist eine begründete Vermutung — eine gute, und die genauen
+Befehle siehst du vor jedem Lauf — aber vielleicht willst du den Button nur dort, wo das Repository
+selbst gesagt hat, wie es gestartet werden möchte.
+
+- **Bei jedem Repository.** Auch bei denen, die QuickRun sich selbst erschließen müsste.
+- **Wo es Anweisungen gibt.** Eine `quickrun.yml` oder Skripte, die für Pinokio geschrieben wurden.
+- **Nur mit quickrun.yml.** Das Repository hat eine QuickRun-Konfiguration eingecheckt.
+
+Die letzten beiden fragen QuickRun auf deinem Rechner, ob es diese Dateien gibt — einmal pro
+Repository, eine halbe Stunde lang gemerkt. Die Erweiterung fragt GitHub nicht selbst: dafür bräuchte
+sie eine Berechtigung für `raw.githubusercontent.com`, und der Daemon kommt ohne aus. Läuft QuickRun
+nicht, lässt sich die Prüfung nicht durchführen, und der Button erscheint trotzdem — zu verschwinden,
+weil eine Prüfung fehlschlug, wäre von einer kaputten Erweiterung nicht zu unterscheiden.
+
+Das Bestätigungsfenster nennt bei jedem Lauf die Quelle, damit klar ist, welcher der vier Fälle
+vorliegt: die `quickrun.yml` des Repositories, eine Konfiguration, die du selbst dafür gespeichert
+hast, die Skripte eines anderen Launchers, oder QuickRuns eigene Lesart der Dateien.
 
 Einen Pull Request zu starten heißt, den Branch zu starten, aus dem er kommt — geholt als
 `refs/pull/<n>/head`. Das funktioniert auch bei Pull Requests aus Forks, und genau das macht der

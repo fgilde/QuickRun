@@ -91,6 +91,28 @@ already runs with your privileges, so the daemon grants it nothing it did not ha
 |---|---|
 | Port | 9876 |
 | Try `quickrun://` when QuickRun does not answer | on |
+| Where the button appears | on every repository |
+
+### Where the button appears
+
+QuickRun can start almost any repository: with no configuration it reads the files and works out a
+plan itself. That plan is a considered guess - a good one, and you always see the exact commands
+before anything runs - but you may prefer the button only where the repository has said how it wants
+to be started.
+
+- **On every repository.** Including the ones QuickRun would have to work out for itself.
+- **Where there are instructions to follow.** A `quickrun.yml`, or scripts written for Pinokio.
+- **Only with a quickrun.yml.** The repository has committed a QuickRun configuration.
+
+The last two ask QuickRun on your machine whether those files exist, once per repository and cached
+for half an hour. The extension does not reach GitHub itself for this: that would need a permission
+for `raw.githubusercontent.com`, and the daemon can answer without one. When QuickRun is not
+running the check cannot be made, and the button appears anyway - vanishing because a check failed
+would be indistinguishable from the extension being broken.
+
+The confirmation window names the source for every run, so you always know which of the four you
+are looking at: the repository's own `quickrun.yml`, a config you saved for that repository,
+another launcher's scripts, or QuickRun's reading of the files.
 
 Running a pull request means running the branch it comes from, fetched as `refs/pull/<n>/head`.
 That works for pull requests from forks too, and it is what the button on a pull request page does.

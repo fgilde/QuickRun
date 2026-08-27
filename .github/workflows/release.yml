@@ -155,13 +155,15 @@ jobs:
             exit 0
           }
 
-          # MpCmdRun exits non-zero when it finds something, and names it in its output.
-          if ($code -ne 0 -or $output -match "found") {
-            Write-Host "::error::Defender flagged $file - publishing it would ship a download nobody can open"
-            exit 1
+          # The clean answer is the exact phrase - matching "found" alone matches "found no
+          # threats", which failed a perfectly good build the first time this ran.
+          if ($code -eq 0 -and $output -match "found no threats") {
+            Write-Host "::notice::Defender scanned $file and found nothing"
+            exit 0
           }
 
-          Write-Host "::notice::Defender scanned $file and found nothing"
+          Write-Host "::error::Defender flagged $file - publishing it would ship a download nobody can open"
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:

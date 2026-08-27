@@ -344,6 +344,17 @@ quickrun --help                every command and flag</pre>
     </div>
 
     <div class="card">
+      <h2>Your browsers</h2>
+      <p class="muted" style="margin:0 0 12px">
+        Found on this machine. QuickRun cannot put an extension into a browser by itself - Chrome
+        removed that in 2018, and the only mechanism left is a policy that force-installs something
+        you could not then remove. So this goes as far as it honestly can: it opens the right page
+        in the right browser, and leaves the last click to you.
+      </p>
+      <div id="browsers"><p class="muted">checking…</p></div>
+    </div>
+
+    <div class="card">
       <h2>How it works</h2>
       <ol class="steps">
         <li>
@@ -1314,6 +1325,82 @@ async function loadScheme() {
   renderScheme(await api('/api/dashboard/integration').catch(() => null));
 }
 
+/* ---- the browsers on this machine ---------------------------------------------------------- */
+
+const EXTENSION_STATE = {
+  installed: ['installed', 'ok'],
+  connected: ['has talked to QuickRun', 'ok'],
+  missing: ['not installed', 'warn'],
+};
+
+async function loadBrowsers() {
+  const host = document.getElementById('browsers');
+  const browsers = await api('/api/dashboard/browsers').catch(() => null);
+
+  if (!browsers) {
+    host.textContent = 'could not look';
+    return;
+  }
+
+  if (browsers.length === 0) {
+    host.textContent = 'No browser found in the usual places.';
+    return;
+  }
+
+  host.textContent = '';
+
+  for (const browser of browsers) {
+    const [label, kind] = EXTENSION_STATE[browser.extension] ?? EXTENSION_STATE.missing;
+
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const name = document.createElement('span');
+    name.className = 'grow';
+    name.textContent = browser.name;
+
+    const state = document.createElement('span');
+    state.className = `pill ${kind}`;
+    state.textContent = label;
+
+    const button = document.createElement('button');
+    button.className = 'action';
+    button.textContent = browser.extension === 'missing' ? 'Install' : 'Install again';
+    button.addEventListener('click', () => install(browser, button, detail));
+
+    const detail = document.createElement('p');
+    detail.className = 'muted';
+    detail.style.margin = '0 0 14px';
+
+    row.append(name, state, button);
+    host.append(row, detail);
+  }
+}
+
+async function install(browser, button, detail) {
+  button.disabled = true;
+  detail.textContent = browser.store
+    ? `opening the listing in ${browser.name}…`
+    : 'downloading the extension…';
+
+  try {
+    const result = await api(`/api/dashboard/browsers/${browser.id}/install`, { method: 'POST' });
+    detail.textContent = result.message;
+
+    // The folder is the thing the browser's file picker needs, so it is worth having in reach.
+    if (result.folder) {
+      const path = document.createElement('span');
+      path.className = 'mono';
+      path.textContent = ` ${result.folder}`;
+      detail.append(path);
+    }
+  } catch (failure) {
+    detail.textContent = failure.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderUpdate(update) {
   const badge = document.getElementById('updateBadge');
   const line = document.getElementById('aboutUpdate');
@@ -1792,6 +1879,7 @@ if (new URLSearchParams(location.search).get('shell') === 'window')
 
 refresh();
 loadScheme();
+loadBrowsers();
 openTabFromHash();
 setInterval(refresh, 4000);
 api('/api/dashboard/update').then(renderUpdate).catch(() => renderUpdate(null));

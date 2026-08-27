@@ -346,6 +346,30 @@ public static class DaemonHost
         // The two settings that decide how QuickRun feels like an installed program rather than a
         // downloaded file: whether it comes back after a reboot, and whether `quickrun` works in a
         // terminal. Both are per-user and need no administrator.
+        // The browsers on this machine and whether each has the extension. Read-only, and it stays
+        // behind the dashboard token like everything else here: it says what is installed on the
+        // machine, which is nobody else's business.
+        app.MapGet("/api/dashboard/browsers", (HttpContext context, Dashboard dashboard) =>
+        {
+            if (!dashboard.Authorized(context.Request.Headers[Dashboard.TokenHeader].ToString()))
+                return Unauthorized();
+
+            return Results.Json(BrowserInstalls.All(), Json);
+        });
+
+        app.MapPost("/api/dashboard/browsers/{id}/install",
+            async (string id, HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!dashboard.Authorized(context.Request.Headers[Dashboard.TokenHeader].ToString()))
+                return Unauthorized();
+
+            var browser = BrowserInstalls.All().FirstOrDefault(b => b.Id == id);
+            if (browser is null) return Results.NotFound(new { error = $"{id} is not installed here" });
+
+            var outcome = await ExtensionInstall.RunAsync(browser, store.Root, context.RequestAborted);
+            return Results.Json(outcome, Json);
+        });
+
         app.MapGet("/api/dashboard/settings", (HttpContext context, Dashboard dashboard) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
@@ -765,6 +789,11 @@ public static class DaemonHost
     internal static bool Authorized(HttpContext context)
     {
         var origin = context.Request.Headers.Origin.ToString();
+
+        // Worth remembering: an extension that has made a request is installed, which is the one
+        // thing a profile directory cannot tell us about an unpacked build.
+        if (FromExtensionOrigin(origin)) BrowserInstalls.Remember(origin);
+
         return string.IsNullOrEmpty(origin) || FromExtensionOrigin(origin);
     }
 

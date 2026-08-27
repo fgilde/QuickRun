@@ -94,6 +94,26 @@ und ist erlaubt. Es läuft ohnehin mit deinen Rechten, der Daemon gibt ihm also 
 | `quickrun://` versuchen, wenn QuickRun nicht antwortet | an |
 | Wo der Button erscheint | bei jedem Repository |
 
+### Aus QuickRun heraus installieren
+
+QuickRuns eigenes Fenster hat einen Reiter **Browser-Erweiterung**, der die auf diesem Rechner
+gefundenen Browser auflistet und pro Browser sagt, ob die Erweiterung dort liegt. Ein entpackter
+Build zählt mit: Er wird an dem Ordner erkannt, aus dem er geladen wurde — und den notiert der
+Browser selbst.
+
+Der Installieren-Knopf geht so weit, wie ein Browser es zulässt, und keinen Schritt weiter. Wo es
+eine Store-Listung gibt, öffnet er sie in genau diesem Browser, und der letzte Klick ist der
+Hinzufügen-Knopf des Browsers. Wo es noch keine gibt, lädt er die gepackte Erweiterung aus dem
+neuesten Release, entpackt sie, öffnet die Erweiterungsseite des Browsers und daneben den Ordner —
+übrig bleibt „Entpackte Erweiterung laden, diesen Ordner wählen".
+
+Dass er einen Klick vorher aufhört, ist Absicht. Chrome hat die Installation aus einer Seite heraus
+2018 abgeschafft, und der einzige verbliebene Weg, ein Programm eine Erweiterung in Chrome oder Edge
+setzen zu lassen, ist eine Unternehmensrichtlinie, die sie erzwingt und dir das Entfernen nimmt. Das
+tut Schadsoftware, und QuickRun tut es nicht. Firefox ist die Ausnahme in die andere Richtung: Über
+`about:debugging` lässt sich ein temporäres Add-on laden, das Firefox beim Schließen wieder
+vergisst.
+
 ### Wo der Button erscheint
 
 QuickRun startet fast jedes Repository: Gibt es keine Konfiguration, liest es die Dateien und baut

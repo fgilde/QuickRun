@@ -93,6 +93,23 @@ already runs with your privileges, so the daemon grants it nothing it did not ha
 | Try `quickrun://` when QuickRun does not answer | on |
 | Where the button appears | on every repository |
 
+### Installing it from QuickRun itself
+
+QuickRun's own window has a **Browser extension** tab that lists the browsers it finds on this
+machine and says, for each one, whether the extension is there. An unpacked build counts: it is
+recognised by the folder it was loaded from, which is what the browser records.
+
+The Install button goes as far as a browser allows, and no further. Where a store listing exists it
+opens that listing in that browser, and the last click is the browser's own Add button. Where none
+exists yet it downloads the packaged extension from the newest release, unpacks it, opens the
+browser's extensions page and the folder next to it - leaving "Load unpacked, pick this folder".
+
+It stops one click short deliberately. Chrome removed inline installation in 2018, and the only way
+left for a program to put an extension into Chrome or Edge is an enterprise policy that
+force-installs it and takes away your ability to remove it. That is a thing malware does, and
+QuickRun does not do it. Firefox is the exception in the other direction: a temporary add-on can be
+loaded from `about:debugging`, but Firefox forgets it when it closes.
+
 ### Where the button appears
 
 QuickRun can start almost any repository: with no configuration it reads the files and works out a

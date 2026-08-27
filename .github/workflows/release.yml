@@ -131,22 +131,37 @@ jobs:
         run: |
           $scanner = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
           if (-not (Test-Path $scanner)) {
-            Write-Host "::notice::no Defender on this runner - nothing to ask"
+            Write-Host "::warning::no Defender on this runner - the build was not checked"
             exit 0
+          }
+
+          # The runner excludes its own workspace from Defender, and an excluded file is not
+          # scanned - it is "skipped", which exits 0 and would sail through a naive check. So the
+          # exclusions go, and a skip counts as no answer rather than as a pass.
+          foreach ($path in (Get-MpPreference).ExclusionPath) {
+            Remove-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
           }
 
           # Fresh definitions, or the answer is about last month's model.
           & $scanner -SignatureUpdate | Out-Null
 
           $file = (Resolve-Path "dist/quickrun-${{ matrix.rid }}.zip").Path
-          $output = & $scanner -Scan -ScanType 3 -File $file
-          $output | ForEach-Object { Write-Host $_ }
+          $output = (& $scanner -Scan -ScanType 3 -File $file) -join "`n"
+          $code = $LASTEXITCODE
+          Write-Host $output
 
-          # MpCmdRun exits 0 for "clean" and 2 for "found something", and says so in its output.
-          if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -match "found") {
+          if ($output -match "was skipped") {
+            Write-Host "::warning::Defender skipped $file - this build was not checked"
+            exit 0
+          }
+
+          # MpCmdRun exits non-zero when it finds something, and names it in its output.
+          if ($code -ne 0 -or $output -match "found") {
             Write-Host "::error::Defender flagged $file - publishing it would ship a download nobody can open"
             exit 1
           }
+
+          Write-Host "::notice::Defender scanned $file and found nothing"
 
       - uses: actions/upload-artifact@v4
         with:

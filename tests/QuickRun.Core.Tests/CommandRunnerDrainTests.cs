@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using QuickRun.Core.Process;
 
 namespace QuickRun.Core.Tests;
@@ -13,33 +12,47 @@ namespace QuickRun.Core.Tests;
 /// </summary>
 public class CommandRunnerDrainTests
 {
-    /// <summary>A command that leaves a background child holding the output handle.</summary>
-    private static string CommandWithLingeringChild =>
-        OSKinds.Current == OSKind.Windows
-            ? "powershell -NoProfile -Command \"Start-Process -NoNewWindow powershell "
-              + "-ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 30'; 'parent done'\""
-            : "sleep 30 & echo parent done";
+    /// <summary>How long the lingering child keeps the handle. Long enough to be unmistakable.</summary>
+    private const int ChildSeconds = 30;
 
+    /// <summary>
+    /// A command that leaves a background child holding the output handle - and whose child writes a
+    /// file when it finally goes, so its presence is a fact rather than a duration.
+    /// </summary>
+    private static string CommandWithLingeringChild(string marker) =>
+        OSKinds.Current == OSKind.Windows
+            ? "powershell -NoProfile -Command \"Start-Process -NoNewWindow powershell -ArgumentList "
+              + $"'-NoProfile','-Command','Start-Sleep -Seconds {ChildSeconds}; "
+              + $"Set-Content -LiteralPath \"\"{marker}\"\" -Value done'; 'parent done'\""
+            : $"( sleep {ChildSeconds}; touch '{marker}' ) & echo parent done";
+
+    /// <summary>
+    /// Returns when its own process is gone, rather than when the pipes close.
+    /// <para>
+    /// Proven by the child and not by a clock: the child writes a file when it finishes, so a return
+    /// with that file absent is a return that did not wait for it. Timing this instead measured how
+    /// long a loaded build agent takes to start two PowerShells - it failed in CI at 21 seconds
+    /// while taking 0.2 here.
+    /// </para>
+    /// </summary>
     [Fact]
     public async Task A_command_returns_when_its_own_process_exits()
     {
         using var repo = new FakeRepo();
+        var marker = Path.Combine(repo.Path, "child-finished.txt");
         var lines = new List<string>();
-        var clock = Stopwatch.StartNew();
 
         var code = await CommandRunner.StreamAsync(
-            new ProcessSpec(CommandWithLingeringChild, repo.Path, null),
+            new ProcessSpec(CommandWithLingeringChild(marker), repo.Path, null),
             (line, _) => { lock (lines) lines.Add(line); },
             CancellationToken.None);
-
-        clock.Stop();
 
         Assert.Equal(0, code);
         Assert.Contains("parent done", string.Join("\n", lines));
 
-        // The child holds the pipe for 30 seconds; anything near that means we waited for it.
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(15),
-            $"waited {clock.Elapsed.TotalSeconds:0.0}s for a command whose own process had exited");
+        // The child still holds the handle: it has not written its file yet.
+        Assert.False(File.Exists(marker),
+            "the command waited for a background child that had inherited its output handle");
     }
 
     [Fact]

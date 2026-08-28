@@ -110,7 +110,10 @@ funktioniert allein — aber sie ist der Grund, aus dem QuickRun existiert.
 
 <ExtensionCards lang="de" />
 
-Bis die Store-Einträge live sind, entpackt laden. Download entzippen, dann:
+**Edge** installiert sie aus dem [Microsoft-Edge-Add-ons-Store](https://microsoftedge.microsoft.com/addons/detail/quickrun/dbnknhijahmiildfabckibabpieobnhd),
+Updates kommen dann mit denen des Browsers.
+
+Wo ein Store sie noch nicht führt, entpackt laden. Download entzippen, dann:
 
 - **Chrome, Edge, Opera** — `chrome://extensions` → Entwicklermodus → Entpackte Erweiterung laden →
   der entpackte Ordner

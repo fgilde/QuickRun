@@ -107,7 +107,10 @@ but it is the reason QuickRun exists.
 
 <ExtensionCards lang="en" />
 
-Until the store listings are live, load it unpacked. Unzip the download, then:
+**Edge** installs it from the [Microsoft Edge Add-ons store](https://microsoftedge.microsoft.com/addons/detail/quickrun/dbnknhijahmiildfabckibabpieobnhd),
+and updates come with the browser's own.
+
+Where a store does not carry it yet, load it unpacked. Unzip the download, then:
 
 - **Chrome, Edge, Opera** — `chrome://extensions` → Developer mode → Load unpacked → the unpacked
   folder

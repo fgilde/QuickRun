@@ -10,7 +10,7 @@
 // waiting for its own.
 export const STORES = {
   chrome: null,
-  edge: null,
+  edge: 'https://microsoftedge.microsoft.com/addons/detail/quickrun/dbnknhijahmiildfabckibabpieobnhd',
   firefox: null,
 };
 
@@ -18,4 +18,23 @@ export const STORES = {
 export function listingFor(browser) {
   if (browser === 'opera') return STORES.chrome;
   return STORES[browser] ?? null;
+}
+
+/**
+ * Which browser is reading this page, as one of the names above.
+ *
+ * User agent strings, because that is all a page gets: Edge and Opera both claim to be Chrome and
+ * add a token of their own, so the specific ones have to be ruled out first. Null for anything else
+ * - Safari takes no extension of this kind, and guessing wrong is worse than saying nothing.
+ */
+export function currentBrowser(agent = typeof navigator === 'undefined' ? '' : navigator.userAgent) {
+  if (/OPR\//.test(agent) || /Opera/.test(agent)) return 'opera';
+  if (/Edg\//.test(agent)) return 'edge';
+  if (/Firefox\//.test(agent)) return 'firefox';
+
+  // Chromium-based and none of the above. Safari says "Safari" without "Chrome".
+  if (/Chrome\//.test(agent) && !/Chromium\//.test(agent)) return 'chrome';
+  if (/Chromium\//.test(agent)) return 'chrome';
+
+  return null;
 }

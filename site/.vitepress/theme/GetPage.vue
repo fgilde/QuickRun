@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
 import { PLATFORMS, RELEASE_BASE, detectOs } from './platforms.js';
+import { currentBrowser, listingFor } from './stores.js';
 
 const { lang } = useData();
 const de = computed(() => lang.value.startsWith('de'));
@@ -28,9 +29,10 @@ const t = computed(() => (de.value
       copied: 'Kopiert',
       arch: { x64: 'Intel/AMD 64-bit', arm64: 'ARM64', app: 'App-Bundle' },
       extensionTitle: 'Browser-Erweiterung',
-      extensionText: 'Sie setzt den Run-Button auf GitHub. Bis die Store-Freigaben durch sind, wird sie '
-        + 'entpackt geladen — die Schritte stehen auf der Doku-Download-Seite.',
+      extensionText: 'Sie setzt den Run-Button auf GitHub. Wo der Store sie schon führt, ist es ein '
+        + 'Klick; sonst wird sie entpackt geladen — die Schritte stehen auf der Doku-Download-Seite.',
       extensionCta: 'Erweiterung und Store-Stand',
+      extensionInstall: 'Für {browser} installieren',
       verifyTitle: 'Prüfen und aktualisieren',
       verifyText: 'Jedes Release hat eine SHA256SUMS-Datei. Ist QuickRun installiert, aktualisiert es '
         + 'sich selbst — an derselben Stelle, aus derselben Quelle.',
@@ -57,9 +59,10 @@ const t = computed(() => (de.value
       copied: 'Copied',
       arch: { x64: 'Intel/AMD 64-bit', arm64: 'ARM64', app: 'App bundle' },
       extensionTitle: 'Browser extension',
-      extensionText: 'It puts the Run button on GitHub. Until the store listings are approved it is '
-        + 'loaded unpacked - the steps are on the documentation download page.',
+      extensionText: 'It puts the Run button on GitHub. Where a store carries it that is one click; '
+        + 'otherwise it is loaded unpacked - the steps are on the documentation download page.',
       extensionCta: 'Extension and store status',
+      extensionInstall: 'Install for {browser}',
       verifyTitle: 'Verify and update',
       verifyText: 'Every release ships a SHA256SUMS file. Once installed, QuickRun updates itself - in '
         + 'the same place, from the same source.',
@@ -76,15 +79,25 @@ const t = computed(() => (de.value
 const detected = computed(() => PLATFORMS.find((p) => p.os === mine.value) ?? null);
 const others = computed(() => PLATFORMS.filter((p) => p.os !== mine.value));
 
+// `store` is the name the listing table knows it by; `logo` is the icon file, which differs.
 const browsers = [
-  { name: 'Chrome', logo: 'googlechrome' },
-  { name: 'Edge', logo: 'edge' },
-  { name: 'Firefox', logo: 'firefoxbrowser' },
-  { name: 'Opera', logo: 'opera' },
+  { name: 'Chrome', logo: 'googlechrome', store: 'chrome' },
+  { name: 'Edge', logo: 'edge', store: 'edge' },
+  { name: 'Firefox', logo: 'firefoxbrowser', store: 'firefox' },
+  { name: 'Opera', logo: 'opera', store: 'opera' },
 ];
+
+// Which browser is reading this - `mine` is already the operating system. Read after mounting: this
+// page is built to static HTML, and a build machine has no browser to ask.
+const myBrowser = ref(null);
+
+const myEntry = computed(() => browsers.find((browser) => browser.store === myBrowser.value) ?? null);
+const myName = computed(() => myEntry.value?.name ?? '');
+const myListing = computed(() => (myBrowser.value ? listingFor(myBrowser.value) : null));
 
 onMounted(async () => {
   mine.value = detectOs();
+  myBrowser.value = currentBrowser();
 
   // The tag is a nicety, not a dependency: no network, no version chip, everything else still works.
   try {
@@ -184,11 +197,27 @@ function label(build) {
           <h3 class="m3-title">{{ t.extensionTitle }}</h3>
           <p class="m3-body">{{ t.extensionText }}</p>
           <div class="qr-browsers">
-            <span v-for="browser in browsers" :key="browser.name" class="m3-chip">
+            <span
+              v-for="browser in browsers"
+              :key="browser.name"
+              class="m3-chip"
+              :class="{ 'qr-chip--yours': browser.store === myBrowser }"
+            >
               <img :src="`${logos}/${browser.logo}.svg`" alt="" width="16" height="16">
               {{ browser.name }}
             </span>
           </div>
+
+          <!-- The store this visitor can actually install from, when there is one. Everyone else
+               gets the page that lists every browser and how to load it by hand. -->
+          <a
+            v-if="myListing"
+            class="m3-button"
+            :href="myListing"
+            target="_blank"
+            rel="noreferrer"
+          >{{ t.extensionInstall.replace('{browser}', myName) }}</a>
+
           <a class="m3-button m3-button--tonal" :href="link('download')">{{ t.extensionCta }}</a>
         </article>
 
@@ -210,6 +239,13 @@ function label(build) {
 </template>
 
 <style scoped>
+/* The browser reading the page, so the row of chips and the button above it say the same thing. */
+.qr-chip--yours {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: -1px;
+  font-weight: 600;
+}
+
 .qr-get-head { position: relative; padding: 64px 0 34px; }
 
 .qr-get-glow {

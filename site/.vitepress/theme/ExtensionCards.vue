@@ -1,8 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { withBase } from 'vitepress';
 
-import { listingFor } from './stores.js';
+import { currentBrowser, listingFor } from './stores.js';
 
 const props = defineProps({
   lang: { type: String, default: 'en' },
@@ -19,6 +19,10 @@ const t = computed(() => (props.lang === 'de'
       install: 'Installieren',
       viaChrome: 'aus dem Chrome Web Store',
       manual: 'oder von Hand laden',
+      yours: 'Dein Browser',
+      installHere: 'Für {browser} installieren',
+      noStoreYet: 'Für {browser} gibt es die Store-Version noch nicht — der Build unten lässt sich '
+        + 'von Hand laden.',
     }
   : {
       pending: 'store review pending',
@@ -27,6 +31,9 @@ const t = computed(() => (props.lang === 'de'
       install: 'Install',
       viaChrome: 'from the Chrome Web Store',
       manual: 'or load it by hand',
+      yours: 'Your browser',
+      installHere: 'Install for {browser}',
+      noStoreYet: 'There is no store build for {browser} yet — the download below loads by hand.',
     }));
 
 // The official logos, kept as separate files: each carries gradients with ids a-d, and inlining
@@ -37,11 +44,54 @@ const browsers = computed(() => [
   { name: 'Opera', logo: 'opera', tint: '#e5233c', asset: 'quickrun-extension-chromium.zip', shared: true },
   { name: 'Firefox', logo: 'firefox', tint: '#ff7139', asset: 'quickrun-extension-firefox.zip', shared: false },
 ].map((browser) => ({ ...browser, listing: listingFor(browser.logo) })));
+
+/**
+ * The browser reading this page.
+ *
+ * Read after mounting rather than while rendering: this page is built to static HTML, and a build
+ * machine has no browser to ask - deciding during the render would bake one answer into the file
+ * everybody gets.
+ */
+const mine = ref(null);
+onMounted(() => { mine.value = currentBrowser(); });
+
+const yours = computed(() => browsers.value.find((browser) => browser.logo === mine.value) ?? null);
+
+const invitation = computed(() => {
+  if (!yours.value) return null;
+
+  const template = yours.value.listing ? t.value.installHere : t.value.noStoreYet;
+  return template.replace('{browser}', yours.value.name);
+});
 </script>
 
 <template>
+  <!-- One button for the browser actually reading this, above the grid of all of them. Someone on
+       Edge should not have to work out which of four cards is theirs. -->
+  <a
+    v-if="yours && yours.listing"
+    class="qr-mine"
+    :href="yours.listing"
+    :style="{ '--tint': yours.tint }"
+    target="_blank"
+    rel="noreferrer"
+  >
+    <img class="qr-mine-logo" :src="`${logos}/${yours.logo}.svg`" :alt="yours.name">
+    <span>
+      <small>{{ t.yours }}</small>
+      <strong>{{ invitation }}</strong>
+    </span>
+  </a>
+
+  <p v-else-if="yours" class="qr-mine-none">{{ invitation }}</p>
+
   <div class="qr-browsers">
-    <article v-for="browser in browsers" :key="browser.name" :style="{ '--tint': browser.tint }">
+    <article
+      v-for="browser in browsers"
+      :key="browser.name"
+      :class="{ 'qr-is-yours': browser.logo === mine }"
+      :style="{ '--tint': browser.tint }"
+    >
       <img class="qr-browser-logo" :src="`${logos}/${browser.logo}.svg`" :alt="browser.name">
       <h4>{{ browser.name }}</h4>
 
@@ -62,6 +112,43 @@ const browsers = computed(() => [
 </template>
 
 <style scoped>
+.qr-mine {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 20px 0 0;
+  padding: 14px 18px;
+  border: 1px solid var(--tint);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  text-decoration: none;
+  color: inherit;
+}
+
+.qr-mine:hover { background: var(--vp-c-bg-elv); }
+
+.qr-mine-logo { width: 34px; height: 34px; object-fit: contain; }
+
+.qr-mine small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--vp-c-text-3);
+}
+
+.qr-mine strong { font-size: 15px; }
+
+.qr-mine-none {
+  margin: 20px 0 0;
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+}
+
+/* The one the visitor is using, so the button above and the grid below say the same thing. */
+.qr-browsers .qr-is-yours {
+  outline: 2px solid var(--tint);
+  outline-offset: -1px;
+}
+
 .qr-browsers {
   display: grid;
   gap: 12px;

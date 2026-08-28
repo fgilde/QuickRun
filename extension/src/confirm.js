@@ -39,16 +39,6 @@ const tasks = new Map();
 let liveTasks = 0;
 let sawTask = false;
 
-if (!run) {
-  document.getElementById('name').textContent = 'Nothing to confirm';
-  approve.hidden = true;
-} else if (attaching) {
-  render(run);
-  attach(run);
-  replay(run.id);
-} else {
-  render(run);
-}
 
 /**
  * Reads the run's event stream directly, from the beginning.
@@ -800,3 +790,59 @@ document.getElementById('saveLog').addEventListener('click', () => {
   // The object URL holds the whole log in memory until it is let go.
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 });
+
+/* ---- and only now, the start ---------------------------------------------------------------- */
+
+/*
+ * Last in the file, deliberately.
+ *
+ * This block used to sit at the top, which put it before half the declarations it depends on: a
+ * `const` further down the file is hoisted but not initialised, so reading one threw
+ * "Cannot access 'ORIGINS' before initialization" and the module died on the spot - after the
+ * heading was drawn and before the buttons were bound. The window looked merely empty and Run did
+ * nothing at all, with the exception sitting in a console nobody had open.
+ *
+ * Running last means everything is initialised and every listener is attached before anything is
+ * drawn, so a drawing failure can no longer take the buttons with it. And it is caught, because a
+ * dialog that fails silently is worse than one that says so.
+ */
+try {
+  if (!run) {
+    document.getElementById('name').textContent = 'Nothing to confirm';
+    approve.hidden = true;
+  } else if (attaching) {
+    render(run);
+    attach(run);
+    replay(run.id);
+  } else {
+    render(run);
+  }
+} catch (failure) {
+  reportBroken(failure);
+}
+
+/**
+ * Says that this window is broken, in the window.
+ *
+ * Nobody opens devtools on an extension window, so an exception there is invisible: what a user sees
+ * is a dialog with no commands and buttons that do nothing. Better to say what happened and leave
+ * the way out working.
+ */
+function reportBroken(failure) {
+  const error = document.getElementById('startError');
+  error.textContent = `QuickRun could not draw this dialog: ${failure?.message ?? failure}. `
+    + 'Nothing has been started. Please report this.';
+  error.hidden = false;
+
+  approve.hidden = true;
+  cancel.hidden = false;
+  cancel.textContent = 'Close';
+
+  // Cancel talks to the daemon; this window may have nothing to tell it. Closing is enough.
+  cancel.addEventListener('click', () => window.close(), { once: true });
+}
+
+// The same for anything that throws later - a stream event, a click handler - so a half-working
+// window says so instead of quietly ignoring the user.
+window.addEventListener('error', (event) => reportBroken(event.error ?? event.message));
+window.addEventListener('unhandledrejection', (event) => reportBroken(event.reason));

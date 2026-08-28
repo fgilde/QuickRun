@@ -41,3 +41,12 @@ jobs:
       - name: Extension tests
         shell: bash
         run: node --test extension/test/*.test.js
+
+      # The confirmation window, actually loaded in a browser with a real plan. A page that throws
+      # while drawing fails silently - the exception goes to a console nobody has open, the window
+      # looks merely empty, and the buttons do nothing because the module never bound them. That
+      # shipped once; nothing but running the page catches it.
+      - name: Confirmation window renders and its buttons work
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: node scripts/drive-confirm.mjs extension/test/fixtures/plan.json

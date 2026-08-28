@@ -1,0 +1,130 @@
+{
+  "id": "0e48a3967734",
+  "repo": "https://github.com/acme/planner",
+  "ref": "main",
+  "commit": "f71241cb777eace0302cffdb001439317d0a7c3b",
+  "displayName": "LX Family",
+  "state": "awaitingConfirmation",
+  "commands": [
+    {
+      "phase": "setup",
+      "name": "setup-1",
+      "command": "npm ci",
+      "cwd": null
+    },
+    {
+      "phase": "setup",
+      "name": "setup-2",
+      "command": "npm run build",
+      "cwd": null
+    },
+    {
+      "phase": "task",
+      "name": "lx-family",
+      "command": "npm start",
+      "cwd": null
+    }
+  ],
+  "fingerprint": "e7a73bd492004951c9ea1f6796a1aff4fc0ed94d8181d9c2e6f12bf0ee199ab6",
+  "progress": {
+    "phase": "checkout",
+    "percent": 30,
+    "detail": "Resolving deltas: 100%"
+  },
+  "error": null,
+  "workspace": "C:/Users/someone/AppData/Local/QuickRun/runs/acme__planner__main-abc123",
+  "url": null,
+  "liveTasks": 0,
+  "description": "A self-hosted Family OS with separate spaces for parents, children, grandparents and pets. Starts on http://localhost:3001, where the first family can be created.",
+  "inputs": [
+    {
+      "id": "port",
+      "label": "Port",
+      "type": "number",
+      "description": "Where LX Family listens. 3001 unless something else already has it.",
+      "default": "3001",
+      "required": false,
+      "pattern": null,
+      "min": 1024,
+      "max": 65535,
+      "options": [],
+      "env": "PORT",
+      "persist": false
+    },
+    {
+      "id": "language",
+      "label": "Language",
+      "type": "select",
+      "description": "The interface language of a new installation.",
+      "default": "de",
+      "required": false,
+      "pattern": null,
+      "min": null,
+      "max": null,
+      "options": [
+        {
+          "value": "de",
+          "label": null
+        },
+        {
+          "value": "en",
+          "label": null
+        },
+        {
+          "value": "fr",
+          "label": null
+        },
+        {
+          "value": "es",
+          "label": null
+        },
+        {
+          "value": "it",
+          "label": null
+        },
+        {
+          "value": "nl",
+          "label": null
+        },
+        {
+          "value": "pl",
+          "label": null
+        }
+      ],
+      "env": "APP_LANGUAGE",
+      "persist": false
+    },
+    {
+      "id": "apiKey",
+      "label": "API key",
+      "type": "password",
+      "description": "Kept in this process and redacted from the log.",
+      "default": null,
+      "required": true,
+      "pattern": null,
+      "min": null,
+      "max": null,
+      "options": [],
+      "env": "API_KEY",
+      "persist": false
+    }
+  ],
+  "values": {
+    "port": "3001",
+    "language": "de",
+    "apiKey": null
+  },
+  "tasks": [
+    {
+      "name": "lx-family",
+      "state": "waiting",
+      "url": null,
+      "pid": null
+    }
+  ],
+  "leftovers": 0,
+  "origin": "repository",
+  "provisions": [
+    "node 22.13 will be installed first"
+  ]
+}

@@ -1,0 +1,106 @@
+name: channels
+
+# Every place QuickRun can be installed from has to name the same version, and none of them is
+# updated by the release itself: the Homebrew tap is a second repository the release token may not
+# write to, the site copies the manifests in a workflow of its own, and the Edge store answers days
+# later. So each of them has already been a version behind while the release page was current -
+# `brew install quickrun` fetched 0.8.8 with 0.9.1 out.
+#
+# This is the one place that compares them, repairs what it can reach, and says what it cannot.
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  schedule:
+    - cron: '43 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every channel against the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          CRX_ID: dbnknhijahmiildfabckibabpieobnhd
+        run: |
+          set -uo pipefail
+
+          released=$(gh release view --repo ${{ github.repository }} --json tagName --jq .tagName | sed 's/^v//')
+          echo "released: $released"
+
+          version_in() { sed -n 's/.*version *"\([^"]*\)".*/\1/p' | head -1; }
+          behind=""
+
+          # --- the Homebrew tap, which is what `brew install` reads --------------------------------
+          raw=https://raw.githubusercontent.com/fgilde/homebrew-tap/HEAD
+          formula=$(curl -fsSL --max-time 30 "$raw/Formula/quickrun.rb" | version_in)
+          cask=$(curl -fsSL --max-time 30 "$raw/Casks/quickrun.rb" | version_in)
+
+          # --- the site, which is what the download page and `brew install <url>` read ------------
+          site=https://fgilde.github.io/QuickRun
+          site_formula=$(curl -fsSL --max-time 30 "$site/quickrun.rb" | version_in)
+          site_cask=$(curl -fsSL --max-time 30 "$site/quickrun-cask.rb" | version_in)
+          site_scoop=$(curl -fsSL --max-time 30 "$site/quickrun.json" | jq -r '.version // empty')
+
+          for channel in "tap formula:$formula" "tap cask:$cask" \
+                         "site formula:$site_formula" "site cask:$site_cask" \
+                         "site scoop:$site_scoop"; do
+            name=${channel%%:*}
+            found=${channel#*:}
+
+            if [ "$found" = "$released" ]; then
+              echo "ok       $name $found"
+            else
+              echo "behind   $name ${found:-unreadable}, released $released"
+              behind="$behind $name"
+            fi
+          done
+
+          # --- the Edge store, which nobody can hurry ---------------------------------------------
+          # Reported, never repaired: Microsoft reviews one submission at a time and edge-catchup.yml
+          # is what keeps trying. A store waiting on review is not a broken release.
+          store=$(curl -fsSL --max-time 30 \
+            "https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/$CRX_ID" \
+            | jq -r '.version // empty')
+          echo "note     Edge store serves ${store:-unknown}"
+
+          if [ -z "$behind" ]; then
+            echo "::notice::every channel is on $released"
+            exit 0
+          fi
+
+          # --- repair what this token can reach ---------------------------------------------------
+          case "$behind" in
+            *site*)
+              echo "::warning::the site is behind - starting pages"
+              gh workflow run pages.yml --repo ${{ github.repository }} ;;
+          esac
+
+          case "$behind" in
+            *tap*)
+              # The tap's own sync pulls the manifests out of the newest release, and its schedule
+              # is the slow part - GitHub runs it hours apart. Starting it takes a token that may
+              # write to that repository.
+              if [ -n "$TAP_TOKEN" ]; then
+                echo "::warning::the tap is behind - starting its sync"
+                GH_TOKEN=$TAP_TOKEN gh workflow run sync.yml --repo fgilde/homebrew-tap
+              else
+                echo "::warning::the tap is behind and TAP_TOKEN is not set - it will catch up on its own schedule, which is hours"
+              fi ;;
+          esac
+
+          # Straight after a release, being behind is normal - the repairs above have just started.
+          # A day later it is not.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "::error::still behind a day after the release:$behind"
+            exit 1
+          fi
+
+          echo "::warning::behind, repairs started:$behind"

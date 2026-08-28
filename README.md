@@ -86,6 +86,7 @@ repository that installs its own SDK.
 | `quickrun clean --all \| --older-than 30d \| <id>` | Remove workspaces |
 | `quickrun` (no arguments) | Start with a tray icon and open the desktop window |
 | `quickrun daemon` | Run the localhost listener without a tray icon |
+| `quickrun open <path>` | Hand a folder to QuickRun and show the plan - what the file manager entry calls |
 | `quickrun doctor` | Check that this installation works: listener, extension contract, workspace, tray, window |
 | `quickrun update` | Check for a newer QuickRun and install it when QuickRun owns the binary |
 

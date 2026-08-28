@@ -107,6 +107,11 @@ internal static class Program
                 .WithDescription("Handle a quickrun:// URL. Invoked by the operating system.");
 
 
+            config.AddCommand<OpenCommand>("open")
+                .WithDescription("Hand a folder to QuickRun and show the plan. What a shell verb calls.")
+                .WithExample("open", ".")
+                .WithExample("open", "~/dev/planner", "--copy");
+
             config.AddCommand<DoctorCommand>("doctor")
                 .WithDescription("Check that this installation works: listener, extension contract, "
                                  + "workspace, tray icon, window.")

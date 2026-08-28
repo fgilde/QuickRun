@@ -84,6 +84,42 @@ Bewusst nur von hier: ein Ordner auf dieser Maschine ist von der Kommandozeile u
 Kontextmenü startbar, nie über die Browser-Erweiterung. Die Erweiterung fragt nach Repositories, und
 eine Anfrage mit einem Pfad oder einer `file:`-URL wird dort abgelehnt.
 
+## `quickrun open`
+
+```bash
+quickrun open .                      # diesen Ordner an QuickRun geben und den Plan zeigen
+quickrun open ~/dev/planner --copy
+```
+
+Das, was der Kontextmenü-Eintrag aufruft. Er führt selbst nichts aus: er bittet das laufende QuickRun
+— und startet vorher eines, wenn keines läuft —, den Ordner vorzubereiten und den Plan in seinem
+Fenster zu zeigen, wo die Entscheidung hingehört. Bekommt er eine `quickrun.yml`, nimmt er den Ordner
+darum herum: eine Config ist nichts, was für sich läuft.
+
+Dieser Umweg ist der Sinn der Sache. Ein Prozess, den die Shell startet, nähme den Run mit sich, wenn
+sein Fenster zugeht — und die Binary ist fürs GUI-Subsystem gebaut, eine Bestätigungsabfrage in einer
+Konsole, die niemand sieht, ist keine Bestätigung.
+
+### „Run with QuickRun" im Dateimanager
+
+`quickrun install` legt den Eintrag an, `quickrun uninstall` entfernt ihn wieder. Auf einem Ordner,
+auf der leeren Fläche in einem Ordner und auf einer `quickrun.yml`.
+
+**Windows** schreibt vier Schlüssel unter `HKCU\Software\Classes` — ohne Administratorrechte, und die
+`.yml`-Einträge liegen unter `SystemFileAssociations`: das stellt den Eintrag neben das, was YAML
+ohnehin öffnet, statt den Dateityp zu übernehmen. Unter **Windows 11** steht der Eintrag in *Weitere
+Optionen anzeigen*; das kurze Menü nimmt nur einen paketierten Handler an, und das ist eigene Arbeit.
+
+**Linux** bekommt eine Datei pro Dateimanager, denn einen gemeinsamen Standard gibt es nicht: ein
+KIO-Servicemenü für Dolphin, eine Action-Datei für Nemo und ein Skript für Nautilus, das
+Menü-Erweiterungen dieser Art abgeschafft hat und nur noch sein Scripts-Untermenü anbietet. Thunar
+bleibt bewusst außen vor: seine Aktionen stehen in einer einzigen `uca.xml`, die auch von Hand
+gepflegt wird, und daran anzuhängen ist das Risiko nicht wert.
+
+**macOS** hat davon noch nichts. Eine Finder-Erweiterung braucht eine Developer-ID-Signatur, die
+QuickRun nicht hat, und die Alternativen sind es wert, richtig gemacht statt geraten zu werden.
+`quickrun open .` funktioniert dort schon heute.
+
 ## `quickrun validate`
 
 ```bash

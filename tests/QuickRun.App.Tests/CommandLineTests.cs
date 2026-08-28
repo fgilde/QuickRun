@@ -21,6 +21,7 @@ public class CommandLineTests
         "install",
         "uninstall",
         "handle",
+        "open",
         "doctor",
         "update",
         "ls",

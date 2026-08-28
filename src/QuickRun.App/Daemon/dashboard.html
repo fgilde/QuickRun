@@ -451,6 +451,12 @@ function openTabFromHash() {
   // the whole reason the badge sends people to a local page instead of starting anything itself.
   if (hash.startsWith('run?')) {
     const wanted = new URLSearchParams(hash.slice(4));
+
+    // A run that is already prepared - a folder somebody right-clicked, which the shell verb handed
+    // to QuickRun. There is nothing to fill in: the plan exists and needs looking at.
+    const prepared = wanted.get('id');
+    if (prepared) { showPrepared(prepared); return; }
+
     const repo = wanted.get('repo');
     if (repo) prefillRun(repo, wanted.get('ref'), wanted.get('pr'));
     return;
@@ -458,6 +464,26 @@ function openTabFromHash() {
 
   const tab = hash && document.querySelector(`nav button[data-tab="${CSS.escape(hash)}"]`);
   if (tab) tab.click();
+}
+
+/**
+ * Shows a plan that already exists, in the same panel a repository's plan appears in.
+ *
+ * The decision belongs in this window and nowhere else, so a folder handed over by a shell verb
+ * lands exactly where a repository would - with its commands listed and nothing started.
+ */
+async function showPrepared(id) {
+  document.querySelector('nav button[data-tab="runs"]')?.click();
+
+  const state = await api('/api/dashboard/state').catch(() => null);
+  const run = state?.runs?.find((r) => r.id === id);
+
+  if (!run) {
+    say('that run is no longer waiting');
+    return;
+  }
+
+  renderPlan(run);
 }
 
 /** Fills the run form from a link and prepares the plan, leaving the decision on screen. */

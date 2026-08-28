@@ -82,6 +82,41 @@ Only from here, deliberately: a folder on this machine can be run from the comma
 shell verb, and never through the browser extension. The extension asks for repositories, and a
 request naming a path or a `file:` URL is refused there.
 
+## `quickrun open`
+
+```bash
+quickrun open .                      # hand this folder to QuickRun and show the plan
+quickrun open ~/dev/planner --copy
+```
+
+What the context-menu entry calls. It runs nothing itself: it asks the QuickRun that is running -
+starting one first if there is none - to prepare the folder and put the plan in its window, where the
+decision belongs. Given a `quickrun.yml` it takes the folder that holds it, because a config is not a
+thing that runs on its own.
+
+That indirection is the point. A process the shell started would take the run with it when its window
+closed, and the binary is built for the GUI subsystem, so a confirmation prompt in a console nobody
+can see is no confirmation at all.
+
+### "Run with QuickRun" in the file manager
+
+`quickrun install` adds it, `quickrun uninstall` takes it away again. On a folder, on the empty space
+inside a folder, and on a `quickrun.yml`.
+
+**Windows** writes four keys under `HKCU\Software\Classes` - no administrator rights, and the `.yml`
+entries go under `SystemFileAssociations`, which adds a verb beside whatever already opens YAML
+rather than taking the file type over. On **Windows 11** the entry lives under *Show more options*:
+the short menu only accepts a packaged handler, which is separate work.
+
+**Linux** gets one file per file manager, because there is no shared standard: a KIO service menu for
+Dolphin, an action file for Nemo, and a script for Nautilus - which dropped menu extensions of this
+kind and offers only its Scripts submenu. Thunar is left out on purpose: its actions live in a single
+`uca.xml` that people also edit by hand, and appending to that is not worth the risk of breaking it.
+
+**macOS** has none of this yet. A Finder extension needs a Developer ID signature QuickRun does not
+have, and the alternatives are worth doing properly rather than guessing at. `quickrun open .` works
+there today.
+
 ## `quickrun validate`
 
 ```bash

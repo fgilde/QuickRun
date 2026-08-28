@@ -59,11 +59,84 @@ public static class SystemIntegration
         var steps = new List<IntegrationStep>();
 
         steps.Add(SchemeStepWindows(executable));
+        steps.Add(ShellVerbsWindows(executable));
 
         steps.Add(AutostartWindows(executable, port));
 
         return steps;
     }
+
+    /// <summary>
+    /// Where Explorer keeps "Run with QuickRun", one key per place it appears: on a folder, on the
+    /// empty space inside one, and on a YAML file.
+    /// </summary>
+    private static readonly string[] VerbKeys =
+    [
+        @"Software\Classes\Directory\shell\QuickRun",
+        @"Software\Classes\Directory\Background\shell\QuickRun",
+        @"Software\Classes\SystemFileAssociations\.yml\shell\QuickRun",
+        @"Software\Classes\SystemFileAssociations\.yaml\shell\QuickRun",
+    ];
+
+    /// <summary>
+    /// "Run with QuickRun" in Explorer.
+    /// <para>
+    /// HKCU and SystemFileAssociations, so no administrator rights are needed and no file type's own
+    /// association is touched: a verb added there appears alongside whatever already opens .yml
+    /// rather than competing with it.
+    /// </para>
+    /// <para>
+    /// On Windows 11 a verb registered this way lives under "Show more options". The short menu only
+    /// accepts a packaged IExplorerCommand handler, which is a separate piece of work - this is what
+    /// every Windows can do today, and what the older ones need regardless.
+    /// </para>
+    /// </summary>
+    /// <param name="Label">What the menu says.</param>
+    /// <param name="AppliesTo">
+    /// The shell's own filter, for the file entries. Null for a folder, which needs none.
+    /// </param>
+    /// <param name="Command">The command line, with the shell's placeholder in it.</param>
+    internal sealed record ExplorerVerb(string Key, string Label, string? AppliesTo, string Command);
+
+    /// <summary>
+    /// What the Explorer entries would be. Separate from writing them, so their shape can be
+    /// checked without a test touching the registry of the machine it runs on.
+    /// </summary>
+    internal static IReadOnlyList<ExplorerVerb> ExplorerVerbs(string executable) =>
+        VerbKeys.Select(key =>
+        {
+            var folder = key.Contains(@"\Directory\", StringComparison.Ordinal);
+
+            return new ExplorerVerb(
+                key,
+                "Run with QuickRun",
+                // A verb on a file only makes sense on a config, and the shell cannot filter by
+                // name - so it is asked to. Where AppliesTo is not honoured the entry appears for
+                // every YAML file, and `open` then works out the folder, which is the right answer
+                // either way.
+                folder ? null : "System.FileName:\"quickrun.yml\" OR System.FileName:\"quickrun.yaml\"",
+                // %V for a directory: it is the one that is also correct on the background of a
+                // folder, where %1 is not set at all. %1 for a file.
+                $"\"{executable}\" open \"%{(folder ? "V" : "1")}\"");
+        }).ToList();
+
+    [SupportedOSPlatform("windows")]
+    private static IntegrationStep ShellVerbsWindows(string executable) =>
+        Try("add Explorer entries", () =>
+        {
+            foreach (var entry in ExplorerVerbs(executable))
+            {
+                using var verb = Registry.CurrentUser.CreateSubKey(entry.Key);
+                verb.SetValue(null, entry.Label);
+                verb.SetValue("Icon", $"{executable},0");
+                if (entry.AppliesTo is { } filter) verb.SetValue("AppliesTo", filter);
+
+                using var command = Registry.CurrentUser.CreateSubKey($@"{entry.Key}\command");
+                command.SetValue(null, entry.Command);
+            }
+
+            return @"HKCU\Software\Classes: Directory, Directory\Background, .yml, .yaml";
+        });
 
     [SupportedOSPlatform("windows")]
     private static IntegrationStep AutostartWindows(string executable, int port) =>
@@ -153,6 +226,14 @@ public static class SystemIntegration
             return "removed";
         }));
 
+        steps.Add(Try("remove Explorer entries", () =>
+        {
+            foreach (var key in VerbKeys)
+                Registry.CurrentUser.DeleteSubKeyTree(key, throwOnMissingSubKey: false);
+
+            return "removed";
+        }));
+
         steps.Add(Try("remove autostart entry", () =>
         {
             using var run = Registry.CurrentUser.OpenSubKey(
@@ -173,6 +254,7 @@ public static class SystemIntegration
         var desktopFile = Path.Combine(applications, "quickrun.desktop");
 
         steps.Add(SchemeStepLinux(executable));
+        steps.Add(FileManagerLinux(executable));
 
         steps.Add(AutostartLinux(executable, port));
 
@@ -247,6 +329,103 @@ public static class SystemIntegration
 
     /// <summary>
     /// The icon a desktop environment looks for. A <c>.desktop</c> file naming <c>Icon=quickrun</c>
+    /// <summary>Where each file manager keeps its context-menu entries.</summary>
+    private static string[] FileManagerFiles() =>
+    [
+        Path.Combine(Home(), ".local", "share", "kio", "servicemenus", "quickrun.desktop"),
+        Path.Combine(Home(), ".local", "share", "nemo", "actions", "quickrun.nemo_action"),
+        Path.Combine(Home(), ".local", "share", "nautilus", "scripts", "Run with QuickRun"),
+    ];
+
+    /// <summary>
+    /// "Run with QuickRun" in the file manager.
+    /// <para>
+    /// One file per file manager, because there is no shared standard: KDE reads a service menu,
+    /// Nemo an action file, and Nautilus dropped extensions of this kind entirely and offers only
+    /// its Scripts submenu. Each is a few lines, and writing one a file manager is not installed
+    /// costs nothing. Thunar is deliberately left out: its actions live in a single uca.xml the user
+    /// also edits by hand, and appending to that file is not worth the chance of breaking it.
+    /// </para>
+    /// </summary>
+    /// <summary>
+    /// What the file manager entries would be, as paths and contents. Separate from writing them, so
+    /// a test can check what a Linux machine would get without being one.
+    /// </summary>
+    internal static IReadOnlyList<(string Path, string Content)> FileManagerEntries(string executable)
+    {
+        var files = FileManagerFiles();
+
+        // KDE: Dolphin, and anything else built on KIO.
+        var kde = $"""
+            [Desktop Entry]
+            Type=Service
+            ServiceTypes=KonqPopupMenu/Plugin
+            MimeType=inode/directory;application/x-yaml;text/x-yaml;
+            Actions=quickrunOpen
+            X-KDE-Priority=TopLevel
+
+            [Desktop Action quickrunOpen]
+            Name=Run with QuickRun
+            Icon=quickrun
+            Exec={executable} open %f
+
+            """;
+
+        // Nemo, on Cinnamon.
+        var nemo = $"""
+            [Nemo Action]
+            Name=Run with QuickRun
+            Comment=Prepare this folder in QuickRun
+            Exec={executable} open %F
+            Icon-Name=quickrun
+            Selection=S
+            Extensions=dir;yml;yaml;
+            Quote=double
+
+            """;
+
+        // Nautilus has no menu extensions of this kind any more, only scripts - and it passes the
+        // selection in the environment rather than as arguments, with nothing at all when the click
+        // was on the background of a folder. Then the folder itself is what was meant.
+        var nautilus = $$"""
+            #!/bin/sh
+            # Run with QuickRun. Written by `quickrun install`.
+            set -eu
+
+            target=$(printf '%s' "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS:-}" | head -n 1)
+            [ -n "$target" ] || target=$(pwd)
+
+            exec {{Quote(executable)}} open "$target"
+
+            """;
+
+        return [(files[0], kde), (files[1], nemo), (files[2], nautilus)];
+    }
+
+    private static IntegrationStep FileManagerLinux(string executable) =>
+        Try("add file manager entries", () =>
+        {
+            var entries = FileManagerEntries(executable);
+
+            foreach (var (path, content) in entries)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, content);
+            }
+
+            // The Nautilus one is a script, and a script nobody may execute is not a menu entry.
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(entries[^1].Path,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+
+            return string.Join(", ", entries.Select(e => Path.GetFileName(e.Path)));
+        });
+
+    /// <summary>A path as a shell word, for the one place a script is generated.</summary>
+    private static string Quote(string path) => "'" + path.Replace("'", "'\\''", StringComparison.Ordinal) + "'";
+
     /// finds nothing unless the file is in the icon theme, and the launcher then shows a blank tile.
     /// </summary>
     private static void WriteIconLinux()
@@ -296,13 +475,14 @@ public static class SystemIntegration
 
     private static IReadOnlyList<IntegrationStep> UninstallLinux()
     {
-        var files = new[]
-        {
+        string[] files =
+        [
+            .. FileManagerFiles(),
             Path.Combine(Home(), ".local", "share", "applications", "quickrun.desktop"),
             Path.Combine(Home(), ".local", "share", "applications", "quickrun-ui.desktop"),
             Path.Combine(Home(), ".config", "autostart", "quickrun-daemon.desktop"),
             Path.Combine(Home(), ".local", "share", "icons", "hicolor", "256x256", "apps", "quickrun.png"),
-        };
+        ];
 
         return files
             .Select(file => Try($"remove {Path.GetFileName(file)}", () =>

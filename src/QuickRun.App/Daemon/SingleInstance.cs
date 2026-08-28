@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using QuickRun.Core;
 
@@ -73,6 +74,43 @@ public static class SingleInstance
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Hands a folder to the instance that is running, which prepares it and shows the window.
+    /// </summary>
+    /// <returns>
+    /// Whether a window appeared. False means QuickRun is running without one - then the plan is
+    /// waiting but nobody can see it, and the caller has to say so.
+    /// </returns>
+    public static async Task<(bool Shown, string? Error)> LocalAsync(
+        int port, string folder, bool copy, CancellationToken ct = default)
+    {
+        var body = JsonSerializer.Serialize(new { path = folder, copy });
+
+        try
+        {
+            using var content = new StringContent(body, Encoding.UTF8, "application/json");
+            using var response = await Http.PostAsync($"http://127.0.0.1:{port}/api/local", content, ct);
+
+            using var answer = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            var root = answer.RootElement;
+
+            var error = root.TryGetProperty("error", out var reason) && reason.ValueKind == JsonValueKind.String
+                ? reason.GetString()
+                : null;
+
+            var shown = root.TryGetProperty("shown", out var flag) && flag.ValueKind == JsonValueKind.True;
+            return (shown, error);
+        }
+        catch (JsonException e)
+        {
+            return (false, $"QuickRun answered something unreadable: {e.Message}");
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            return (false, e.Message);
         }
     }
 

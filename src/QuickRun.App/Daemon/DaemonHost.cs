@@ -47,6 +47,12 @@ public sealed record SettingRequest(bool Enabled);
 /// A run started from the local UI. Unlike the extension's request this one may carry a token: the
 /// page asking is QuickRun's own, and a private repository has to come from somewhere.
 /// </summary>
+/// <summary>
+/// A folder on this machine, asked for by something running on it: the command line, or the shell
+/// verb that calls it. Never a web page - see the endpoint.
+/// </summary>
+public sealed record LocalRunRequest(string? Path, bool? Copy);
+
 public sealed record DashboardRunRequest(
     string? Repo,
     string? Ref,
@@ -730,6 +736,42 @@ public static class DaemonHost
         // What a second start does instead of failing on a port that is taken: hand its reason for
         // existing to the instance that already exists. A quickrun:// link arrives here too, which
         // is why it takes the same repository target the dashboard understands.
+        // A folder on this machine, prepared and put on screen.
+        //
+        // Only for a caller that sends no Origin at all, which a page cannot be: a browser sets
+        // Origin on every cross-origin POST it makes. So this is reachable by the command line and
+        // by the shell verb that calls it, and not by the extension - which asks for repositories,
+        // and whose endpoint refuses a path outright.
+        //
+        // It prepares and shows. Nothing runs: the plan waits in the window for a decision, exactly
+        // as it does for a repository.
+        app.MapPost("/api/local", async (LocalRunRequest request, HttpContext context,
+            RunRegistry runs, HostControl host) =>
+        {
+            // No Origin at all, not even an extension's: a folder on this machine is asked for by
+            // something already running on it.
+            if (!string.IsNullOrEmpty(context.Request.Headers.Origin.ToString())) return Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(request.Path))
+                return Results.BadRequest(new { error = "path is required" });
+
+            var args = new RunArgs("", null, null, null, Array.Empty<string>(),
+                Token: null, Fresh: false, Yes: false, NoOpen: false, ConfigPath: null,
+                LocalPath: request.Path, Copy: request.Copy ?? false);
+
+            var (summary, error) = await runs.PrepareAsync(args);
+
+            // Shown even when the plan could not be built: a folder with a broken config, or one
+            // with no config at all, is exactly when somebody needs to see the window.
+            var shown = host.ShowWindow is { } show;
+            if (shown) host.ShowWindow!(summary is null ? "" : $"#run?id={summary.Id}");
+
+            return error is null
+                ? Results.Json(new { run = summary, shown }, Json)
+                : Results.Json(new { error, run = summary, shown }, Json,
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+        });
+
         app.MapPost("/api/show", (HttpContext context, HostControl host) =>
         {
             if (!Authorized(context)) return Unauthorized();

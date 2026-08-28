@@ -124,9 +124,30 @@ public class NativeRunPageTests
         Assert.False(view.Folder);
         Assert.Contains("not there", view.Explanation);
 
-        // And a URL is never mistaken for a mistyped path.
-        Assert.DoesNotContain("not there", RunPage.Read("https://github.com/acme/app").Explanation);
+        // And these are never mistaken for a mistyped path - on Linux and macOS the separator is the
+        // slash, so "owner/repo" looked exactly like one and was reported as a missing folder.
+        foreach (var repository in new[]
+                 {
+                     "acme/app",
+                     "https://github.com/acme/app",
+                     "git@github.com:acme/app.git",
+                     "gitlab.example.com/acme/app",
+                 })
+            Assert.DoesNotContain("not there", RunPage.Read(repository).Explanation);
     }
+
+    /// <summary>
+    /// What marks a path is being anchored - a root, a drive, a home, a relative step said out loud
+    /// - rather than merely holding a slash.
+    /// </summary>
+    [Theory]
+    [InlineData("~/dev/planner")]
+    [InlineData("./planner")]
+    [InlineData("../planner")]
+    [InlineData(@"C:\dev\planner")]
+    [InlineData(@"\server\share\planner")]
+    public void Something_written_like_a_path_and_not_there_says_so(string typed) =>
+        Assert.Contains("not there", RunPage.Read(typed).Explanation);
 
     [Fact]
     public void An_empty_field_explains_both_things_it_takes()

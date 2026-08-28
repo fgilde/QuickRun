@@ -168,10 +168,7 @@ public sealed class RunPage : UserControl
 
         // A path written like one that is not there is worth saying out loud: otherwise QuickRun
         // tries to check it out as a repository and fails for a stranger reason.
-        var missing = !folder
-                      && text.Length > 0
-                      && !text.Contains("://", StringComparison.Ordinal)
-                      && (text.Contains(Path.DirectorySeparatorChar) || Looks(text));
+        var missing = !folder && text.Length > 0 && LooksLikeAPath(text);
 
         var explanation = text.Length == 0
             ? "A repository is checked out. A folder on this machine is run where it lies."
@@ -184,9 +181,28 @@ public sealed class RunPage : UserControl
         return new TargetView(folder, folder, !folder, explanation);
     }
 
-    /// <summary>Whether a string is shaped like an absolute path, whether or not one is there.</summary>
-    private static bool Looks(string text)
+    /// <summary>
+    /// Whether a string is written like a path, whether or not anything is there.
+    /// <para>
+    /// Deliberately not "contains a directory separator": on Linux and macOS that separator is the
+    /// slash, so every owner/repo in existence would qualify - which is exactly what this said about
+    /// "acme/app" on both of them. What marks a path is being anchored: a root, a drive, a home, or
+    /// a relative step said out loud.
+    /// </para>
+    /// </summary>
+    private static bool LooksLikeAPath(string text)
     {
+        // A URL is not a path, however many slashes it has.
+        if (text.Contains("://", StringComparison.Ordinal)) return false;
+
+        // A Windows path, typed anywhere.
+        if (text.Contains('\\')) return true;
+
+        if (text.StartsWith('~')) return true;
+        if (text.StartsWith("./", StringComparison.Ordinal)) return true;
+        if (text.StartsWith("../", StringComparison.Ordinal)) return true;
+        if (text is "." or "..") return true;
+
         try { return Path.IsPathFullyQualified(text); }
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
         {

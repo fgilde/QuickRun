@@ -18,7 +18,7 @@ namespace QuickRun.Core.Config;
 public static class ConfigWriter
 {
     public const string SchemaLine =
-        "# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json";
+        "# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json";
 
     public static string ToYaml(RunConfig config, string? header = null)
     {

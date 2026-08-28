@@ -38,7 +38,7 @@ public class SchemaTests
     public void The_schema_is_valid_json_and_declares_its_id()
     {
         using var schema = Schema();
-        Assert.Equal("https://fgilde.github.io/QuickRun/quickrun.schema.json",
+        Assert.Equal("https://quickrun.org/quickrun.schema.json",
             schema.RootElement.GetProperty("$id").GetString());
     }
 

@@ -49,7 +49,7 @@ const platforms = [
     logo: 'windows',
     tint: '#0078d4',
     command: 'winget install fgilde.QuickRun',
-    alternative: 'scoop install https://fgilde.github.io/QuickRun/quickrun.json',
+    alternative: 'scoop install https://quickrun.org/quickrun.json',
     builds: [
       { arch: 'x64', asset: 'quickrun-win-x64.zip' },
       { arch: 'arm64', asset: 'quickrun-win-arm64.zip' },
@@ -75,7 +75,7 @@ const platforms = [
     logo: 'linux',
     mono: true,
     tint: '#f0b400',
-    command: 'curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh',
+    command: 'curl -fsSL https://quickrun.org/install.sh | sh',
     builds: [
       { arch: 'x64', asset: 'quickrun-linux-x64.tar.gz' },
       { arch: 'arm64', asset: 'quickrun-linux-arm64.tar.gz' },

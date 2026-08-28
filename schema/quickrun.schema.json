@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://fgilde.github.io/QuickRun/quickrun.schema.json",
+  "$id": "https://quickrun.org/quickrun.schema.json",
   "title": "quickrun.yml",
   "description": "How to start this repository. Every block is optional; the file only has to describe something to execute.",
   "type": "object",

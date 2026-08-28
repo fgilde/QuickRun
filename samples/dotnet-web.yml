@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 # What this shows: verifying an SDK version before running an ASP.NET Core app.
 version: 1
 name: ASP.NET Core API

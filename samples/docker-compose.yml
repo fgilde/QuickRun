@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 # What this shows: wrapping an existing compose file, including teardown.
 version: 1
 name: Compose stack

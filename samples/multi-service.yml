@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 # What this shows: three runtimes at once, started in dependency order, cleaned up on stop.
 version: 1
 name: Full stack

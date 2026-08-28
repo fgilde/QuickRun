@@ -281,8 +281,8 @@ public sealed class DashboardWindow : Window
             Spacing = 8,
             Children =
             {
-                Button("Download the extension", () => Open("https://fgilde.github.io/QuickRun/download#the-browser-extension")),
-                Button("Documentation", () => Open("https://fgilde.github.io/QuickRun/extension")),
+                Button("Download the extension", () => Open("https://quickrun.org/download#the-browser-extension")),
+                Button("Documentation", () => Open("https://quickrun.org/extension")),
             },
         });
 
@@ -320,7 +320,7 @@ public sealed class DashboardWindow : Window
             Spacing = 8,
             Children =
             {
-                Button("Security model", () => Open("https://fgilde.github.io/QuickRun/security")),
+                Button("Security model", () => Open("https://quickrun.org/security")),
                 Button("Open in browser", () => Open(_listenerUrl)),
             },
         });
@@ -585,8 +585,8 @@ public sealed class DashboardWindow : Window
                 Heading("From a terminal"),
                 Mono("quickrun run owner/repo\nquickrun validate\nquickrun detect . --save\n"
                      + "quickrun ls\nquickrun clean --older-than 30d\nquickrun --help"),
-                Link("https://fgilde.github.io/QuickRun/cli",
-                    () => Open("https://fgilde.github.io/QuickRun/cli")),
+                Link("https://quickrun.org/cli",
+                    () => Open("https://quickrun.org/cli")),
                 Mono($"running from {Environment.ProcessPath}"),
             },
         }));

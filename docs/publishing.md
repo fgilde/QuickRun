@@ -38,7 +38,7 @@ reports it from the binary.
 `pages` workflow, so no separate bucket repository is needed:
 
 ```powershell
-scoop install https://fgilde.github.io/QuickRun/quickrun.json
+scoop install https://quickrun.org/quickrun.json
 ```
 
 ### Homebrew
@@ -48,7 +48,7 @@ workflow fetches out of the latest release. That makes it installable with no ta
 repository at all:
 
 ```bash
-brew install https://fgilde.github.io/QuickRun/quickrun.rb
+brew install https://quickrun.org/quickrun.rb
 ```
 
 A tap is still nicer for `brew upgrade`. To add one, create a repository named

@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 # What this shows: a virtual environment, and how platform maps handle the venv layout difference.
 version: 1
 name: Flask app

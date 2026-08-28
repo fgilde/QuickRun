@@ -6,7 +6,7 @@ file describes *something* to execute.
 Add the schema comment and your editor will complete the fields for you:
 
 ```yaml
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 ```
 
 ## Shorthand

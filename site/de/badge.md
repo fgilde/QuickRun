@@ -3,14 +3,14 @@
 Ein Badge im README, das dein Projekt startet. Auf der anderen Seite ist keine Erweiterung nötig —
 wer klickt, landet entweder in QuickRun oder auf der Download-Seite.
 
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](/de/run?repo=fgilde/QuickRun)
+[![QuickRun](https://quickrun.org/badge.svg)](/de/run?repo=fgilde/QuickRun)
 
 ## Die Zeile
 
 `owner/repo` durch dein Repository ersetzen:
 
 ```markdown
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](https://fgilde.github.io/QuickRun/de/run?repo=owner/repo)
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/de/run?repo=owner/repo)
 ```
 
 Die [Run-Seite](/de/run) hat ein Feld, das die Zeile schreibt, und einen Kopieren-Button.
@@ -18,7 +18,7 @@ Die [Run-Seite](/de/run) hat ein Feld, das die Zeile schreibt, und einen Kopiere
 Ein bestimmter Branch oder ein Pull Request, wenn der Standard nicht das ist, was laufen soll:
 
 ```markdown
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](https://fgilde.github.io/QuickRun/de/run?repo=owner/repo&ref=develop)
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/de/run?repo=owner/repo&ref=develop)
 ```
 
 Für englischsprachige Leser führt `…/run?repo=…` ohne `de/` auf dieselbe Seite auf Englisch.
@@ -55,6 +55,6 @@ Pfad. Der Link sagt, was angeschaut wird, nie was ausgeführt wird — siehe
 
 ## Das Badge-Bild
 
-`https://fgilde.github.io/QuickRun/badge.svg` — 150×20, die übliche Badge-Form, damit es neben denen
+`https://quickrun.org/badge.svg` — 150×20, die übliche Badge-Form, damit es neben denen
 sitzt, die dein README schon hat. Direkt verlinken ist in Ordnung; es liegt auf derselben
 GitHub-Pages-Seite wie diese hier.

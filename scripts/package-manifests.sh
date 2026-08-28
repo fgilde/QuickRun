@@ -35,7 +35,7 @@ cat > "$outdir/quickrun.json" <<JSON
 {
   "version": "$version",
   "description": "Run any git repository with one click",
-  "homepage": "https://fgilde.github.io/QuickRun",
+  "homepage": "https://quickrun.org",
   "license": "MIT",
   "architecture": {
     "64bit": {
@@ -64,13 +64,13 @@ JSON
 
 cat > "$outdir/quickrun.rb" <<RUBY
 # Homebrew formula for QuickRun. Served from the project site, so no tap is needed:
-#   brew install https://fgilde.github.io/QuickRun/quickrun.rb
+#   brew install https://quickrun.org/quickrun.rb
 #
 # If a fgilde/homebrew-tap repository exists, copying this file into its Formula/
 # directory also makes "brew install fgilde/tap/quickrun" work, with upgrade tracking.
 class Quickrun < Formula
   desc "Run any git repository with one click"
-  homepage "https://fgilde.github.io/QuickRun"
+  homepage "https://quickrun.org"
   version "$version"
   license "MIT"
 
@@ -126,7 +126,7 @@ cask "quickrun" do
       verified: "github.com/$REPO/"
   name "QuickRun"
   desc "Run any git repository with one click"
-  homepage "https://fgilde.github.io/QuickRun"
+  homepage "https://quickrun.org"
 
   livecheck do
     url :url

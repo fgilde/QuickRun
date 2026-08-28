@@ -5,11 +5,11 @@
 <p align="center"><strong>Run any git repository with one click.</strong></p>
 
 <p align="center">
-  <a href="https://fgilde.github.io/QuickRun/download">Download</a> ·
-  <a href="https://fgilde.github.io/QuickRun/">Documentation (English)</a> ·
-  <a href="https://fgilde.github.io/QuickRun/de/">Dokumentation (Deutsch)</a> ·
+  <a href="https://quickrun.org/download">Download</a> ·
+  <a href="https://quickrun.org/">Documentation (English)</a> ·
+  <a href="https://quickrun.org/de/">Dokumentation (Deutsch)</a> ·
   <a href="samples/">Example configs</a> ·
-  <a href="https://fgilde.github.io/QuickRun/badge">README badge</a>
+  <a href="https://quickrun.org/badge">README badge</a>
 </p>
 
 ---
@@ -38,18 +38,18 @@ up. Everything else is detected: compose files, `package.json` scripts, .NET pro
 (Django, Streamlit, Gradio, FastAPI), `Procfile`, `.replit`, Makefiles, Taskfile, justfile, Cargo,
 Go, Maven, Gradle — with the port worked out where possible, so you get a link rather than a log to
 search. `quickrun detect --save` writes the generated `quickrun.yml` back for you to commit. See
-[Repositories without a config](https://fgilde.github.io/QuickRun/no-config).
+[Repositories without a config](https://quickrun.org/no-config).
 
 A config builder comes with the tool: the local UI writes a `quickrun.yml` with completion from the
 published schema, checks it with the same validator a run uses, tests it against the repository
 before anything is committed, and keeps your own config for repositories you do not own - stored in
 QuickRun's own directory, not in someone else's checkout. See
-[the config builder](https://fgilde.github.io/QuickRun/builder).
+[the config builder](https://quickrun.org/builder).
 
 ## What a config looks like
 
 ```yaml
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 version: 1
 name: Vite dev server
 requires:
@@ -145,7 +145,7 @@ cd extension
 sh build.sh     # dist/chromium for Chrome, Edge and Opera; dist/firefox for Firefox
 ```
 
-Store listings are pending review. Until then the [download page](https://fgilde.github.io/QuickRun/download)
+Store listings are pending review. Until then the [download page](https://quickrun.org/download)
 has the builds and the steps to load them unpacked.
 
 ## README badge
@@ -154,7 +154,7 @@ Put a badge in your own README and anyone reading it is one click from running y
 extension on their side:
 
 ```markdown
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](https://fgilde.github.io/QuickRun/run?repo=owner/repo)
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/run?repo=owner/repo)
 ```
 
 The badge links to a page that asks the local listener whether QuickRun is there. If it is, the page
@@ -163,7 +163,7 @@ offers the download. GitHub strips unknown link schemes from a rendered README, 
 badge cannot link `quickrun://` itself.
 
 The link may carry `repo`, `ref` and `pr` and nothing else — no command, no config, no token, no
-local path. Details: [README badge](https://fgilde.github.io/QuickRun/badge).
+local path. Details: [README badge](https://quickrun.org/badge).
 
 ## Updating
 

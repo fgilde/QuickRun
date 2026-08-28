@@ -68,7 +68,7 @@ public class DashboardTests
         Assert.Contains("quickrun://", html);
         Assert.Contains("schemeButton", html);
         Assert.DoesNotContain("pairing window", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("https://fgilde.github.io/QuickRun/download", html);
+        Assert.Contains("https://quickrun.org/download", html);
     }
 
     /// <summary>

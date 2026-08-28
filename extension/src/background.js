@@ -4,7 +4,7 @@
 import * as api from './api.js';
 import { matchesTarget, stillWorthActing } from './match.js';
 
-const DOWNLOAD_PAGE = 'https://fgilde.github.io/QuickRun/download';
+const DOWNLOAD_PAGE = 'https://quickrun.org/download';
 
 /** Live runs, keyed by run id, so the content script can be told where a run has got to. */
 const active = new Map();

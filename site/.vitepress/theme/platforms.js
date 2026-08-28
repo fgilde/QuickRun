@@ -15,7 +15,7 @@ export const PLATFORMS = [
     tint: '#0078d4',
     requirement: 'Windows 10 or later',
     command: 'winget install fgilde.QuickRun',
-    alternative: 'scoop install https://fgilde.github.io/QuickRun/quickrun.json',
+    alternative: 'scoop install https://quickrun.org/quickrun.json',
     builds: [
       { arch: 'x64', asset: 'quickrun-win-x64.zip' },
       { arch: 'arm64', asset: 'quickrun-win-arm64.zip' },
@@ -47,7 +47,7 @@ export const PLATFORMS = [
     mono: true,
     tint: '#f0b400',
     requirement: 'glibc 2.31 or later',
-    command: 'curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh',
+    command: 'curl -fsSL https://quickrun.org/install.sh | sh',
     builds: [
       { arch: 'x64', asset: 'quickrun-linux-x64.tar.gz' },
       { arch: 'arm64', asset: 'quickrun-linux-arm64.tar.gz' },

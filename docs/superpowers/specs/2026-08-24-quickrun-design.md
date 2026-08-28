@@ -153,7 +153,7 @@ only needed for inputs, parallelism, prerequisites, or readiness.
 ### Canonical form
 
 ```yaml
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 version: 1                     # optional, default 1
 name: My App                   # optional, default = repo name
 description: ...               # optional
@@ -599,9 +599,9 @@ Package managers are the primary install path:
 
 | Platform | Command |
 |---|---|
-| Windows | `scoop install https://fgilde.github.io/QuickRun/quickrun.json` |
-| macOS | `brew install https://fgilde.github.io/QuickRun/quickrun.rb` |
-| Linux | `curl -fsSL https://fgilde.github.io/QuickRun/install.sh \| sh` |
+| Windows | `scoop install https://quickrun.org/quickrun.json` |
+| macOS | `brew install https://quickrun.org/quickrun.rb` |
+| Linux | `curl -fsSL https://quickrun.org/install.sh \| sh` |
 
 Both manifests are generated per release and served from the site, which the Pages
 workflow fetches out of the newest release. That removes the need for a scoop

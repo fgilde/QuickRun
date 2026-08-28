@@ -48,7 +48,7 @@ jobs:
           cask=$(curl -fsSL --max-time 30 "$raw/Casks/quickrun.rb" | version_in)
 
           # --- the site, which is what the download page and `brew install <url>` read ------------
-          site=https://fgilde.github.io/QuickRun
+          site=https://quickrun.org
           site_formula=$(curl -fsSL --max-time 30 "$site/quickrun.rb" | version_in)
           site_cask=$(curl -fsSL --max-time 30 "$site/quickrun-cask.rb" | version_in)
           site_scoop=$(curl -fsSL --max-time 30 "$site/quickrun.json" | jq -r '.version // empty')

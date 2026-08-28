@@ -20,7 +20,7 @@ fremdes Repository eine eigene Config behalten.
    | a starting point | nichts Erkennbares — eine leere Vorlage |
 
 2. **Bearbeiten** — der Editor vervollständigt die Schlüssel des Blocks, in dem der Cursor steht,
-   aus demselben [Schema](https://fgilde.github.io/QuickRun/quickrun.schema.json), das QuickRun
+   aus demselben [Schema](https://quickrun.org/quickrun.schema.json), das QuickRun
    veröffentlicht. Dazu Snippets für die Blöcke, die niemand auswendig kennt: ein Task mit
    Readiness-Prüfung und `open`, ein `requires`-Eintrag für .NET, Node oder Docker, ein
    Secret-Input.

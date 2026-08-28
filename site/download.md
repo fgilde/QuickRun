@@ -39,8 +39,8 @@ brew install fgilde/tap/quickrun   # no app bundle, no Launchpad entry, no quick
 Both are also served from this site, so neither needs the tap:
 
 ```bash
-brew install --cask https://fgilde.github.io/QuickRun/quickrun-cask.rb
-brew install https://fgilde.github.io/QuickRun/quickrun.rb
+brew install --cask https://quickrun.org/quickrun-cask.rb
+brew install https://quickrun.org/quickrun.rb
 ```
 
 Either way, `brew upgrade quickrun` updates it and QuickRun leaves its own binary alone, because

@@ -51,7 +51,7 @@ than in the page, so no web page can draw a convincing fake over it.
 
 Progress comes back into the button while the repository starts.
 
-Requires the QuickRun application: https://fgilde.github.io/QuickRun
+Requires the QuickRun application: https://quickrun.org
 Source code: https://github.com/fgilde/QuickRun
 ```
 
@@ -73,7 +73,7 @@ nicht in der Seite, damit keine Webseite eine überzeugende Fälschung darüberl
 
 Der Fortschritt kommt während des Starts in den Button zurück.
 
-Benötigt die QuickRun-Anwendung: https://fgilde.github.io/QuickRun
+Benötigt die QuickRun-Anwendung: https://quickrun.org
 Quellcode: https://github.com/fgilde/QuickRun
 ```
 
@@ -112,7 +112,7 @@ tab.
 - Repository names and refs are sent to the local application on `127.0.0.1` in order to run them,
   and nowhere else.
 
-Privacy policy URL: <https://fgilde.github.io/QuickRun/privacy>
+Privacy policy URL: <https://quickrun.org/privacy>
 
 ## Screenshots
 
@@ -128,7 +128,7 @@ Capture at 1280×800:
 
 ```
 QuickRun requires a companion application on the user's machine, downloadable from
-https://fgilde.github.io/QuickRun. Without it the button shows "Install QuickRun" and links to that
+https://quickrun.org. Without it the button shows "Install QuickRun" and links to that
 page; the extension does nothing else on its own.
 
 The extension talks only to http://127.0.0.1 and only after the user has explicitly paired it: the

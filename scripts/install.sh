@@ -1,7 +1,7 @@
 #!/bin/sh
 # QuickRun installer for Linux and macOS.
 #
-#   curl -fsSL https://fgilde.github.io/QuickRun/install.sh | sh
+#   curl -fsSL https://quickrun.org/install.sh | sh
 #
 # Downloads the latest release asset for this platform, verifies it against the
 # published SHA256SUMS, and installs it to ~/.local/bin (override with PREFIX).

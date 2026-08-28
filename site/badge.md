@@ -3,14 +3,14 @@
 A badge in your README that runs your project. No extension needed on the other side — whoever
 clicks it either lands in QuickRun or lands on the download page.
 
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](/run?repo=fgilde/QuickRun)
+[![QuickRun](https://quickrun.org/badge.svg)](/run?repo=fgilde/QuickRun)
 
 ## The snippet
 
 Replace `owner/repo` with yours:
 
 ```markdown
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](https://fgilde.github.io/QuickRun/run?repo=owner/repo)
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/run?repo=owner/repo)
 ```
 
 The [run page](/run) has a field that writes the line for you, and a Copy button.
@@ -18,7 +18,7 @@ The [run page](/run) has a field that writes the line for you, and a Copy button
 A specific branch or a pull request, when the default is not what you want people to run:
 
 ```markdown
-[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](https://fgilde.github.io/QuickRun/run?repo=owner/repo&ref=develop)
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/run?repo=owner/repo&ref=develop)
 ```
 
 German readers can be sent to `/de/run?repo=…`, which is the same page in German.
@@ -52,6 +52,6 @@ refused from a link, although you can still type them yourself on the [CLI](/cli
 
 ## The badge image
 
-`https://fgilde.github.io/QuickRun/badge.svg` — 150×20, the usual badge shape, so it sits next to
+`https://quickrun.org/badge.svg` — 150×20, the usual badge shape, so it sits next to
 the ones your README already has. Hotlink it; it is served from the same GitHub Pages site as this
 page.

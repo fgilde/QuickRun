@@ -24,7 +24,7 @@
     <Product>QuickRun</Product>
     <Description>Run any git repository with one click.</Description>
     <Copyright>Copyright (c) Florian Gilde</Copyright>
-    <PackageProjectUrl>https://fgilde.github.io/QuickRun/</PackageProjectUrl>
+    <PackageProjectUrl>https://quickrun.org/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fgilde/QuickRun</RepositoryUrl>
   </PropertyGroup>
 </Project>

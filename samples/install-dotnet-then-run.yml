@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 # What this shows: a repository that brings its own SDK, so there is nothing to require.
 version: 1
 name: Self-contained .NET sample

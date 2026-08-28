@@ -4,8 +4,10 @@ const repo = 'https://github.com/fgilde/QuickRun';
 
 export default defineConfig({
   title: 'QuickRun',
-  // GitHub Pages serves the repository at /QuickRun/.
-  base: '/QuickRun/',
+  // quickrun.org serves the site at the root. It was /QuickRun/ while the site lived at
+  // fgilde.github.io, and every stylesheet and script is addressed from here - so the day the
+  // domain was pointed here, the pages arrived without any of their CSS.
+  base: '/',
   srcDir: '.',
   outDir: '.vitepress/dist',
   cleanUrls: true,
@@ -13,7 +15,7 @@ export default defineConfig({
   ignoreDeadLinks: false,
 
   head: [
-    ['link', { rel: 'icon', href: '/QuickRun/icon.png' }],
+    ['link', { rel: 'icon', href: '/icon.png' }],
     ['meta', { name: 'theme-color', content: '#1f883d' }],
   ],
 

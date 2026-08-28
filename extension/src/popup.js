@@ -1,8 +1,8 @@
 // The browser action popup: one status line and one obvious action. Anything longer belongs on the
 // options page, which has room for it.
 
-const DOWNLOADS = 'https://fgilde.github.io/QuickRun/download';
-const DOCS = 'https://fgilde.github.io/QuickRun/extension';
+const DOWNLOADS = 'https://quickrun.org/download';
+const DOCS = 'https://quickrun.org/extension';
 
 const status = document.getElementById('status');
 const actions = document.getElementById('actions');

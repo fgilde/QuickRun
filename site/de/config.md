@@ -6,7 +6,7 @@ Datei *irgendetwas* Ausführbares beschreibt.
 Mit dieser Kommentarzeile vervollständigt dein Editor die Felder:
 
 ```yaml
-# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
 ```
 
 ## Kurzformen

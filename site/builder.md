@@ -20,7 +20,7 @@ for a repository you do not.
    | a starting point | nothing recognisable - an empty template |
 
 2. **Edit** — the editor completes the keys of whatever block the cursor is in, from the same
-   [schema](https://fgilde.github.io/QuickRun/quickrun.schema.json) QuickRun publishes, and has
+   [schema](https://quickrun.org/quickrun.schema.json) QuickRun publishes, and has
    snippets for the blocks nobody remembers by heart: a task with a readiness check and an `open`, a
    `requires` entry for .NET, Node or Docker, a secret input.
 

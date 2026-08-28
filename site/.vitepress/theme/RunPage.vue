@@ -39,8 +39,8 @@ const target = computed(() => (running.value
 
 /** The snippet a repository owner pastes, for whatever is in the fields above. */
 const snippet = computed(() => {
-  const page = `https://fgilde.github.io/QuickRun/${de.value ? 'de/' : ''}run?repo=${encodeURIComponent(repo.value || 'owner/repo')}`;
-  return `[![QuickRun](https://fgilde.github.io/QuickRun/badge.svg)](${page})`;
+  const page = `https://quickrun.org/${de.value ? 'de/' : ''}run?repo=${encodeURIComponent(repo.value || 'owner/repo')}`;
+  return `[![QuickRun](https://quickrun.org/badge.svg)](${page})`;
 });
 
 const t = computed(() => (de.value

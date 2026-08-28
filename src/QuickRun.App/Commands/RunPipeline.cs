@@ -101,7 +101,7 @@ public enum ConfigOrigin
 /// </summary>
 public static class RunPipeline
 {
-    private const string ConfigDocs = "https://fgilde.github.io/QuickRun/docs/config";
+    private const string ConfigDocs = "https://quickrun.org/docs/config";
 
     /// <param name="collectInputs">
     /// How to fill in missing values. The CLI passes a console prompt; --yes and tests pass a

@@ -1,0 +1,52 @@
+name: edge-catchup
+
+# The Edge store reviews one submission at a time, and a review takes days while releases take
+# minutes. Every release whose submission arrives during a review is refused outright - which is
+# how the store came to sit on 0.7.8 while 0.8.x and 0.9.0 shipped. This comes back once a day and
+# submits the current build whenever the store has fallen behind and the queue is free again.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit the released build if the store is behind
+        env:
+          PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          API_KEY: ${{ secrets.EDGE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          # The extension's public id, the same one the download page links to.
+          CRX_ID: dbnknhijahmiildfabckibabpieobnhd
+        run: |
+          set -euo pipefail
+
+          released=$(gh release view --json tagName --jq .tagName | sed 's/^v//')
+
+          # An unofficial endpoint, and the only public way to ask what the store actually serves.
+          # If it stops answering, carry on: submitting a version the store already has is refused
+          # harmlessly, and never submitting at all is the failure worth avoiding.
+          listed=$(curl -fsS --max-time 30 \
+            "https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/$CRX_ID" \
+            | jq -r '.version // empty' || true)
+
+          echo "released $released, store has ${listed:-unknown}"
+
+          if [ "$listed" = "$released" ]; then
+            echo "::notice::the Edge store is on $listed - nothing to catch up"
+            exit 0
+          fi
+
+          gh release download "v$released" \
+            --pattern quickrun-extension-chromium.zip --dir dist
+
+          bash scripts/publish-edge.sh dist/quickrun-extension-chromium.zip "$released"

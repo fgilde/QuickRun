@@ -41,8 +41,11 @@ public static partial class WorkspaceOps
         if (selectors != 1)
             return new(2, 0, "specify exactly one of --all, --older-than <age> or a workspace id");
 
-        if (request.All) return new(0, store.RemoveAll(), null);
-        if (request.OlderThan is { } age) return new(0, store.Clean(age), null);
+        // Whatever would not go is named. A count of 12 removed out of 14 with nothing said about
+        // the other two is how a locked workspace stayed invisible.
+        if (request.All) return Report(store.RemoveEach(store.List()));
+        if (request.OlderThan is { } age)
+            return Report(store.RemoveEach(store.List().Where(w => w.LastUsed < DateTimeOffset.UtcNow - age)));
 
         try
         {
@@ -50,10 +53,17 @@ public static partial class WorkspaceOps
                 ? new(0, 1, null)
                 : new(1, 0, $"no workspace with id '{request.Id}'");
         }
-        catch (ArgumentException e)
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException)
         {
             return new(1, 0, e.Message);
         }
+    }
+
+    private static CleanResult Report((int Removed, IReadOnlyList<string> Failed) outcome)
+    {
+        return outcome.Failed.Count == 0
+            ? new(0, outcome.Removed, null)
+            : new(1, outcome.Removed, string.Join(Environment.NewLine, outcome.Failed));
     }
 
     [GeneratedRegex(@"^(\d+)([hdw])$", RegexOptions.IgnoreCase)]

@@ -58,16 +58,61 @@ public sealed class WorkspaceStore
 
     public string PathFor(string repoUrl, string @ref) => Path.Combine(RunsDir, IdFor(repoUrl, @ref));
 
+    /// <summary>
+    /// Every workspace directory, including the ones with no metadata to describe them.
+    /// <para>
+    /// A directory whose metadata is missing used to be left out of this entirely, which made it
+    /// invisible to everything: the list, the size total, and every Remove button - so a checkout
+    /// that died before it was recorded, or one whose removal got halfway, sat there for ever with
+    /// no way to get rid of it from inside QuickRun. It is listed now, saying what little is known
+    /// about it, because a directory that cannot be seen cannot be deleted either.
+    /// </para>
+    /// </summary>
     public IReadOnlyList<WorkspaceInfo> List()
     {
         if (!Directory.Exists(RunsDir)) return Array.Empty<WorkspaceInfo>();
 
-        return Directory.EnumerateDirectories(RunsDir)
-            .Select(Read)
-            .Where(info => info is not null)
-            .Select(info => info!)
-            .OrderByDescending(info => info.LastUsed)
-            .ToList();
+        var found = new List<WorkspaceInfo>();
+
+        foreach (var dir in Directory.EnumerateDirectories(RunsDir))
+        {
+            if (Read(dir) is { } described)
+            {
+                found.Add(described);
+                continue;
+            }
+
+            // No metadata and nothing in it: the shell left behind when a removal deleted the
+            // contents and then failed on the directory itself. There is nothing to lose here, so
+            // it goes rather than being listed as a puzzle.
+            if (IsEmpty(dir) && TryDeleteTree(dir)) continue;
+
+            found.Add(Unknown(dir));
+        }
+
+        return found.OrderByDescending(info => info.LastUsed).ToList();
+    }
+
+    /// <summary>
+    /// Whether a directory holds no file at all, however many directories are inside it.
+    /// <para>
+    /// Not "has no entries": a removal that dies partway leaves the whole directory tree standing
+    /// with every file gone - forty-six empty directories and not one file, on the machine that
+    /// reported this. That is a skeleton, and there is nothing in it to lose.
+    /// </para>
+    /// </summary>
+    private static bool IsEmpty(string dir)
+    {
+        try { return !Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Any(); }
+        catch (Exception) { return false; }
+    }
+
+    /// <summary>What can be said about a directory that never recorded what it was.</summary>
+    private static WorkspaceInfo Unknown(string dir)
+    {
+        var lastUsed = new DateTimeOffset(Directory.GetLastWriteTimeUtc(dir), TimeSpan.Zero);
+        return new WorkspaceInfo(System.IO.Path.GetFileName(dir), dir,
+            "unknown - no QuickRun metadata", "unknown", SizeOf(dir), lastUsed, null, null);
     }
 
     public WorkspaceInfo? Get(string id) => Read(Resolve(id));
@@ -80,29 +125,58 @@ public sealed class WorkspaceStore
         File.WriteAllText(Path.Combine(dir, MetaFileName), JsonSerializer.Serialize(meta, Json));
     }
 
+    /// <summary>
+    /// Deletes a workspace. False when it is not there; throws when it is there and will not go.
+    /// <para>
+    /// It used to return true either way, because the delete was wrapped in an empty catch. A
+    /// Remove that failed therefore reported success, the list refreshed, and the button looked like
+    /// it had done nothing at all - while the directory it deleted the contents of stayed behind.
+    /// </para>
+    /// </summary>
     public bool Remove(string id)
     {
         var dir = Resolve(id);
         if (!Directory.Exists(dir)) return false;
-        DeleteTree(dir);
+
+        if (!TryDeleteTree(dir))
+            throw new IOException(
+                $"'{id}' could not be removed - something still has a file in it open. "
+                + "A run of it may still be going, or a virus scanner or an open Explorer window "
+                + $"is holding it: {dir}");
+
         return true;
     }
 
     public int Clean(TimeSpan olderThan)
     {
         var cutoff = _now() - olderThan;
-        var removed = 0;
-        foreach (var info in List().Where(w => w.LastUsed < cutoff))
-            if (Remove(info.Id)) removed++;
-        return removed;
+        return RemoveEach(List().Where(w => w.LastUsed < cutoff)).Removed;
     }
 
-    public int RemoveAll()
+    public int RemoveAll() => RemoveEach(List()).Removed;
+
+    /// <summary>
+    /// Removes each of them, and says which would not go. One locked workspace must not stop the
+    /// other fourteen - "Remove all" that gives up on the first failure looks like it does nothing.
+    /// </summary>
+    public (int Removed, IReadOnlyList<string> Failed) RemoveEach(IEnumerable<WorkspaceInfo> workspaces)
     {
         var removed = 0;
-        foreach (var info in List())
-            if (Remove(info.Id)) removed++;
-        return removed;
+        var failed = new List<string>();
+
+        foreach (var info in workspaces)
+        {
+            try
+            {
+                if (Remove(info.Id)) removed++;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                failed.Add($"{info.Id}: {e.Message}");
+            }
+        }
+
+        return (removed, failed);
     }
 
     // ---- internals ----------------------------------------------------------
@@ -186,12 +260,56 @@ public sealed class WorkspaceStore
         return result.Trim('_', '.');
     }
 
-    private static void DeleteTree(string dir)
+    /// <summary>
+    /// Deletes a directory tree, and says whether it is actually gone.
+    /// <para>
+    /// Retried, because on Windows the usual failure is temporary and looks permanent. A file whose
+    /// handle is still open - a virus scanner reading it as it goes, an indexer, an editor - is
+    /// marked for deletion rather than deleted, so the directory reads as empty and refuses to be
+    /// removed with "the directory is not empty". Waiting a moment and asking again is what gets
+    /// past it, and is why fourteen empty directories were left behind on the machine that reported
+    /// this: the contents went, the directory did not, and the error was swallowed.
+    /// </para>
+    /// </summary>
+    private static bool TryDeleteTree(string dir)
     {
-        // git marks pack files read-only, which blocks Directory.Delete on Windows.
-        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
-            try { File.SetAttributes(file, FileAttributes.Normal); } catch { }
+        for (var attempt = 1; attempt <= DeleteAttempts; attempt++)
+        {
+            // git marks pack files read-only, which blocks Directory.Delete on Windows.
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+                    try { File.SetAttributes(file, FileAttributes.Normal); } catch (Exception) { }
+            }
+            catch (Exception)
+            {
+                // A tree that cannot even be walked is still worth trying to delete.
+            }
 
-        try { Directory.Delete(dir, recursive: true); } catch { }
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return true;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == DeleteAttempts) return !Directory.Exists(dir);
+                Thread.Sleep(DeleteBackoff * attempt);
+                continue;
+            }
+
+            if (!Directory.Exists(dir)) return true;
+        }
+
+        return !Directory.Exists(dir);
     }
+
+    /// <summary>How many times a deletion is attempted before it counts as refused.</summary>
+    private const int DeleteAttempts = 5;
+
+    /// <summary>Grows with each attempt: 100ms, 200ms, ... which is long enough for a scanner.</summary>
+    private static readonly TimeSpan DeleteBackoff = TimeSpan.FromMilliseconds(100);
 }

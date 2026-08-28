@@ -562,11 +562,21 @@ public static class DaemonHost
 
             try { return store.Remove(id) ? Results.NoContent() : Results.NotFound(); }
             catch (ArgumentException e) { return Results.BadRequest(new { error = e.Message }); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // A workspace something still has open is not a bad request and not a missing one.
+                // Saying so is the whole point: a Remove that silently failed looked unwired.
+                return Results.Json(new { error = e.Message }, Json, statusCode: 409);
+            }
         });
 
         app.MapDelete("/api/dashboard/workspaces", (HttpContext context, Dashboard dashboard, WorkspaceStore store) =>
-            !DashboardAuthorized(context, dashboard) ? Forbidden()
-                : Results.Json(new { removed = store.RemoveAll() }, Json));
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var outcome = store.RemoveEach(store.List());
+            return Results.Json(new { removed = outcome.Removed, failed = outcome.Failed }, Json);
+        });
 
         // EventSource cannot set headers, so the dashboard's stream takes its token in the query
         // string. Same-origin only, and the token is not a bearer credential for anything else.

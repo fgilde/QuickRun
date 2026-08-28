@@ -46,6 +46,12 @@ public sealed class DashboardWindow : Window
     /// <summary>The hosted view, when there is one, so a link can be shown in this window.</summary>
     private Control? _browser;
     private readonly StackPanel _workspaceList = Rows();
+
+    /// <summary>
+    /// Why a Remove did nothing. Silence used to be the answer, which is indistinguishable from a
+    /// button that is not wired up - and that is what a locked workspace looked like.
+    /// </summary>
+    private readonly TextBlock _workspaceError = Muted("").With(t => t.IsVisible = false);
     private readonly TextBlock _updateState = Muted("checking…");
     private readonly DispatcherTimer _timer;
 
@@ -243,6 +249,7 @@ public sealed class DashboardWindow : Window
             },
         });
 
+        page.Children.Add(_workspaceError);
         page.Children.Add(_workspaceList);
         return page;
     }
@@ -472,11 +479,7 @@ public sealed class DashboardWindow : Window
                     }),
                     Muted(workspace.LastUsed.LocalDateTime.ToString("yyyy-MM-dd HH:mm")).With(t =>
                         t.VerticalAlignment = VerticalAlignment.Center),
-                    Button("Remove", () =>
-                    {
-                        try { _store.Remove(id); } catch (ArgumentException) { }
-                        _ = RefreshWorkspacesAsync();
-                    }),
+                    Button("Remove", () => RemoveWorkspace(id)),
                 },
             };
 
@@ -591,9 +594,39 @@ public sealed class DashboardWindow : Window
         return rows;
     }
 
+    private void RemoveWorkspace(string id)
+    {
+        Report(() =>
+        {
+            _store.Remove(id);
+            return Array.Empty<string>();
+        });
+    }
+
     private void RemoveAllWorkspaces()
     {
-        _store.RemoveAll();
+        // Every one of them is attempted, and whatever refused is named. Stopping at the first
+        // failure is how "Remove all" came to look like it did nothing at all.
+        Report(() => _store.RemoveEach(_store.List()).Failed);
+    }
+
+    /// <summary>Runs a removal, says what would not go, and refreshes either way.</summary>
+    private void Report(Func<IReadOnlyList<string>> removal)
+    {
+        string? trouble = null;
+
+        try
+        {
+            var failed = removal();
+            if (failed.Count > 0) trouble = string.Join(Environment.NewLine, failed);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            trouble = e.Message;
+        }
+
+        _workspaceError.Text = trouble ?? "";
+        _workspaceError.IsVisible = trouble is not null;
         _ = RefreshWorkspacesAsync();
     }
 

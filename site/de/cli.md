@@ -134,6 +134,17 @@ Ein zweiter Lauf desselben Repositories und Refs verwendet den Workspace weiter 
 `git reset --hard`, wobei `node_modules`, `.venv`, `obj`, `bin`, `target` und Verwandte bleiben — der
 zweite Start dauert damit Sekunden. `--fresh` ist der Notausgang, wenn ein Workspace kaputt ist.
 
+Ein Workspace, von dem QuickRun keine Aufzeichnung hat, wird trotzdem gelistet — als
+`unknown - no QuickRun metadata`. Das ist ein Checkout, der starb, bevor er notiert wurde, oder
+einer, dessen Löschung auf halbem Weg abbrach. Was nicht gelistet ist, kann auch nicht gelöscht
+werden, und genau darum ist es sichtbar. Einen, in dem keine einzige Datei mehr liegt, räumt QuickRun
+ungefragt weg — darin ist nichts zu verlieren.
+
+Eine Löschung, die nicht durchgeht, sagt das, statt Erfolg zu melden. Unter Windows ist der Grund
+meist eine Datei, die noch offen ist — ein laufender Run dieses Repositories, ein Virenscanner, der
+mitliest, ein Explorer-Fenster im Verzeichnis. Dann hilft: schließen und nochmal. `Remove all`
+versucht jeden Workspace und nennt die, die sich verweigert haben, statt beim ersten aufzuhören.
+
 ## Authentifizierung
 
 Für ein privates Repository, erster Treffer gewinnt:

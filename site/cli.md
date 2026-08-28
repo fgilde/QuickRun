@@ -131,6 +131,17 @@ A second run of the same repository and ref reuses its workspace — `git fetch`
 `git reset --hard`, keeping `node_modules`, `.venv`, `obj`, `bin`, `target` and friends — so
 starting again takes seconds. `--fresh` is the escape hatch when a workspace is broken.
 
+A workspace QuickRun has no record of is still listed, as `unknown - no QuickRun metadata`. That is
+a checkout that died before it was written down, or one whose removal got halfway - and a directory
+that is not listed cannot be removed either, which is the only reason this is visible at all. One
+with no file left in it is swept up without asking, because there is nothing in it to lose.
+
+A removal that cannot finish says so rather than reporting success. On Windows the usual reason is a
+file something still has open - a run of that repository still going, a virus scanner reading it as
+it goes, an Explorer window sitting in the directory - and the answer is to close that and try
+again. `Remove all` attempts every workspace and names the ones that refused, rather than stopping
+at the first.
+
 ## Authentication
 
 For a private repository, first hit wins:

@@ -265,6 +265,7 @@ ol.plan .phase {
         <button class="action danger" id="cleanAll">Remove all</button>
       </div>
     </div>
+    <p class="warning" id="workspaceError" hidden></p>
     <div id="workspaceList"></div>
   </section>
 
@@ -1330,7 +1331,15 @@ function renderWorkspaces(state) {
 
   target.querySelectorAll('[data-remove]').forEach((button) => {
     button.addEventListener('click', async () => {
-      await api(`/api/dashboard/workspaces/${encodeURIComponent(button.dataset.remove)}`, { method: 'DELETE' });
+      // A workspace something still holds open answers 409 with the reason. Swallowing that is how
+      // this button came to look like it was not wired up at all.
+      try {
+        sayWorkspace(null);
+        await api(`/api/dashboard/workspaces/${encodeURIComponent(button.dataset.remove)}`, { method: 'DELETE' });
+      } catch (failure) {
+        sayWorkspace(failure.message);
+      }
+
       loadWorkspaces();
     });
   });
@@ -1509,9 +1518,27 @@ document.getElementById('schemeButton').addEventListener('click', async (event) 
 
 document.getElementById('cleanAll').addEventListener('click', async () => {
   if (!confirm('Remove every workspace? Repositories are checked out again on the next run.')) return;
-  await api('/api/dashboard/workspaces', { method: 'DELETE' });
+
+  try {
+    sayWorkspace(null);
+    const outcome = await api('/api/dashboard/workspaces', { method: 'DELETE' });
+
+    // Removing thirteen of fifteen and saying nothing about the other two is not an answer.
+    if (outcome?.failed?.length) sayWorkspace(outcome.failed.join('
+'));
+  } catch (failure) {
+    sayWorkspace(failure.message);
+  }
+
   loadWorkspaces();
 });
+
+/** Says why a workspace would not go, or clears it. textContent: paths and messages, not markup. */
+function sayWorkspace(message) {
+  const line = document.getElementById('workspaceError');
+  line.textContent = message ?? '';
+  line.hidden = message === null || message === undefined;
+}
 
 document.getElementById('installUpdate').addEventListener('click', async (event) => {
   const button = event.currentTarget;

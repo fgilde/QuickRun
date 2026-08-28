@@ -16,7 +16,20 @@ namespace QuickRun.App.Daemon;
 /// </summary>
 public static class SingleInstance
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMilliseconds(1500) };
+    /// <summary>
+    /// Loopback only, and deliberately not through a proxy.
+    /// <para>
+    /// HttpClient uses the system proxy by default, and on Windows resolving that means asking WPAD
+    /// - which on a machine with no proxy can take seconds before it gives up. That is spent on the
+    /// first request, so the very first "is one already running?" could time out and QuickRun would
+    /// start a second instance. Nothing about 127.0.0.1 ever needs a proxy.
+    /// </para>
+    /// </summary>
+    private static readonly HttpClient Http =
+        new(new SocketsHttpHandler { UseProxy = false, AllowAutoRedirect = false })
+        {
+            Timeout = TimeSpan.FromSeconds(3),
+        };
 
     /// <summary>Whether QuickRun already answers on this port.</summary>
     public static async Task<bool> RunningAsync(int port, CancellationToken ct = default)

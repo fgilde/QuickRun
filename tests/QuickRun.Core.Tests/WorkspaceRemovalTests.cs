@@ -108,16 +108,29 @@ public class WorkspaceRemovalTests
         {
             var outcome = store.RemoveEach(store.List());
 
-            Assert.Equal(2, outcome.Removed);
-            var complaint = Assert.Single(outcome.Failed);
-            Assert.Contains("b__repo__main-222222", complaint);
+            // The part that holds everywhere: a workspace that will not go does not take the others
+            // with it. Whether one refuses at all is the platform's business - Windows locks an open
+            // file, POSIX unlinks it and carries on - so only Windows has a failure to report.
+            Assert.True(outcome.Removed >= 2, $"only {outcome.Removed} were removed");
 
-            // Said in words a person can act on, not an error code.
-            Assert.Contains("open", complaint);
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(2, outcome.Removed);
+                var complaint = Assert.Single(outcome.Failed);
+                Assert.Contains("b__repo__main-222222", complaint);
+
+                // Said in words a person can act on, not an error code.
+                Assert.Contains("open", complaint);
+            }
+            else
+            {
+                Assert.Equal(3, outcome.Removed);
+                Assert.Empty(outcome.Failed);
+            }
         }
 
-        // And once the handle goes, so does the workspace.
-        Assert.True(store.Remove("b__repo__main-222222"));
+        // And once the handle goes, so does the workspace - wherever it was still there.
+        if (OperatingSystem.IsWindows()) Assert.True(store.Remove("b__repo__main-222222"));
         Assert.Empty(store.List());
     }
 

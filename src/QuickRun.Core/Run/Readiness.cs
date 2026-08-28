@@ -10,7 +10,16 @@ public static class Readiness
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(3);
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(3) };
+    /// <summary>
+    /// Readiness probes are local, so this never goes through a proxy: HttpClient would otherwise
+    /// resolve the system one, and on Windows that means WPAD - seconds of waiting on a machine that
+    /// has no proxy, spent on the first probe of every run.
+    /// </summary>
+    private static readonly HttpClient Http =
+        new(new SocketsHttpHandler { UseProxy = false, AllowAutoRedirect = false })
+        {
+            Timeout = TimeSpan.FromSeconds(3),
+        };
 
     /// <param name="logSoFar">Reads the task's output so far, for log-pattern conditions.</param>
     /// <param name="windowProbe">

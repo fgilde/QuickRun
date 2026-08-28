@@ -29,10 +29,23 @@ const t = computed(() => (de.value
       copied: 'Kopiert',
       arch: { x64: 'Intel/AMD 64-bit', arm64: 'ARM64', app: 'App-Bundle' },
       extensionTitle: 'Browser-Erweiterung',
-      extensionText: 'Sie setzt den Run-Button auf GitHub. Wo der Store sie schon führt, ist es ein '
-        + 'Klick; sonst wird sie entpackt geladen — die Schritte stehen auf der Doku-Download-Seite.',
-      extensionCta: 'Erweiterung und Store-Stand',
+      extensionText: 'Sie setzt den Run-Button auf GitHub. Erforderlich ist sie nicht — QuickRun '
+        + 'läuft auch allein — aber sie ist der Grund, aus dem es existiert.',
+      extensionCta: 'Wie die Erweiterung funktioniert',
       extensionInstall: 'Für {browser} installieren',
+      extensionYours: 'Dein Browser',
+      extensionPending: 'Store-Prüfung läuft',
+      extensionListed: 'im Store',
+      extensionViaChrome: 'über den Chrome Web Store',
+      extensionGet: 'Installieren',
+      extensionZip: 'Build laden',
+      extensionByHandTitle: 'Von Hand laden, wo es den Store noch nicht gibt',
+      extensionByHandChromium: 'Chrome, Edge, Opera: Build entzippen, dann '
+        + 'chrome://extensions → Entwicklermodus → Entpackte Erweiterung laden → der Ordner.',
+      extensionByHandFirefox: 'Firefox: about:debugging → Dieser Firefox → Temporäres Add-on laden '
+        + '→ die manifest.json im Ordner.',
+      extensionNothingToPair: 'Mehr ist nicht zu tun: es gibt nichts zu koppeln. QuickRun nimmt nur '
+        + 'Anfragen von einer Browser-Erweiterung an.',
       verifyTitle: 'Prüfen und aktualisieren',
       verifyText: 'Jedes Release hat eine SHA256SUMS-Datei. Ist QuickRun installiert, aktualisiert es '
         + 'sich selbst — an derselben Stelle, aus derselben Quelle.',
@@ -59,10 +72,23 @@ const t = computed(() => (de.value
       copied: 'Copied',
       arch: { x64: 'Intel/AMD 64-bit', arm64: 'ARM64', app: 'App bundle' },
       extensionTitle: 'Browser extension',
-      extensionText: 'It puts the Run button on GitHub. Where a store carries it that is one click; '
-        + 'otherwise it is loaded unpacked - the steps are on the documentation download page.',
-      extensionCta: 'Extension and store status',
+      extensionText: 'It puts the Run button on GitHub. It is not required - QuickRun works on its '
+        + 'own - but it is the reason it exists.',
+      extensionCta: 'How the extension works',
       extensionInstall: 'Install for {browser}',
+      extensionYours: 'Your browser',
+      extensionPending: 'store review pending',
+      extensionListed: 'in the store',
+      extensionViaChrome: 'from the Chrome Web Store',
+      extensionGet: 'Install',
+      extensionZip: 'Download the build',
+      extensionByHandTitle: 'Loading it by hand, where there is no store listing yet',
+      extensionByHandChromium: 'Chrome, Edge, Opera: unzip the build, then '
+        + 'chrome://extensions → Developer mode → Load unpacked → the folder.',
+      extensionByHandFirefox: 'Firefox: about:debugging → This Firefox → Load Temporary Add-on → '
+        + 'the manifest.json inside the folder.',
+      extensionNothingToPair: 'That is all there is to it: there is nothing to pair. QuickRun accepts '
+        + 'requests only from a browser extension.',
       verifyTitle: 'Verify and update',
       verifyText: 'Every release ships a SHA256SUMS file. Once installed, QuickRun updates itself - in '
         + 'the same place, from the same source.',
@@ -79,19 +105,25 @@ const t = computed(() => (de.value
 const detected = computed(() => PLATFORMS.find((p) => p.os === mine.value) ?? null);
 const others = computed(() => PLATFORMS.filter((p) => p.os !== mine.value));
 
-// `store` is the name the listing table knows it by; `logo` is the icon file, which differs.
-const browsers = [
-  { name: 'Chrome', logo: 'googlechrome', store: 'chrome' },
-  { name: 'Edge', logo: 'edge', store: 'edge' },
-  { name: 'Firefox', logo: 'firefoxbrowser', store: 'firefox' },
-  { name: 'Opera', logo: 'opera', store: 'opera' },
-];
+// `store` is the name the listing table knows it by, `logo` the icon file, `asset` the build to load
+// by hand where a store has nothing yet. Chromium browsers share one build.
+const browsers = computed(() => [
+  { name: 'Chrome', logo: 'chrome', store: 'chrome', asset: 'quickrun-extension-chromium.zip' },
+  { name: 'Edge', logo: 'edge', store: 'edge', asset: 'quickrun-extension-chromium.zip' },
+  { name: 'Firefox', logo: 'firefox', store: 'firefox', asset: 'quickrun-extension-firefox.zip' },
+  { name: 'Opera', logo: 'opera', store: 'opera', asset: 'quickrun-extension-chromium.zip' },
+].map((browser) => ({
+  ...browser,
+  listing: listingFor(browser.store),
+  // Opera installs from Chrome's listing, which is worth saying rather than leaving as a surprise.
+  note: browser.store === 'opera' && listingFor('opera') ? t.value.extensionViaChrome : null,
+})));
 
 // Which browser is reading this - `mine` is already the operating system. Read after mounting: this
 // page is built to static HTML, and a build machine has no browser to ask.
 const myBrowser = ref(null);
 
-const myEntry = computed(() => browsers.find((browser) => browser.store === myBrowser.value) ?? null);
+const myEntry = computed(() => browsers.value.find((browser) => browser.store === myBrowser.value) ?? null);
 const myName = computed(() => myEntry.value?.name ?? '');
 const myListing = computed(() => (myBrowser.value ? listingFor(myBrowser.value) : null));
 
@@ -192,35 +224,63 @@ function label(build) {
 
       <p class="m3-body qr-unsigned">{{ t.unsigned }}</p>
 
-      <div class="qr-get-cards">
-        <article class="m3-card qr-side">
-          <h3 class="m3-title">{{ t.extensionTitle }}</h3>
-          <p class="m3-body">{{ t.extensionText }}</p>
-          <div class="qr-browsers">
-            <span
-              v-for="browser in browsers"
-              :key="browser.name"
-              class="m3-chip"
-              :class="{ 'qr-chip--yours': browser.store === myBrowser }"
-            >
-              <img :src="`${logos}/${browser.logo}.svg`" alt="" width="16" height="16">
-              {{ browser.name }}
-            </span>
-          </div>
+      <!-- Everything about the extension, here: the store for the browser reading this, a row per
+           browser with what it can do today, and the two steps for loading it by hand. Sending
+           somebody to another page to install a thing they are looking at is not a download page. -->
+      <h2 class="m3-headline qr-others-title">{{ t.extensionTitle }}</h2>
+      <p class="m3-body qr-extension-intro">{{ t.extensionText }}</p>
 
-          <!-- The store this visitor can actually install from, when there is one. Everyone else
-               gets the page that lists every browser and how to load it by hand. -->
+      <a
+        v-if="myListing"
+        class="m3-button qr-extension-mine"
+        :href="myListing"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <img :src="`${logos}/${myEntry.logo}.svg`" alt="" width="20" height="20">
+        <span>
+          <small>{{ t.extensionYours }}</small>
+          <strong>{{ t.extensionInstall.replace('{browser}', myName) }}</strong>
+        </span>
+      </a>
+
+      <div class="qr-extension-rows">
+        <article
+          v-for="browser in browsers"
+          :key="browser.name"
+          class="m3-card qr-extension-row"
+          :class="{ 'qr-extension-row--yours': browser.store === myBrowser }"
+        >
+          <img :src="`${logos}/${browser.logo}.svg`" alt="" width="22" height="22">
+          <span class="qr-extension-name">{{ browser.name }}</span>
+
+          <span class="m3-label qr-extension-state">
+            {{ browser.note ?? (browser.listing ? t.extensionListed : t.extensionPending) }}
+          </span>
+
           <a
-            v-if="myListing"
+            v-if="browser.listing"
             class="m3-button"
-            :href="myListing"
+            :href="browser.listing"
             target="_blank"
             rel="noreferrer"
-          >{{ t.extensionInstall.replace('{browser}', myName) }}</a>
+          >{{ t.extensionGet }}</a>
 
-          <a class="m3-button m3-button--tonal" :href="link('download')">{{ t.extensionCta }}</a>
+          <a class="m3-button m3-button--outlined" :href="`${RELEASE_BASE}/${browser.asset}`">
+            {{ t.extensionZip }}
+          </a>
         </article>
+      </div>
 
+      <details class="qr-extension-hand">
+        <summary class="m3-body">{{ t.extensionByHandTitle }}</summary>
+        <p class="m3-body">{{ t.extensionByHandChromium }}</p>
+        <p class="m3-body">{{ t.extensionByHandFirefox }}</p>
+        <p class="m3-body">{{ t.extensionNothingToPair }}</p>
+        <a class="m3-button m3-button--text" :href="link('extension')">{{ t.extensionCta }}</a>
+      </details>
+
+      <div class="qr-get-cards">
         <article class="m3-card qr-side">
           <h3 class="m3-title">{{ t.verifyTitle }}</h3>
           <p class="m3-body">{{ t.verifyText }}</p>
@@ -239,12 +299,39 @@ function label(build) {
 </template>
 
 <style scoped>
-/* The browser reading the page, so the row of chips and the button above it say the same thing. */
-.qr-chip--yours {
-  outline: 2px solid var(--m3-primary);
-  outline-offset: -1px;
-  font-weight: 600;
+.qr-extension-intro { margin: 0 0 18px; max-width: 74ch; }
+
+/* The store for the browser reading this - one button, above the row for every browser. */
+.qr-extension-mine {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  text-align: left;
 }
+
+.qr-extension-mine small { display: block; font-size: 11.5px; opacity: 0.75; }
+.qr-extension-mine strong { font-size: 15px; }
+
+.qr-extension-rows { display: grid; gap: 10px; }
+
+.qr-extension-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
+/* The one in use, so the button above and the row below agree. */
+.qr-extension-row--yours { outline: 2px solid var(--m3-primary); outline-offset: -1px; }
+
+.qr-extension-name { font-weight: 600; min-width: 74px; }
+.qr-extension-state { flex: 1; opacity: 0.75; }
+
+.qr-extension-hand { margin: 18px 0 0; max-width: 78ch; }
+.qr-extension-hand summary { cursor: pointer; }
+.qr-extension-hand p { margin: 10px 0 0; }
 
 .qr-get-head { position: relative; padding: 64px 0 34px; }
 

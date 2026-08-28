@@ -93,6 +93,11 @@ picker on its behalf. Without a window - a QuickRun started headless - the path 
 The daemon decides for itself as well: a path that is really there is a folder, whatever the form
 guessed while you were typing.
 
+The native window - what you get where there is no system WebView - has the same one field, the same
+Browse button and the same copy switch. It can do one thing the page cannot: it asks the file system
+rather than guessing, so a path that is not there says so instead of being checked out as a
+repository.
+
 A folder with no `quickrun.yml` is not a dead end: QuickRun reads the project and proposes commands,
 exactly as it does for a repository, and says that it guessed them.
 

@@ -96,6 +96,11 @@ der Pfad getippt oder eingefügt.
 Der Daemon entscheidet zusätzlich selbst: ein Pfad, den es wirklich gibt, ist ein Ordner — ganz
 gleich, was das Formular beim Tippen geraten hat.
 
+Das native Fenster — das, was ohne System-WebView erscheint — hat dasselbe eine Feld, denselben
+Durchsuchen-Knopf und denselben Kopie-Schalter. Eines kann es besser als die Seite: es fragt das
+Dateisystem, statt zu raten. Ein Pfad, den es nicht gibt, wird deshalb benannt, statt als Repository
+ausgecheckt zu werden.
+
 Ein Ordner ohne `quickrun.yml` ist keine Sackgasse: QuickRun liest das Projekt und schlägt Befehle
 vor, genau wie bei einem Repository, und sagt dazu, dass es geraten hat.
 

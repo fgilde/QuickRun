@@ -74,4 +74,21 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Seal the bundle.
+#
+# .NET signs the executable ad-hoc, but nothing signed the bundle: no Contents/_CodeSignature, and
+# an Info.plist covered by nothing. macOS calls that combination damaged and refuses to open it at
+# all - not even right-click, Open - which is what a downloaded QuickRun.app did on Apple Silicon.
+#
+# A real Developer ID signature and notarisation happen afterwards in CI when the certificate is
+# available; this ad-hoc seal is what the bundle always gets, so it is at worst an app from an
+# unidentified developer rather than a broken one.
+if command -v codesign >/dev/null 2>&1; then
+  codesign --force --deep --sign - --identifier org.fgilde.quickrun "$app"
+  codesign --verify --deep --strict "$app"
+  codesign -dv "$app" 2>&1 | sed 's/^/  /'
+else
+  echo "no codesign here - the bundle stays unsealed (macOS will call it damaged)" >&2
+fi
+
 echo "built $app"

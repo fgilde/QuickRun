@@ -56,7 +56,11 @@ const t = computed(() => (de.value
       docsCta: 'Zur Doku-Downloadseite',
       requirement: 'Voraussetzung',
       unsigned: 'Die Binaries sind nicht signiert. Windows zeigt deshalb einmal SmartScreen, macOS '
-        + 'verlangt Rechtsklick → Öffnen; mit Homebrew oder winget entfällt das.',
+        + 'fragt vor dem ersten Start nach; über Homebrew oder winget entfällt beides.',
+      macGateTitle: 'macOS: heruntergeladen und geöffnet',
+      macGateText: 'Der Browser setzt das Quarantäne-Flag, und weil QuickRun keine Apple-Signatur '
+        + 'hat, nennt macOS die App dann beschädigt. Einmal entfernen, danach startet sie normal:',
+      macGateBrew: 'Über Homebrew passiert das automatisch:',
     }
   : {
       eyebrow: 'Download',
@@ -98,8 +102,12 @@ const t = computed(() => (de.value
         + 'download page in the documentation.',
       docsCta: 'Documentation download page',
       requirement: 'Requires',
-      unsigned: 'The binaries are unsigned, so Windows shows SmartScreen once and macOS needs '
-        + 'right-click → Open. Homebrew or winget avoid both.',
+      unsigned: 'The binaries are unsigned, so Windows shows SmartScreen once and macOS asks before '
+        + 'the first launch. Homebrew or winget avoid both.',
+      macGateTitle: 'macOS: downloaded, then opened',
+      macGateText: 'The browser sets the quarantine flag, and with no Apple signature to check '
+        + 'against, macOS calls the app damaged. Clear it once and it opens normally:',
+      macGateBrew: 'Homebrew does this for you:',
     }));
 
 const detected = computed(() => PLATFORMS.find((p) => p.os === mine.value) ?? null);
@@ -223,6 +231,18 @@ function label(build) {
       </div>
 
       <p class="m3-body qr-unsigned">{{ t.unsigned }}</p>
+
+      <!-- The one thing a Mac actually stops on, with the command that ends it. It was a line on
+           the documentation download page, which is no help to somebody staring at "QuickRun.app is
+           damaged" here. Shown to everyone rather than only to a detected Mac: people download for
+           the machine they are not sitting at. -->
+      <details class="qr-macgate" :open="mine === 'macos'">
+        <summary class="m3-label">{{ t.macGateTitle }}</summary>
+        <p class="m3-body">{{ t.macGateText }}</p>
+        <pre class="qr-macgate-code"><code>xattr -dr com.apple.quarantine /Applications/QuickRun.app</code></pre>
+        <p class="m3-body">{{ t.macGateBrew }}</p>
+        <pre class="qr-macgate-code"><code>brew install --cask fgilde/tap/quickrun</code></pre>
+      </details>
 
       <!-- Everything about the extension, here: the store for the browser reading this, a row per
            browser with what it can do today, and the two steps for loading it by hand. Sending
@@ -402,6 +422,18 @@ html.dark .qr-os--mono { filter: invert(1) brightness(1.6); }
 .qr-other-links a:hover { text-decoration: underline; }
 
 .qr-unsigned { margin: 26px 0 0; max-width: 74ch; }
+
+.qr-macgate { margin: 14px 0 0; max-width: 78ch; }
+.qr-macgate summary { cursor: pointer; }
+.qr-macgate p { margin: 10px 0 0; }
+.qr-macgate-code {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--m3-surface-2, rgba(127, 127, 127, 0.12));
+  font-size: 13px;
+}
 
 .qr-get-cards {
   display: grid;

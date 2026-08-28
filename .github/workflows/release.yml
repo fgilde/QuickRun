@@ -95,6 +95,65 @@ jobs:
             "bundle/${{ matrix.rid }}" \
             "${{ steps.version.outputs.value }}"
 
+      # --- a Mac that does not call this damaged --------------------------------------------
+      #
+      # An ad-hoc seal makes the bundle openable; only a Developer ID signature with notarisation
+      # makes it openable without a warning. That needs a paid Apple account, so it runs when the
+      # certificate is there and is skipped cleanly when it is not - exactly like Windows signing.
+      #
+      # Needs MACOS_CERT_P12 (base64 of the .p12), MACOS_CERT_PASSWORD, MACOS_SIGN_IDENTITY
+      # ("Developer ID Application: Name (TEAMID)"), APPLE_ID, APPLE_APP_PASSWORD (an app-specific
+      # password) and APPLE_TEAM_ID.
+      - name: Sign and notarise the macOS bundle
+        if: startsWith(matrix.rid, 'osx-')
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          if [ -z "$CERT_P12" ] || [ -z "$SIGN_IDENTITY" ]; then
+            echo "::warning::no Apple certificate - the bundle ships ad-hoc signed, and macOS will ask before the first launch"
+            exit 0
+          fi
+
+          app="bundle/${{ matrix.rid }}/QuickRun.app"
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          pass=$(openssl rand -hex 16)
+
+          # A keychain of its own, so nothing is left in the runner's login keychain.
+          security create-keychain -p "$pass" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$pass" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+          echo "$CERT_P12" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$CERT_PASSWORD"             -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pass" "$keychain"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # The hardened runtime is what notarisation requires. --deep replaces the ad-hoc seal the
+          # builder put on, executable included.
+          codesign --force --deep --timestamp --options runtime             --sign "$SIGN_IDENTITY" --identifier org.fgilde.quickrun "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+          # The command line binary out of the tarball is signed too - it is the same code, and an
+          # unsigned copy of it would be refused on its own.
+          codesign --force --timestamp --options runtime             --sign "$SIGN_IDENTITY" "out/${{ matrix.rid }}/quickrun"
+
+          # Notarisation takes a zip, and the ticket is then stapled into the bundle so a machine
+          # with no network still sees an approved app.
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$RUNNER_TEMP/notarise.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarise.zip"             --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID"             --wait --timeout 30m
+          xcrun stapler staple "$app"
+
+          # What a user's Mac will actually decide, said out loud in the log.
+          spctl --assess --type execute --verbose=4 "$app"
+          echo "::notice::QuickRun.app is signed and notarised"
+
       - name: Package
         shell: bash
         run: |
@@ -114,8 +173,10 @@ jobs:
             tar -czf "dist/quickrun-$rid.tar.gz" -C "out/$rid" .
           fi
 
+          # ditto, not zip: Apple's own archiver, and the one that carries a signature and a
+          # stapled notarisation ticket through intact.
           if [[ "$rid" == osx-* ]]; then
-            (cd "bundle/$rid" && zip -qry "../../dist/QuickRun-$rid.app.zip" QuickRun.app)
+            ditto -c -k --sequesterRsrc --keepParent               "bundle/$rid/QuickRun.app" "dist/QuickRun-$rid.app.zip"
           fi
 
       # --- what a user's machine will say about this file ---------------------------------------

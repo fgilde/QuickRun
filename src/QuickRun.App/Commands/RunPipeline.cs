@@ -4,6 +4,7 @@ using QuickRun.Core.Detect;
 using QuickRun.Core.Foreign;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
+using QuickRun.Core.Process;
 using QuickRun.Core.Run;
 using QuickRun.Core.Workspace;
 
@@ -24,7 +25,21 @@ public sealed record RunArgs(
     /// A config supplied by the caller rather than read from anywhere. This is what the builder
     /// tests with: the config being written must win, even over the repository's own.
     /// </summary>
-    string? ConfigText = null);
+    string? ConfigText = null,
+    /// <summary>
+    /// A folder on this machine to run, instead of a repository to check out.
+    /// <para>
+    /// Deliberately a field of its own rather than a path smuggled into <see cref="Repo"/>: running
+    /// a local folder is only ever asked for from the command line or a shell verb, never by a web
+    /// page through the extension, and a separate field is what keeps those apart.
+    /// </para>
+    /// </summary>
+    string? LocalPath = null,
+    /// <summary>
+    /// Run a copy of that folder under runs/ instead of the folder itself. Slower and it starts
+    /// from a clean slate, but nothing the run does can reach the original.
+    /// </summary>
+    bool Copy = false);
 
 public sealed record RunPreparation(
     int ExitCode,
@@ -40,7 +55,22 @@ public sealed record RunPreparation(
     /// out by reading the files deserve different amounts of trust, and a reader can only weigh
     /// that if they are told which one is in front of them.
     /// </summary>
-    ConfigOrigin Origin = ConfigOrigin.Repository);
+    ConfigOrigin Origin = ConfigOrigin.Repository,
+    /// <summary>
+    /// The folder being run where it lies, when that is what this is. Null for a checkout and for a
+    /// copy, because both of those live under runs/ and QuickRun owns them. Whoever records the
+    /// workspace after the run has to pass this back, or the note stops pointing anywhere.
+    /// </summary>
+    string? LocalFolder = null,
+    /// <summary>
+    /// Which workspace this run belongs to.
+    /// <para>
+    /// Carried rather than worked out again afterwards: the id depends on more than the repository
+    /// and the ref - a copied folder has a variant of its own - and recomputing it from the plan got
+    /// that wrong, so recording the outcome wrote over a different workspace's note.
+    /// </para>
+    /// </summary>
+    string? WorkspaceId = null);
 
 /// <summary>Where a run's instructions came from.</summary>
 public enum ConfigOrigin
@@ -84,21 +114,40 @@ public static class RunPipeline
         GitClient git,
         Func<IReadOnlyList<InputDef>, IReadOnlyDictionary<string, string?>, IReadOnlyDictionary<string, string?>> collectInputs)
     {
-        string repo;
-        try { repo = Normalize(args.Repo); }
-        catch (ArgumentException e) { return Usage(e.Message); }
-
         IReadOnlyDictionary<string, string?> provided;
         try { provided = InputResolver.ParseAssignments(args.Inputs); }
         catch (ArgumentException e) { return Usage(e.Message); }
 
-        var reference = args.Ref ?? DefaultRef(git, repo);
-        var workspace = store.PathFor(repo, reference);
+        string repo;
+        string reference;
+        string workspace;
+        string? commit;
+        string workspaceId;
+        var notes = new List<string>();
 
-        var checkout = git.CheckoutOrUpdate(repo, reference, args.PullRequest, workspace, args.Fresh);
-        if (!checkout.Ok) return Failed(checkout.Error ?? "checkout failed");
+        if (args.LocalPath is not null)
+        {
+            var local = Local(args, store, notes);
+            if (local.Error is { } localError) return Usage(localError);
 
-        store.Touch(WorkspaceStore.IdFor(repo, reference), repo, reference, checkout.Commit, null);
+            (repo, reference, workspace, commit) = (local.Repo!, local.Ref!, local.Workspace!, local.Commit);
+            workspaceId = WorkspaceStore.IdFor(repo, reference, args.Copy ? CopyVariant : null);
+        }
+        else
+        {
+            try { repo = Normalize(args.Repo); }
+            catch (ArgumentException e) { return Usage(e.Message); }
+
+            reference = args.Ref ?? DefaultRef(git, repo);
+            workspace = store.PathFor(repo, reference);
+
+            var checkout = git.CheckoutOrUpdate(repo, reference, args.PullRequest, workspace, args.Fresh);
+            if (!checkout.Ok) return Failed(checkout.Error ?? "checkout failed");
+
+            commit = checkout.Commit;
+            workspaceId = WorkspaceStore.IdFor(repo, reference);
+            store.Touch(workspaceId, repo, reference, commit, null);
+        }
 
         string root;
         try { root = ResolveRoot(workspace, args.Subdir); }
@@ -131,14 +180,151 @@ public static class RunPipeline
         RunPlan plan;
         try
         {
-            plan = RunPlanBuilder.Build(config, context, OSKinds.Current, repo, reference, checkout.Commit);
+            plan = RunPlanBuilder.Build(config, context, OSKinds.Current, repo, reference, commit);
         }
         catch (InterpolationException e)
         {
             return Failed(e.Message);
         }
 
-        return new(0, plan, config, workspace, values, null, loaded.Others, loaded.Notes, loaded.Origin);
+        // The local branch has things to say - that the folder is run where it lies, what a copy
+        // left out - and they belong with the config's own notes, above the command list.
+        return new(0, plan, config, workspace, values, null, loaded.Others,
+            notes.Count == 0 ? loaded.Notes : notes.Concat(loaded.Notes).ToList(), loaded.Origin,
+            LocalFolder: args.LocalPath is not null && !args.Copy ? workspace : null,
+            WorkspaceId: workspaceId);
+    }
+
+    /// <summary>Marks the workspace of a copied folder, so it is not the one for running in place.</summary>
+    private const string CopyVariant = "copy";
+
+    /// <summary>Directories a copy leaves behind, because the setup steps put them back.</summary>
+    private static readonly string[] Regenerated =
+    [
+        ".git", "node_modules", ".venv", "venv", "__pycache__", "obj", "bin", "target", ".next",
+        ".nuxt", ".gradle", ".pytest_cache", ".mypy_cache",
+    ];
+
+    /// <summary>
+    /// Prepares a folder on this machine to be run.
+    /// <para>
+    /// In place by default. Copying it first sounds safer and is mostly worse: a checkout of
+    /// somebody's working copy is a different project - its own database file, its own .env, its
+    /// own absolute paths - and the build lands somewhere they will never look. What QuickRun runs
+    /// is the folder they pointed at, and the note it keeps under runs/ is all a removal can reach.
+    /// </para>
+    /// </summary>
+    private static (string? Repo, string? Ref, string? Workspace, string? Commit, string? Error) Local(
+        RunArgs args, WorkspaceStore store, List<string> notes)
+    {
+        string folder;
+        try { folder = Path.GetFullPath(args.LocalPath!); }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return (null, null, null, null, $"'{args.LocalPath}' is not a usable path: {e.Message}");
+        }
+
+        if (!Directory.Exists(folder)) return (null, null, null, null, $"'{folder}' is not a folder");
+
+        // Running QuickRun's own workspace root would copy a copy into itself, and a run of a
+        // workspace is a run of the repository it came from - which has its own way in.
+        var root = Path.GetFullPath(store.Root);
+        if (folder.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            return (null, null, null, null,
+                $"'{folder}' is inside QuickRun's own directory - run the repository it came from instead");
+
+        // The path is the identity: it keys the workspace note, any config saved for it, and the
+        // trust record, exactly as a repository URL does for a checkout.
+        var repo = folder;
+        var (reference, commit) = GitState(folder, args.Ref);
+
+        if (!args.Copy)
+        {
+            store.Touch(WorkspaceStore.IdFor(repo, reference), repo, reference, commit, null, folder);
+            notes.Add($"running {folder} where it is - nothing was checked out and nothing was copied");
+            return (repo, reference, folder, commit, null);
+        }
+
+
+        // A variant of its own: the same folder run in place and run as a copy are two workspaces,
+        // and the note about one must not overwrite the other.
+        var workspace = store.PathFor(repo, reference, CopyVariant);
+
+        try
+        {
+            CopyInto(folder, workspace, args.Fresh);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return (null, null, null, null, $"could not copy {folder}: {e.Message}");
+        }
+
+        store.Touch(WorkspaceStore.IdFor(repo, reference, CopyVariant), repo, reference, commit, null);
+        notes.Add($"running a copy of {folder} under {workspace}, so the original is untouched");
+        notes.Add($"left out of the copy, because the setup steps put them back: {string.Join(", ", Regenerated)}");
+
+        return (repo, reference, workspace, commit, null);
+    }
+
+    /// <summary>
+    /// What git says about a folder, when it is a working copy at all.
+    /// <para>
+    /// Worth asking: a branch name and a commit are what make a local run identifiable afterwards,
+    /// and they cost one process each. A folder that is not a repository is simply "local".
+    /// </para>
+    /// </summary>
+    private static (string Ref, string? Commit) GitState(string folder, string? requested)
+    {
+        if (requested is not null) return (requested, Ask(folder, "rev-parse", "HEAD"));
+        if (!Directory.Exists(Path.Combine(folder, ".git"))) return ("local", null);
+
+        var branch = Ask(folder, "rev-parse", "--abbrev-ref", "HEAD");
+        var commit = Ask(folder, "rev-parse", "HEAD");
+
+        // A detached head has no branch name to report, and "HEAD" is not one.
+        return (string.IsNullOrEmpty(branch) || branch == "HEAD" ? "local" : branch, commit);
+    }
+
+    private static string? Ask(string folder, params string[] arguments)
+    {
+        var result = CommandRunner.Capture("git", arguments, folder, timeoutMs: 5_000);
+        return result.ExitCode == 0 && result.Output.Length > 0 ? result.Output.Trim() : null;
+    }
+
+    /// <summary>Copies a folder, leaving out what a build regenerates anyway.</summary>
+    private static void CopyInto(string from, string to, bool fresh)
+    {
+        if (fresh && Directory.Exists(to)) Directory.Delete(to, recursive: true);
+        Directory.CreateDirectory(to);
+
+        var skip = new HashSet<string>(Regenerated, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var source in Directory.EnumerateFileSystemEntries(from))
+        {
+            var name = Path.GetFileName(source);
+            if (skip.Contains(name)) continue;
+
+            var target = Path.Combine(to, name);
+
+            if (Directory.Exists(source)) CopyTree(source, target, skip);
+            else File.Copy(source, target, overwrite: true);
+        }
+    }
+
+    private static void CopyTree(string from, string to, HashSet<string> skip)
+    {
+        Directory.CreateDirectory(to);
+
+        foreach (var source in Directory.EnumerateFileSystemEntries(from))
+        {
+            var name = Path.GetFileName(source);
+            if (skip.Contains(name)) continue;
+
+            var target = Path.Combine(to, name);
+
+            if (Directory.Exists(source)) CopyTree(source, target, skip);
+            else File.Copy(source, target, overwrite: true);
+        }
     }
 
     /// <summary>

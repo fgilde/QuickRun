@@ -306,8 +306,10 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                 $"the stop commands did not finish within {StopTimeout.TotalSeconds:0}s - giving up on them"));
         }
 
-        store.Touch(WorkspaceStore.IdFor(preparation.Plan.Repo, preparation.Plan.Ref),
-            preparation.Plan.Repo, preparation.Plan.Ref, preparation.Plan.Commit, outcome.Ok);
+        // The folder travels with the preparation, so recording the outcome does not turn a note
+        // about somebody's working copy into a claim that QuickRun owns the directory.
+        store.Touch(preparation.WorkspaceId!, preparation.Plan.Repo, preparation.Plan.Ref,
+            preparation.Plan.Commit, outcome.Ok, preparation.LocalFolder);
 
         entry.Complete(outcome);
     }

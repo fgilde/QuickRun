@@ -472,7 +472,7 @@ public sealed class DashboardWindow : Window
                         TextTrimming = TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center,
                     },
-                    Muted(Output.Size(workspace.Bytes)).With(t =>
+                    Muted(workspace.Local ? "in place" : Output.Size(workspace.Bytes)).With(t =>
                     {
                         t.Width = 80;
                         t.VerticalAlignment = VerticalAlignment.Center;

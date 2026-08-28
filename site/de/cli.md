@@ -47,11 +47,42 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `-i, --input` | eine deklarierte Eingabe füllen, wiederholbar |
 | `-t, --token` | Zugriffstoken für ein privates Repository |
 | `-c, --config` | andere Config-Datei verwenden, relativ zum Projekt-Root |
+| `--path` | einen Ordner dieser Maschine ausführen, statt ein Repository auszuchecken |
+| `--copy` | mit `--path`: eine Kopie unter `runs/` ausführen, das Original bleibt unberührt |
 | `--fresh` | Workspace löschen und neu klonen |
 | `-y, --yes` | Bestätigung überspringen; fehlende erforderliche Eingaben schlagen dann fehl statt zu fragen |
 | `--no-open` | keine Browser-URL öffnen, die die Config anfordert |
 
 Ohne `--yes` wird nichts ausgeführt, bevor der Plan gedruckt und bestätigt wurde.
+
+## `quickrun run` auf einem Ordner
+
+```bash
+quickrun run .                       # dieser Ordner, dort wo er liegt
+quickrun run --path ~/dev/planner    # dasselbe, ausdrücklich
+quickrun run --path . --copy         # eine Kopie unter runs/, das Original bleibt unberührt
+```
+
+Kein Checkout, kein Klon: QuickRun liest die `quickrun.yml` des Ordners und führt deren Befehle in
+diesem Ordner aus. Eine Repository-Kurzform ist nie ein existierendes Verzeichnis, die Argumentform
+kollidiert also nicht mit `quickrun run acme/app`. Kontextmenü-Einträge nutzen `--path`, wo nichts
+geraten werden darf.
+
+In der Workspace-Liste steht ein **Verweis** darauf, wo der Ordner liegt — keine Kopie. Die Größe
+zeigt `in place`, und diesen Workspace zu entfernen entfernt den Verweis: `Remove`, `Remove all` und
+`clean` kommen nicht aus `runs/` heraus und können damit niemals eine Arbeitskopie von dir löschen.
+
+`--copy` ist für den Fall, dass der Run das Original nicht anfassen darf: der Ordner wird unter
+`runs/` kopiert und alles passiert dort. Die Kopie lässt weg, was ein Build wieder herstellt —
+`.git`, `node_modules`, `.venv`, `obj`, `bin`, `target`, `.next` und Verwandte — und sagt das vorher.
+Eine Kopie ist ein Workspace, den QuickRun besitzt; sie zu entfernen entfernt die Kopie.
+
+Ist der Ordner eine git-Arbeitskopie, werden Branch und Commit gemeldet, damit ein lokaler Lauf
+hinterher wiedererkennbar ist. Sonst steht als Ref `local`.
+
+Bewusst nur von hier: ein Ordner auf dieser Maschine ist von der Kommandozeile und aus einem
+Kontextmenü startbar, nie über die Browser-Erweiterung. Die Erweiterung fragt nach Repositories, und
+eine Anfrage mit einem Pfad oder einer `file:`-URL wird dort abgelehnt.
 
 ## `quickrun validate`
 

@@ -180,10 +180,13 @@ public static class DaemonHost
                     w.Id,
                     w.Repo,
                     w.Ref,
-                    size = Output.Size(w.Bytes),
+                    // A folder run in place occupies nothing of QuickRun's, and removing it removes
+                    // a note rather than a checkout. Both worth saying in a list of disk usage.
+                    size = w.Local ? "in place" : Output.Size(w.Bytes),
                     w.LastUsed,
                     w.LastCommit,
                     w.LastOk,
+                    w.Local,
                 }),
             }, Json);
         });
@@ -775,6 +778,12 @@ public static class DaemonHost
             if (!Authorized(context)) return Unauthorized();
             if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
 
+            // A browser extension asks for repositories, never for this machine. Running a folder
+            // where it lies is something you do from a shell verb or the command line, having
+            // pointed at it yourself - so a path never travels over this endpoint, and neither does
+            // a file: URL, which is the same thing wearing a scheme.
+            if (PointsAtThisMachine(request.Repo)) return Unauthorized();
+
             var args = new RunArgs(
                 request.Repo,
                 request.Ref,
@@ -878,6 +887,26 @@ public static class DaemonHost
     /// is a web page, and a web page always sends its Origin.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Whether a repository string points at this machine rather than at a remote.
+    /// <para>
+    /// Both spellings: a plain path, and the file: URL that .NET makes out of a Windows path all
+    /// by itself. The check sits on the request rather than in the pipeline, because QuickRun's own
+    /// window and the command line are allowed to do exactly this.
+    /// </para>
+    /// </summary>
+    internal static bool PointsAtThisMachine(string repo)
+    {
+        var value = repo.Trim();
+
+        if (value.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) return true;
+        if (value.StartsWith("\\\\", StringComparison.Ordinal)) return true;   // a UNC share
+        if (value.StartsWith('/') || value.StartsWith('~')) return true;
+
+        // A Windows drive letter, however the rest is spelled.
+        return value.Length >= 2 && char.IsAsciiLetter(value[0]) && value[1] == ':';
+    }
+
     internal static bool Authorized(HttpContext context)
     {
         var origin = context.Request.Headers.Origin.ToString();

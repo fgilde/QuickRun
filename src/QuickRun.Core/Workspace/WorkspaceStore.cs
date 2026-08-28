@@ -4,9 +4,18 @@ using System.Text.Json;
 
 namespace QuickRun.Core.Workspace;
 
+/// <param name="Path">
+/// Where the code is. For a checkout that is the directory under runs/; for a folder run in place
+/// it is the folder itself, which is somebody's working copy and not QuickRun's to delete.
+/// </param>
+/// <param name="Local">
+/// Whether this is a folder on this machine that QuickRun runs where it lies. Nothing was checked
+/// out and nothing was copied, so what is under runs/ is a note saying where it was - removing this
+/// workspace removes the note.
+/// </param>
 public sealed record WorkspaceInfo(
     string Id, string Path, string Repo, string Ref, long Bytes,
-    DateTimeOffset LastUsed, string? LastCommit, bool? LastOk);
+    DateTimeOffset LastUsed, string? LastCommit, bool? LastOk, bool Local = false);
 
 /// <summary>
 /// Owns the directories QuickRun checks repositories out into. Deliberately not under %TEMP%:
@@ -45,18 +54,30 @@ public sealed class WorkspaceStore
     /// A readable directory name plus a short hash, so that two refs sanitising to the same
     /// name still get separate workspaces.
     /// </summary>
-    public static string IdFor(string repoUrl, string @ref)
+    /// <param name="variant">
+    /// Distinguishes workspaces that share a repository and ref without being the same thing: a
+    /// folder run where it lies and a copy of that folder are both keyed on its path, and one must
+    /// not overwrite the other's note.
+    /// </param>
+    public static string IdFor(string repoUrl, string @ref, string? variant = null)
     {
         var (owner, repo) = OwnerAndRepo(repoUrl);
-        var name = $"{Sanitize(owner)}__{Sanitize(repo)}__{Sanitize(@ref)}";
+        var suffix = string.IsNullOrEmpty(variant) ? "" : $"__{Sanitize(variant)}";
+        var name = $"{Sanitize(owner)}__{Sanitize(repo)}__{Sanitize(@ref)}{suffix}";
         if (name.Length > MaxNameLength) name = name[..MaxNameLength];
 
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{repoUrl}\n{@ref}")))
+        // The variant only joins the hash when there is one, so every workspace that existed before
+        // it keeps its id - otherwise an update would silently orphan every checkout on the machine
+        // and clone them all again.
+        var seed = string.IsNullOrEmpty(variant) ? $"{repoUrl}\n{@ref}" : $"{repoUrl}\n{@ref}\n{variant}";
+
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(seed)))
             .ToLowerInvariant()[..6];
         return $"{name}-{hash}";
     }
 
-    public string PathFor(string repoUrl, string @ref) => Path.Combine(RunsDir, IdFor(repoUrl, @ref));
+    public string PathFor(string repoUrl, string @ref, string? variant = null) =>
+        Path.Combine(RunsDir, IdFor(repoUrl, @ref, variant));
 
     /// <summary>
     /// Every workspace directory, including the ones with no metadata to describe them.
@@ -117,11 +138,17 @@ public sealed class WorkspaceStore
 
     public WorkspaceInfo? Get(string id) => Read(Resolve(id));
 
-    public void Touch(string id, string repoUrl, string @ref, string? commit, bool? ok)
+    /// <param name="localPath">
+    /// For a folder run in place: where it is. The directory under runs/ then holds only this note,
+    /// so that the folder appears in the list - and can be taken off it - without QuickRun ever
+    /// being in a position to delete somebody's working copy.
+    /// </param>
+    public void Touch(string id, string repoUrl, string @ref, string? commit, bool? ok,
+        string? localPath = null)
     {
         var dir = Resolve(id);
         Directory.CreateDirectory(dir);
-        var meta = new Meta(repoUrl, @ref, _now(), commit, ok);
+        var meta = new Meta(repoUrl, @ref, _now(), commit, ok, localPath);
         File.WriteAllText(Path.Combine(dir, MetaFileName), JsonSerializer.Serialize(meta, Json));
     }
 
@@ -135,6 +162,9 @@ public sealed class WorkspaceStore
     /// </summary>
     public bool Remove(string id)
     {
+        // Always the directory under runs/, never WorkspaceInfo.Path: for a folder run in place
+        // those are different places, and the second one is somebody's working copy. Removing such
+        // a workspace takes away QuickRun's note about it and touches nothing else.
         var dir = Resolve(id);
         if (!Directory.Exists(dir)) return false;
 
@@ -181,7 +211,12 @@ public sealed class WorkspaceStore
 
     // ---- internals ----------------------------------------------------------
 
-    private sealed record Meta(string Repo, string Ref, DateTimeOffset LastUsed, string? LastCommit, bool? LastOk);
+    /// <param name="LocalPath">
+    /// Set when the workspace is a folder QuickRun runs where it lies. Then the directory under
+    /// runs/ holds this file and nothing else, and it is all that a removal can take away.
+    /// </param>
+    private sealed record Meta(string Repo, string Ref, DateTimeOffset LastUsed, string? LastCommit,
+        bool? LastOk, string? LocalPath = null);
 
     /// <summary>Maps an id to its directory, rejecting anything that could escape the root.</summary>
     private string Resolve(string id)
@@ -205,8 +240,13 @@ public sealed class WorkspaceStore
         catch (JsonException) { return null; }
         if (meta is null) return null;
 
-        return new WorkspaceInfo(Path.GetFileName(dir), dir, meta.Repo, meta.Ref,
-            SizeOf(dir), meta.LastUsed, meta.LastCommit, meta.LastOk);
+        // A note pointing at a folder reports the folder, because that is where the code is - and
+        // its size is not QuickRun's disk usage, so it is not counted.
+        return meta.LocalPath is { } local
+            ? new WorkspaceInfo(Path.GetFileName(dir), local, meta.Repo, meta.Ref,
+                0, meta.LastUsed, meta.LastCommit, meta.LastOk, Local: true)
+            : new WorkspaceInfo(Path.GetFileName(dir), dir, meta.Repo, meta.Ref,
+                SizeOf(dir), meta.LastUsed, meta.LastCommit, meta.LastOk);
     }
 
     // ponytail: full tree walk per List() call; cache the size in the metadata if listing feels slow
@@ -229,7 +269,9 @@ public sealed class WorkspaceStore
         if (trimmed.EndsWith(".git", StringComparison.OrdinalIgnoreCase)) trimmed = trimmed[..^4];
 
         // Explicit array: Split('/', ':', options) would bind ':' as the count parameter.
-        var segments = trimmed.Split(new[] { '/', ':' }, StringSplitOptions.RemoveEmptyEntries);
+        // Backslash included, because a folder run in place is identified by its path - without it
+        // the whole path ended up in the directory name, two underscores per separator.
+        var segments = trimmed.Split(new[] { '/', ':', '\\' }, StringSplitOptions.RemoveEmptyEntries);
         return segments.Length >= 2
             ? (segments[^2], segments[^1])
             : ("repo", segments.LastOrDefault() ?? "repo");

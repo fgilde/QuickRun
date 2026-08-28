@@ -15,9 +15,17 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
 {
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<repo>")]
-        [Description("owner/repo, or a full repository URL.")]
+        [CommandArgument(0, "[repo]")]
+        [Description("owner/repo, a full repository URL, or a folder on this machine.")]
         public string Repo { get; init; } = "";
+
+        [CommandOption("--path")]
+        [Description("Run this folder instead of checking a repository out. Nothing is copied.")]
+        public string? LocalPath { get; init; }
+
+        [CommandOption("--copy")]
+        [Description("With --path: run a copy under the workspace directory, leaving the folder alone.")]
+        public bool Copy { get; init; }
 
         [CommandOption("-r|--ref")]
         [Description("Branch, tag or commit. Defaults to the repository's default branch.")]
@@ -55,8 +63,21 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         [Description("Do not open any browser URL the config asks for.")]
         public bool NoOpen { get; init; }
 
+        /// <summary>
+        /// The folder to run, if that is what this is.
+        /// <para>
+        /// Either named with --path - which is what a shell verb passes, because there it must not
+        /// be guessed - or given as the argument, so that `quickrun run .` does what anyone typing
+        /// it means. A repository shorthand is never a directory that exists, so the two do not
+        /// collide.
+        /// </para>
+        /// </summary>
+        public string? Folder =>
+            LocalPath ?? (Repo.Length > 0 && Directory.Exists(Repo) ? Repo : null);
+
         public RunArgs ToArgs() =>
-            new(Repo, Ref, PullRequest, Subdir, Inputs, Token, Fresh, Yes, NoOpen, ConfigPath);
+            new(Repo, Ref, PullRequest, Subdir, Inputs, Token, Fresh, Yes, NoOpen, ConfigPath,
+                LocalPath: Folder, Copy: Copy);
     }
 
     protected override async Task<int> ExecuteAsync(
@@ -132,7 +153,10 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         var outcome = await runner.ExecuteAsync(config, options, cts.Token);
         await runner.StopAsync();
 
-        store.Touch(WorkspaceStore.IdFor(plan.Repo, plan.Ref), plan.Repo, plan.Ref, plan.Commit, outcome.Ok);
+        // The folder travels with the preparation, so recording the outcome does not turn a note
+        // about somebody's working copy into a claim that QuickRun owns it.
+        store.Touch(preparation.WorkspaceId!, plan.Repo, plan.Ref, plan.Commit,
+            outcome.Ok, preparation.LocalFolder);
 
         if (!outcome.Ok) Output.Error(outcome.Error ?? "run failed");
         return outcome.Ok ? 0 : 1;

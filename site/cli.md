@@ -46,11 +46,41 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `-i, --input` | fill a declared input, repeatable |
 | `-t, --token` | access token for a private repository |
 | `-c, --config` | use a different config file, relative to the project root |
+| `--path` | run a folder on this machine instead of checking a repository out |
+| `--copy` | with `--path`: run a copy under `runs/`, leaving the folder alone |
 | `--fresh` | delete the workspace and clone again |
 | `-y, --yes` | skip the confirmation prompt; missing required inputs then fail rather than prompt |
 | `--no-open` | do not open any browser URL the config asks for |
 
 Nothing executes before the plan is printed and confirmed, unless `--yes` is given.
+
+## `quickrun run` on a folder
+
+```bash
+quickrun run .                       # this folder, where it is
+quickrun run --path ~/dev/planner    # the same, said explicitly
+quickrun run --path . --copy         # a copy under runs/, leaving the folder alone
+```
+
+No checkout, no clone: QuickRun reads the folder's `quickrun.yml` and runs the commands in it, in
+that folder. A repository shorthand is never a directory that exists, so the argument form does not
+collide with `quickrun run acme/app`. Shell verbs use `--path`, where nothing may be guessed.
+
+What appears in the workspace list is a **note** saying where the folder is, not a copy of it. Its
+size reads `in place`, and removing that workspace removes the note - `Remove`, `Remove all` and
+`clean` cannot reach outside `runs/`, so they can never delete a working copy of yours.
+
+`--copy` is for the case where the run must not touch the original: the folder is copied under
+`runs/` and everything happens there. The copy leaves out what a build puts back - `.git`,
+`node_modules`, `.venv`, `obj`, `bin`, `target`, `.next` and friends - and says so before it starts.
+A copy is a workspace QuickRun owns, so removing it removes the copy.
+
+If the folder is a git working copy, its branch and commit are reported, so a local run is
+identifiable in the list afterwards. Otherwise the ref reads `local`.
+
+Only from here, deliberately: a folder on this machine can be run from the command line and from a
+shell verb, and never through the browser extension. The extension asks for repositories, and a
+request naming a path or a `file:` URL is refused there.
 
 ## `quickrun validate`
 

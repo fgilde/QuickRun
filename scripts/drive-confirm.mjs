@@ -94,8 +94,11 @@ await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
 const port = server.address().port;
 
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/usr/bin/google-chrome', '/usr/bin/chromium'].find(existsSync);
+  '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  '/snap/bin/chromium'].find(existsSync);
 
 if (!chrome) {
   console.error('no chrome found');

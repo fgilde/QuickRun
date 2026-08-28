@@ -9,7 +9,7 @@
 //
 // Starts a daemon of its own on a free port, so it never touches a running QuickRun.
 
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -20,14 +20,40 @@ const argument = (name, fallback = null) => {
   return at > 0 ? process.argv[at + 1] : fallback;
 };
 
-const exe = argument('--exe', process.platform === 'win32'
-  ? 'src/QuickRun.App/bin/Debug/net10.0/win-x64/quickrun.exe'
-  : 'src/QuickRun.App/bin/Debug/net10.0/quickrun');
+/**
+ * The built binary, wherever this platform's build put it.
+ *
+ * Searched rather than assumed: the project builds with a runtime identifier, so the executable is
+ * under net10.0/<rid>/ and the rid differs per platform - which is what made this fail in CI on the
+ * one platform I had not run it on.
+ */
+function findExe() {
+  const named = argument('--exe');
+  if (named) return named;
 
+  const root = 'src/QuickRun.App/bin/Debug/net10.0';
+  const binary = process.platform === 'win32' ? 'quickrun.exe' : 'quickrun';
+
+  if (!existsSync(root)) return null;
+
+  const here = join(root, binary);
+  if (existsSync(here)) return here;
+
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const candidate = join(root, entry.name, binary);
+    if (existsSync(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+const exe = findExe();
 const shotPath = argument('--screenshot');
 
-if (!existsSync(exe)) {
-  console.error(`no quickrun binary at ${exe} - build it first, or pass --exe`);
+if (exe === null || !existsSync(exe)) {
+  console.error('no quickrun binary under src/QuickRun.App/bin/Debug/net10.0'
+    + ' - build it first (dotnet build src/QuickRun.App), or pass --exe');
   process.exit(2);
 }
 
@@ -67,8 +93,11 @@ if (!await reachable()) {
 }
 
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/usr/bin/google-chrome', '/usr/bin/chromium'].find(existsSync);
+  '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  '/snap/bin/chromium'].find(existsSync);
 
 if (!chrome) {
   console.error('no chrome found');

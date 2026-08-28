@@ -63,4 +63,4 @@ jobs:
         shell: bash
         run: |
           dotnet build src/QuickRun.App -c Debug
-          node scripts/drive-dashboard.mjs --exe src/QuickRun.App/bin/Debug/net10.0/quickrun
+          node scripts/drive-dashboard.mjs

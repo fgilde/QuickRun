@@ -389,9 +389,35 @@ jobs:
             sleep 5
           done
 
-          curl -fsS -X POST "$api" "${auth[@]}" \
+          # Submitting is not publishing: the store shows the reviewed version, and a review takes
+          # hours or days. This says what happened rather than ending silently - a submission the
+          # store refuses looked exactly like one it accepted.
+          submission=$(curl -fsS -D - -o /dev/null -X POST "$api" "${auth[@]}" \
             -H "Content-Type: application/json" \
-            -d "{\"notes\":\"QuickRun ${{ steps.version.outputs.value }}\"}"
+            -d "{\"notes\":\"QuickRun ${{ steps.version.outputs.value }}\"}" \
+            | tr -d '\r' | sed -n 's/^[Ll]ocation: //p')
+
+          if [ -z "$submission" ]; then
+            echo "::warning::the store took the submission but named no operation to check"
+            exit 0
+          fi
+
+          for _ in $(seq 1 24); do
+            state=$(curl -fsS "$api/operations/$submission" "${auth[@]}")
+
+            case "$state" in
+              *'"status":"Succeeded"'*)
+                echo "::notice::QuickRun ${{ steps.version.outputs.value }} is submitted to the Edge store - it goes live when review passes"
+                exit 0 ;;
+              *'"status":"Failed"'*)
+                echo "::error::the Edge store refused the submission: $state"
+                exit 1 ;;
+            esac
+
+            sleep 5
+          done
+
+          echo "::warning::the submission was still processing after two minutes: $state"
 
   # wingetcreate is a Windows binary, so its submission is its own job.
   # Needs WINGET_TOKEN: a PAT with public_repo, used to fork microsoft/winget-pkgs and open the

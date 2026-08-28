@@ -60,6 +60,7 @@ const t = computed(() => (de.value
       macGateTitle: 'macOS: heruntergeladen und geöffnet',
       macGateText: 'Der Browser setzt das Quarantäne-Flag, und weil QuickRun keine Apple-Signatur '
         + 'hat, nennt macOS die App dann beschädigt. Einmal entfernen, danach startet sie normal:',
+      macGateTar: 'Aus dem tar entpackt, für die nackte Binary:',
       macGateBrew: 'Über Homebrew passiert das automatisch:',
     }
   : {
@@ -107,6 +108,7 @@ const t = computed(() => (de.value
       macGateTitle: 'macOS: downloaded, then opened',
       macGateText: 'The browser sets the quarantine flag, and with no Apple signature to check '
         + 'against, macOS calls the app damaged. Clear it once and it opens normally:',
+      macGateTar: 'Unpacked from the tarball, for the bare binary:',
       macGateBrew: 'Homebrew does this for you:',
     }));
 
@@ -240,6 +242,8 @@ function label(build) {
         <summary class="m3-label">{{ t.macGateTitle }}</summary>
         <p class="m3-body">{{ t.macGateText }}</p>
         <pre class="qr-macgate-code"><code>xattr -dr com.apple.quarantine /Applications/QuickRun.app</code></pre>
+        <p class="m3-body">{{ t.macGateTar }}</p>
+        <pre class="qr-macgate-code"><code>xattr -d com.apple.quarantine ./quickrun</code></pre>
         <p class="m3-body">{{ t.macGateBrew }}</p>
         <pre class="qr-macgate-code"><code>brew install --cask fgilde/tap/quickrun</code></pre>
       </details>

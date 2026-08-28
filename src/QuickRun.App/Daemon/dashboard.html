@@ -44,6 +44,10 @@ nav button[aria-selected="true"] {
 }
 main { padding: 22px; max-width: 1000px; }
 section[hidden] { display: none; }
+
+/* Anything hidden is hidden. Without this, `hidden` loses to every rule that sets display - a .row
+   is a flexbox, so hiding one did nothing at all and the form showed both of its halves. */
+[hidden] { display: none !important; }
 h2 { font-size: 15px; margin: 0 0 12px; }
 p { margin: 0 0 12px; }
 .muted { color: var(--muted); }
@@ -145,35 +149,32 @@ ol.plan .phase {
   <section id="runs">
     <h2>Start a run</h2>
     <div class="card">
+      <!-- One field, because there is one question: what do you want to run. What was typed decides
+           what else is worth showing - a branch for a repository, the copy switch for a folder. -->
       <div class="row">
-        <label><input type="radio" name="source" value="repo" checked> A repository</label>
-        <label><input type="radio" name="source" value="folder"> A folder on this machine</label>
+        <input id="repoInput" class="grow" type="text" spellcheck="false" autocomplete="off"
+               placeholder="owner/repo, a git URL, or a folder on this machine"
+               aria-label="Repository or folder">
+        <select id="refSelect" aria-label="Branch" style="max-width:260px">
+          <option value="">default branch</option>
+        </select>
+        <input id="refInput" class="mono" type="text" placeholder="branch, tag or commit"
+               aria-label="Branch" style="max-width:260px" hidden>
+        <button class="action" id="browseButton" title="Choose a folder on this machine">Browse…</button>
+        <button class="action primary" id="prepareButton">Prepare</button>
       </div>
 
-      <div class="row" id="folderRow" hidden>
-        <input id="folderInput" class="grow mono" type="text" spellcheck="false" autocomplete="off"
-               placeholder="the folder holding your quickrun.yml" aria-label="Folder">
-        <button class="action" id="browseButton">Browse…</button>
-        <button class="action primary" id="prepareFolderButton">Prepare</button>
+      <div class="row">
+        <span id="targetKind" class="muted grow"></span>
       </div>
 
       <div class="row" id="folderOptions" hidden>
         <label><input id="copyInput" type="checkbox"> Run a copy, leaving my folder untouched</label>
       </div>
 
-      <div class="row" id="repoRow">
-        <input id="repoInput" class="grow" type="text" spellcheck="false" autocomplete="off"
-               placeholder="owner/repo, or a git URL" aria-label="Repository">
-        <select id="refSelect" aria-label="Branch" style="max-width:300px">
-          <option value="">default branch</option>
-        </select>
-        <input id="refInput" class="mono" type="text" placeholder="branch, tag or commit"
-               aria-label="Branch" style="max-width:300px" hidden>
-        <button class="action primary" id="prepareButton">Prepare</button>
-      </div>
       <div class="row"><span id="starterState" class="muted grow"></span></div>
 
-      <details>
+      <details id="repoExtras">
         <summary>Private repository, pull request, inputs</summary>
         <div class="row">
           <label class="field grow">Token
@@ -561,49 +562,86 @@ const starter = {
   inputs: document.getElementById('inputsInput'),
   fresh: document.getElementById('freshInput'),
 
-  // A folder on this machine: no checkout, and by default no copy either - QuickRun runs it where
-  // it lies. Which is why the copy switch says what it protects rather than what it does.
-  folder: document.getElementById('folderInput'),
-  folderRow: document.getElementById('folderRow'),
+  // A folder on this machine runs where it lies - no checkout, and no copy unless asked. Which is
+  // why the copy switch says what it protects rather than what it does.
+  kind: document.getElementById('targetKind'),
   folderOptions: document.getElementById('folderOptions'),
-  repoRow: document.getElementById('repoRow'),
+  repoExtras: document.getElementById('repoExtras'),
   browse: document.getElementById('browseButton'),
-  prepareFolder: document.getElementById('prepareFolderButton'),
   copy: document.getElementById('copyInput'),
-  details: null,
 };
 
 // The last repository, so a second run is one click. Never the token: that stays in memory only.
 try { starter.repo.value = localStorage.getItem('quickrun.repo') ?? ''; } catch { /* private window */ }
-try { starter.folder.value = localStorage.getItem('quickrun.folder') ?? ''; } catch { /* private window */ }
 
 function say(message) {
   starter.state.textContent = message ?? '';
 }
 
-/** Which of the two the form is asking for. */
-function chooseSource(kind) {
-  const folder = kind === 'folder';
-
-  starter.repoRow.hidden = folder;
-  starter.folderRow.hidden = !folder;
-  starter.folderOptions.hidden = !folder;
-
-  // The token, pull request and subdirectory are about a repository and mean nothing for a folder.
-  starter.details ??= document.querySelector('#runs details');
-  if (starter.details) starter.details.hidden = folder;
-
-  starter.plan.hidden = true;
-  say('');
+/**
+ * Whether what was typed names a place on this machine rather than a repository.
+ *
+ * A guess, and only for the form: it decides which extras are worth showing while typing. What
+ * actually happens is decided by the daemon, which can simply look and see whether the directory is
+ * there - so a path this misses still runs, and a repository this misreads is still checked out.
+ */
+function looksLikeFolder(value) {
+  return /^[a-zA-Z]:[\\/]/.test(value)     // C:\ or C:/
+    || value.startsWith('\\\\')            // a UNC share
+    || value.startsWith('/')
+    || value.startsWith('~')
+    || value.startsWith('.')
+    || value.includes('\\');
 }
 
-document.querySelectorAll('input[name="source"]').forEach((radio) => {
-  radio.addEventListener('change', () => chooseSource(radio.value));
-});
+/**
+ * Says what the field holds, and shows what belongs with it.
+ *
+ * There used to be two forms behind a pair of radio buttons, both on screen at once because a
+ * flexbox row ignores the hidden attribute. One field asks the one question there is - what do you
+ * want to run - and everything else follows from the answer.
+ */
+function readTarget() {
+  const value = starter.repo.value.trim();
+  const folder = value.length > 0 && looksLikeFolder(value);
+
+  starter.folderOptions.hidden = !folder;
+
+  // A branch, a token, a pull request and a subdirectory are all about a repository. Which of the
+  // two branch controls belongs on screen is the picker's own business, so it is remembered and put
+  // back rather than decided here.
+  starter.repoExtras.hidden = folder;
+
+  if (folder) {
+    if (!starter.select.hidden || !starter.ref.hidden)
+      starter.branchWas = starter.ref.hidden ? 'picker' : 'typed';
+
+    starter.select.hidden = true;
+    starter.ref.hidden = true;
+  } else {
+    const typed = starter.branchWas === 'typed';
+    starter.select.hidden = typed;
+    starter.ref.hidden = !typed;
+  }
+
+  starter.kind.textContent = value.length === 0
+    ? 'A repository is checked out. A folder on this machine is run where it lies.'
+    : folder
+      ? 'a folder on this machine - it runs where it lies, nothing is checked out'
+      : 'a repository - QuickRun checks it out and reuses that checkout next time';
+
+  return folder;
+}
+
+starter.repo.addEventListener('input', readTarget);
+
+// And once at the start, so the line under the field explains the two things it takes before
+// anybody types - and a remembered repository gets its branch picker back.
+readTarget();
 
 // A page cannot be given a path by a file input - that is deliberate in every browser - so the
 // window is asked to open the picker every other program opens. Without a window there is none, and
-// then the path is typed.
+// then the path is typed or pasted.
 starter.browse.addEventListener('click', async () => {
   starter.browse.disabled = true;
 
@@ -611,48 +649,17 @@ starter.browse.addEventListener('click', async () => {
     const chosen = await api('/api/dashboard/folder', { method: 'POST' });
 
     if (!chosen.picker) say('no window here to open a picker with - type or paste the path instead');
-    else if (chosen.path) starter.folder.value = chosen.path;
+    else if (chosen.path) {
+      starter.repo.value = chosen.path;
+      readTarget();
+      say('');
+    }
   } catch (failure) {
     say(failure.message);
   } finally {
     starter.browse.disabled = false;
   }
 });
-
-starter.prepareFolder.addEventListener('click', prepareFolder);
-
-starter.folder.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') prepareFolder();
-});
-
-/** Prepares a folder on this machine. Nothing is checked out, and nothing runs until it is confirmed. */
-async function prepareFolder() {
-  const path = starter.folder.value.trim();
-  if (!path) { say('a folder is needed'); return; }
-
-  starter.prepareFolder.disabled = true;
-  starter.plan.hidden = true;
-  say(starter.copy.checked ? 'copying and building the plan…' : 'reading the folder…');
-
-  try {
-    renderPlan(await api('/api/dashboard/run', {
-      method: 'POST',
-      body: JSON.stringify({ path, copy: starter.copy.checked, inputs: parseInputs(starter.inputs.value) }),
-    }));
-    say('');
-
-    try { localStorage.setItem('quickrun.folder', path); } catch { /* private window */ }
-  } catch (failure) {
-    if (failure.run?.state === 'awaitingInput') {
-      renderPlan(failure.run);
-      say('this project asks for a few values first');
-    } else {
-      say(failure.message);
-    }
-  } finally {
-    starter.prepareFolder.disabled = false;
-  }
-}
 
 function typedRef() {
   starter.select.hidden = true;
@@ -941,25 +948,37 @@ function renderPlan(run, panel = starter.plan) {
 }
 
 async function prepareRun() {
-  const repo = starter.repo.value.trim();
-  if (!repo) { say('a repository is needed'); return; }
+  const target = starter.repo.value.trim();
+  if (!target) { say('a repository or a folder is needed'); return; }
+
+  const folder = readTarget();
 
   starter.prepare.disabled = true;
   starter.plan.hidden = true;
-  say('checking out and building the plan…');
+  say(folder
+    ? (starter.copy.checked ? 'copying and building the plan…' : 'reading the folder…')
+    : 'checking out and building the plan…');
 
   try {
+    // One field, two shapes of request. The daemon decides for itself as well - it can look and see
+    // whether the directory is there - so a path this form guessed wrong about still runs.
     renderPlan(await api('/api/dashboard/run', {
       method: 'POST',
-      body: JSON.stringify({
-        repo,
-        ref: chosenRef(),
-        pr: starter.pr.value ? Number(starter.pr.value) : null,
-        subdir: starter.subdir.value.trim() || null,
-        token: starter.token.value || null,
-        inputs: parseInputs(starter.inputs.value),
-        fresh: starter.fresh.checked,
-      }),
+      body: JSON.stringify(folder
+        ? {
+          path: target,
+          copy: starter.copy.checked,
+          inputs: parseInputs(starter.inputs.value),
+        }
+        : {
+          repo: target,
+          ref: chosenRef(),
+          pr: starter.pr.value ? Number(starter.pr.value) : null,
+          subdir: starter.subdir.value.trim() || null,
+          token: starter.token.value || null,
+          inputs: parseInputs(starter.inputs.value),
+          fresh: starter.fresh.checked,
+        }),
     }));
     say('');
   } catch (failure) {

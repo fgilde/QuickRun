@@ -86,10 +86,15 @@ eine Anfrage mit einem Pfad oder einer `file:`-URL wird dort abgelehnt.
 
 ### Aus dem Fenster
 
-Das Formular fragt nach einem Repository **oder einem Ordner auf dieser Maschine** — Letzteres mit
-einem Durchsuchen-Knopf: einer Seite kann in keinem Browser ein Pfad übergeben werden, also öffnet
-das Fenster den System-Dialog für sie. Ohne Fenster — bei headless gestartetem QuickRun — wird der
-Pfad getippt.
+Das Formular hat ein Feld, und das nimmt beides: `owner/repo`, eine Git-URL oder einen Ordner auf
+dieser Maschine. Was dort steht, entscheidet, was sonst erscheint — eine Branch-Auswahl beim
+Repository, der Kopie-Schalter beim Ordner — und eine Zeile darunter sagt, was gelesen wurde. Der
+Durchsuchen-Knopf ist immer da: einer Seite kann in keinem Browser ein Pfad übergeben werden, also
+öffnet das Fenster den System-Dialog für sie. Ohne Fenster — bei headless gestartetem QuickRun — wird
+der Pfad getippt oder eingefügt.
+
+Der Daemon entscheidet zusätzlich selbst: ein Pfad, den es wirklich gibt, ist ein Ordner — ganz
+gleich, was das Formular beim Tippen geraten hat.
 
 Ein Ordner ohne `quickrun.yml` ist keine Sackgasse: QuickRun liest das Projekt und schlägt Befehle
 vor, genau wie bei einem Repository, und sagt dazu, dass es geraten hat.

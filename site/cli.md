@@ -84,9 +84,14 @@ request naming a path or a `file:` URL is refused there.
 
 ### From the window
 
-The run form asks for a repository or **a folder on this machine** - the second one with a Browse
-button, because a page cannot be handed a path by a file input in any browser, so the window opens
-the system picker on its behalf. Without a window - a QuickRun started headless - the path is typed.
+The run form has one field, and it takes either: `owner/repo`, a git URL, or a folder on this
+machine. What you type decides what else appears - a branch picker for a repository, the copy switch
+for a folder - and a line under the field says which one it read. The Browse button is always there,
+because a page cannot be handed a path by a file input in any browser, so the window opens the system
+picker on its behalf. Without a window - a QuickRun started headless - the path is typed or pasted.
+
+The daemon decides for itself as well: a path that is really there is a folder, whatever the form
+guessed while you were typing.
 
 A folder with no `quickrun.yml` is not a dead end: QuickRun reads the project and proposes commands,
 exactly as it does for a repository, and says that it guessed them.

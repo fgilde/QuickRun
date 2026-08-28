@@ -203,15 +203,55 @@ writeFileSync(join(project, 'quickrun.yml'), [
 ].join('\n'));
 
 await evaluate(`document.querySelector('nav button[data-tab="runs"]').click()`);
-await evaluate(`document.querySelector('input[name="source"][value="folder"]').click()`);
-await new Promise((wait) => setTimeout(wait, 150));
 
-const folderVisible = await evaluate(`!document.getElementById('folderRow').hidden
-  && document.getElementById('repoRow').hidden`);
-if (folderVisible !== true) problems.push('choosing a folder did not swap the form');
+// Seen rather than merely marked: `hidden` loses to any rule that sets display, and a .row is a
+// flexbox - so a form can be "hidden" and completely on screen. Asking the browser what is actually
+// visible is the only question worth asking, and asking the other one is how that shipped.
+const visible = (id) => evaluate(`(() => {
+  const element = document.getElementById(${JSON.stringify(id)});
+  if (!element) return null;
+  const box = element.getBoundingClientRect();
+  return getComputedStyle(element).display !== 'none' && box.width > 0 && box.height > 0;
+})()`);
 
-await evaluate(`document.getElementById('folderInput').value = ${JSON.stringify(project)}`);
-await evaluate(`document.getElementById('prepareFolderButton').click()`);
+// One field takes both, so what changes while typing is which extras are on screen.
+await evaluate(`document.getElementById('repoInput').value = 'acme/app';
+  document.getElementById('repoInput').dispatchEvent(new Event('input'))`);
+await new Promise((wait) => setTimeout(wait, 120));
+
+const asRepo = {
+  branch: await visible('refSelect'),
+  copy: await visible('folderOptions'),
+  extras: await visible('repoExtras'),
+  browse: await visible('browseButton'),
+};
+
+if (asRepo.branch !== true) problems.push('a repository offers no branch picker');
+if (asRepo.copy !== false) problems.push('a repository offers the copy switch');
+if (asRepo.extras !== true) problems.push('a repository hides the token and pull request');
+if (asRepo.browse !== true) problems.push('the browse button is not there for a repository');
+
+await evaluate(`document.getElementById('repoInput').value = ${JSON.stringify(project)};
+  document.getElementById('repoInput').dispatchEvent(new Event('input'))`);
+await new Promise((wait) => setTimeout(wait, 120));
+
+const asFolder = {
+  branch: await visible('refSelect'),
+  typedBranch: await visible('refInput'),
+  copy: await visible('folderOptions'),
+  extras: await visible('repoExtras'),
+  browse: await visible('browseButton'),
+  kind: await evaluate(`document.getElementById('targetKind').textContent`),
+};
+
+if (asFolder.branch !== false || asFolder.typedBranch !== false)
+  problems.push('a folder still offers a branch');
+if (asFolder.copy !== true) problems.push('a folder does not offer the copy switch');
+if (asFolder.extras !== false) problems.push('a folder still offers the token and pull request');
+if (asFolder.browse !== true) problems.push('the browse button vanished for a folder');
+if (!(asFolder.kind ?? '').includes('folder')) problems.push('the form does not say it read a folder');
+
+await evaluate(`document.getElementById('prepareButton').click()`);
 
 // Reading a folder is quick, but it is still a round trip through the daemon.
 for (let attempt = 0; attempt < 60; attempt++) {
@@ -246,5 +286,5 @@ socket.close();
 browser.kill();
 daemon.kill();
 
-console.log(JSON.stringify({ tabs: tabNames, visited, folder: plan, address, consoleErrors, problems }, null, 2));
+console.log(JSON.stringify({ tabs: tabNames, visited, asRepo, asFolder, plan, address, consoleErrors, problems }, null, 2));
 process.exit(problems.length === 0 ? 0 : 1);

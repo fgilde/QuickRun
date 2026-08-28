@@ -511,6 +511,10 @@ public static class DaemonHost
             if (folder is null && string.IsNullOrWhiteSpace(request.Repo))
                 return Results.BadRequest(new { error = "a repository or a folder is required" });
 
+            // The window has one field for both, and what it guessed while somebody was typing is
+            // not the last word: a path that is really there is a folder, whatever it was sent as.
+            folder ??= ExistingDirectory(request.Repo!.Trim());
+
             var args = new RunArgs(
                 request.Repo?.Trim() ?? "",
                 string.IsNullOrWhiteSpace(request.Ref) ? null : request.Ref!.Trim(),
@@ -958,6 +962,25 @@ public static class DaemonHost
     /// is a web page, and a web page always sends its Origin.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The directory a string names, if it names one that is there.
+    /// <para>
+    /// Fully qualified only: "acme/app" is a repository, and whether some directory of that name
+    /// happens to exist beside the daemon's working directory must not change what it means.
+    /// </para>
+    /// </summary>
+    private static string? ExistingDirectory(string value)
+    {
+        try
+        {
+            return Path.IsPathFullyQualified(value) && System.IO.Directory.Exists(value) ? value : null;
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// Whether a repository string points at this machine rather than at a remote.
     /// <para>

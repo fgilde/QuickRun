@@ -24,9 +24,13 @@ jobs:
   compare:
     runs-on: ubuntu-latest
     steps:
+      # For scripts/update-tap.sh, which is how a tap that has fallen behind is put right.
+      - uses: actions/checkout@v7
+
       - name: Every channel against the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
           TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
           CRX_ID: dbnknhijahmiildfabckibabpieobnhd
         run: |
@@ -85,15 +89,11 @@ jobs:
 
           case "$behind" in
             *tap*)
-              # The tap's own sync pulls the manifests out of the newest release, and its schedule
-              # is the slow part - GitHub runs it hours apart. Starting it takes a token that may
-              # write to that repository.
-              if [ -n "$TAP_TOKEN" ]; then
-                echo "::warning::the tap is behind - starting its sync"
-                GH_TOKEN=$TAP_TOKEN gh workflow run sync.yml --repo fgilde/homebrew-tap
-              else
-                echo "::warning::the tap is behind and TAP_TOKEN is not set - it will catch up on its own schedule, which is hours"
-              fi ;;
+              # Straight into the tap with the release's own manifests, rather than asking the tap's
+              # schedule to get round to it. Without a credential for that repository the script
+              # says so and this stays a warning.
+              echo "::warning::the tap is behind - pushing the released manifests"
+              bash scripts/update-tap.sh ;;
           esac
 
           # Straight after a release, being behind is normal - the repairs above have just started.

@@ -11,7 +11,10 @@ public sealed record ToolCheckResult(ToolRequirement Requirement, bool Found, st
     public string Describe()
     {
         var wanted = string.IsNullOrWhiteSpace(Requirement.Version) ? "" : " " + Requirement.Version;
-        if (!Found) return $"{Requirement.Tool}{wanted} - not installed";
+        // "not found", not "not installed": all this knows is that the probe failed. Saying it was
+        // not installed sent somebody looking for a Docker they already had running, when what was
+        // actually wrong was the PATH an app started from the Finder inherits.
+        if (!Found) return $"{Requirement.Tool}{wanted} - not found on PATH";
         return $"{Requirement.Tool}{wanted} - found {FoundVersion ?? "present"}";
     }
 }

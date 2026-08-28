@@ -70,6 +70,7 @@ public sealed class DoctorCommand : AsyncCommand<DoctorCommand.Settings>
             Scheme(),
             Autostart(),
             Crashes(),
+            SearchPath(),
         };
 
         findings.AddRange(await ListenerAsync());
@@ -85,6 +86,30 @@ public sealed class DoctorCommand : AsyncCommand<DoctorCommand.Settings>
         var git = ToolChecker.Check(new ToolRequirement("git", null, null, Optional: false));
         return new("git", git.Found,
             git.Found ? git.FoundVersion ?? "found" : "not on PATH - nothing can be checked out");
+    }
+
+    /// <summary>
+    /// Which directories tools are looked for in, and how many of them the login shell contributed.
+    /// <para>
+    /// Worth printing because its absence cost a day: started from the Finder, QuickRun had four
+    /// directories on its PATH and reported dotnet, docker and node as missing on a machine that
+    /// had all three.
+    /// </para>
+    /// </summary>
+    private static Finding SearchPath()
+    {
+        var entries = (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator)
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .ToArray();
+
+        // Four entries is what macOS hands a bundle, and it means the shell was never asked.
+        var thin = OSKinds.Current != OSKind.Windows && entries.Length <= 4;
+
+        return new("PATH", !thin,
+            thin
+                ? $"only {entries.Length} directories - tools installed by Homebrew or a version manager will not be found"
+                : $"{entries.Length} directories searched for tools");
     }
 
     /// <summary>The workspace root has to exist and be writable, or no run can start.</summary>

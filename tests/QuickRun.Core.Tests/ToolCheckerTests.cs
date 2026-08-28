@@ -78,7 +78,7 @@ public class ToolCheckerTests
     [Fact]
     public void Describe_mentions_the_tool_and_the_outcome()
     {
-        Assert.Contains("not installed", ToolChecker.Check(Req("nope"), Fake("", exit: 127)).Describe());
+        Assert.Contains("not found on PATH", ToolChecker.Check(Req("nope"), Fake("", exit: 127)).Describe());
         Assert.Contains("10.0.300", ToolChecker.Check(Req("dotnet", ">=9.0"), Fake("10.0.300")).Describe());
     }
 

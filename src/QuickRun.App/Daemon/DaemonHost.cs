@@ -63,7 +63,14 @@ public sealed record DashboardRunRequest(
     string? Token,
     bool? Fresh,
     /// <summary>A config from the builder, tested before it is saved anywhere.</summary>
-    string? ConfigText = null);
+    string? ConfigText = null,
+    /// <summary>
+    /// A folder on this machine, instead of a repository. Allowed here and not on the extension's
+    /// endpoint: this one is QuickRun's own window, behind a token only it has.
+    /// </summary>
+    string? Path = null,
+    /// <summary>Run a copy of that folder rather than the folder itself.</summary>
+    bool? Copy = null);
 
 /// <summary>
 /// The localhost listener the browser extension talks to. Loopback only, and every endpoint that
@@ -498,10 +505,14 @@ public static class DaemonHost
             Dashboard dashboard, RunRegistry runs) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
-            if (string.IsNullOrWhiteSpace(request.Repo)) return Results.BadRequest(new { error = "repo is required" });
+
+            var folder = string.IsNullOrWhiteSpace(request.Path) ? null : request.Path!.Trim();
+
+            if (folder is null && string.IsNullOrWhiteSpace(request.Repo))
+                return Results.BadRequest(new { error = "a repository or a folder is required" });
 
             var args = new RunArgs(
-                request.Repo!.Trim(),
+                request.Repo?.Trim() ?? "",
                 string.IsNullOrWhiteSpace(request.Ref) ? null : request.Ref!.Trim(),
                 request.Pr,
                 string.IsNullOrWhiteSpace(request.Subdir) ? null : request.Subdir!.Trim(),
@@ -511,7 +522,9 @@ public static class DaemonHost
                 Yes: true,
                 NoOpen: true,
                 ConfigPath: string.IsNullOrWhiteSpace(request.Config) ? null : request.Config,
-                ConfigText: string.IsNullOrWhiteSpace(request.ConfigText) ? null : request.ConfigText);
+                ConfigText: string.IsNullOrWhiteSpace(request.ConfigText) ? null : request.ConfigText,
+                LocalPath: folder,
+                Copy: request.Copy ?? false);
 
             var (summary, error) = await runs.PrepareAsync(args);
 
@@ -716,6 +729,13 @@ public static class DaemonHost
 
         /// <summary>Stops and starts the binary that is now on disk. Null where nothing can restart.</summary>
         public Action? Restart { get; set; }
+
+        /// <summary>
+        /// Asks the user for a folder, with the system's own picker. Null when there is no window to
+        /// put one over - a browser cannot be given a path by a file input, so without this the only
+        /// way to name a folder is to type it.
+        /// </summary>
+        public Func<Task<string?>>? PickFolder { get; set; }
     }
 
     private static void ApplyCors(HttpContext context)
@@ -770,6 +790,15 @@ public static class DaemonHost
                 ? Results.Json(new { run = summary, shown }, Json)
                 : Results.Json(new { error, run = summary, shown }, Json,
                     statusCode: StatusCodes.Status422UnprocessableEntity);
+        });
+
+        // The system's folder picker, for the page that cannot open one itself.
+        app.MapPost("/api/dashboard/folder", async (HttpContext context, Dashboard dashboard, HostControl host) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            if (host.PickFolder is not { } pick) return Results.Json(new { path = (string?)null, picker = false }, Json);
+
+            return Results.Json(new { path = await pick(), picker = true }, Json);
         });
 
         app.MapPost("/api/show", (HttpContext context, HostControl host) =>

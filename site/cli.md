@@ -82,6 +82,15 @@ Only from here, deliberately: a folder on this machine can be run from the comma
 shell verb, and never through the browser extension. The extension asks for repositories, and a
 request naming a path or a `file:` URL is refused there.
 
+### From the window
+
+The run form asks for a repository or **a folder on this machine** - the second one with a Browse
+button, because a page cannot be handed a path by a file input in any browser, so the window opens
+the system picker on its behalf. Without a window - a QuickRun started headless - the path is typed.
+
+A folder with no `quickrun.yml` is not a dead end: QuickRun reads the project and proposes commands,
+exactly as it does for a repository, and says that it guessed them.
+
 ## `quickrun open`
 
 ```bash
@@ -100,8 +109,13 @@ can see is no confirmation at all.
 
 ### "Run with QuickRun" in the file manager
 
-`quickrun install` adds it, `quickrun uninstall` takes it away again. On a folder, on the empty space
-inside a folder, and on a `quickrun.yml`.
+QuickRun adds it when it starts, and keeps it pointing at the copy that is running - an update moves
+the binary, and a menu entry aimed at where it used to be is worse than none. `quickrun uninstall`
+takes it away. On a folder, on the empty space inside a folder, and on a `quickrun.yml`.
+
+None of this needs administrator rights: everything is written under `HKCU` on Windows and in your
+own home directory elsewhere. Autostart is the one thing QuickRun never switches on by itself - that
+is a decision, and it lives in Settings.
 
 **Windows** writes four keys under `HKCU\Software\Classes` - no administrator rights, and the `.yml`
 entries go under `SystemFileAssociations`, which adds a verb beside whatever already opens YAML

@@ -113,6 +113,9 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
             // repository the link named.
             control.ShowWindow = hash => AppWindows.Show(registry, store, url, hash);
 
+            // The page asks for a folder; the picker belongs to the window, which is here.
+            control.PickFolder = AppWindows.PickFolderAsync;
+
             if (!settings.NoWindow)
                 TrayApp.Started = settings.Browser
                     ? () => Launch(url)
@@ -191,6 +194,7 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
             if (Environment.ProcessPath is not { } executable) return;
 
             RepairAutostart(executable, port);
+            RepairShellVerbs(executable);
 
             var status = SystemIntegration.Status();
             if (status is { Registered: true, Stale: false }) return;
@@ -228,6 +232,25 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
 
         var step = SystemIntegration.SetAutostart(true, executable, port);
         if (step.Ok) Output.Info("autostart now starts QuickRun with its tray icon");
+        else Output.Warn($"{step.What}: {step.Detail}");
+    }
+
+    /// <summary>
+    /// Puts "Run with QuickRun" in the file manager, and keeps it pointing here.
+    /// <para>
+    /// At startup rather than only in `quickrun install`, because a menu entry that requires knowing
+    /// about a command is a menu entry nobody has. Unlike autostart this changes nothing about how
+    /// the machine behaves on its own - it adds a line to a context menu, and `quickrun uninstall`
+    /// takes it away again.
+    /// </para>
+    /// </summary>
+    private static void RepairShellVerbs(string executable)
+    {
+        if (SystemIntegration.ShellVerbsCurrent(executable)) return;
+
+        var step = SystemIntegration.RegisterShellVerbs(executable);
+
+        if (step.Ok) Output.Info("added \"Run with QuickRun\" to the file manager");
         else Output.Warn($"{step.What}: {step.Detail}");
     }
 

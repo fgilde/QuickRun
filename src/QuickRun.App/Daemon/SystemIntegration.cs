@@ -44,6 +44,42 @@ public static class SystemIntegration
         return InstallLinux(executable, port);
     }
 
+    /// <summary>
+    /// Whether the file manager already offers "Run with QuickRun" for this executable.
+    /// <para>
+    /// Asked at startup so the entries appear by being installed rather than by running a command
+    /// nobody knew about - and so that an update, which puts the binary somewhere else, does not
+    /// leave a menu entry pointing at a copy that is gone.
+    /// </para>
+    /// </summary>
+    public static bool ShellVerbsCurrent(string executable)
+    {
+        if (OperatingSystem.IsMacOS()) return true;   // nothing to write there yet
+        if (OperatingSystem.IsWindows()) return ShellVerbsCurrentWindows(executable);
+
+        return FileManagerEntries(executable).All(entry =>
+        {
+            try { return File.Exists(entry.Path) && File.ReadAllText(entry.Path) == entry.Content; }
+            catch (IOException) { return false; }
+        });
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool ShellVerbsCurrentWindows(string executable) =>
+        ExplorerVerbs(executable).All(verb =>
+        {
+            using var key = Registry.CurrentUser.OpenSubKey($@"{verb.Key}\command");
+            return key?.GetValue(null) as string == verb.Command;
+        });
+
+    /// <summary>Writes the file manager entries, wherever this platform keeps them.</summary>
+    public static IntegrationStep RegisterShellVerbs(string executable)
+    {
+        if (OperatingSystem.IsWindows()) return ShellVerbsWindows(executable);
+        if (OperatingSystem.IsMacOS()) return new IntegrationStep("add menu entry", true, "not on macOS yet");
+        return FileManagerLinux(executable);
+    }
+
     public static IReadOnlyList<IntegrationStep> Uninstall()
     {
         if (OperatingSystem.IsWindows()) return UninstallWindows();

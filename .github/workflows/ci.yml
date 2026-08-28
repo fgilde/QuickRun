@@ -30,6 +30,12 @@ jobs:
           npx vitepress build
           node check-build.mjs
 
+      # A syntax error in a shipped page is invisible until somebody opens it, and then the window
+      # draws and does nothing. Seconds, no browser.
+      - name: Pages parse
+        shell: bash
+        run: node scripts/check-pages.mjs
+
       - name: Extension builds for both targets
         shell: bash
         run: |
@@ -50,3 +56,11 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: node scripts/drive-confirm.mjs extension/test/fixtures/plan.json
+
+      # And QuickRun's own window: every tab has to open, and it has to say where it is listening.
+      - name: The window works
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          dotnet build src/QuickRun.App -c Debug
+          node scripts/drive-dashboard.mjs --exe src/QuickRun.App/bin/Debug/net10.0/quickrun

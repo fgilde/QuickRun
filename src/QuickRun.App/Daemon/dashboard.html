@@ -146,6 +146,22 @@ ol.plan .phase {
     <h2>Start a run</h2>
     <div class="card">
       <div class="row">
+        <label><input type="radio" name="source" value="repo" checked> A repository</label>
+        <label><input type="radio" name="source" value="folder"> A folder on this machine</label>
+      </div>
+
+      <div class="row" id="folderRow" hidden>
+        <input id="folderInput" class="grow mono" type="text" spellcheck="false" autocomplete="off"
+               placeholder="the folder holding your quickrun.yml" aria-label="Folder">
+        <button class="action" id="browseButton">Browse…</button>
+        <button class="action primary" id="prepareFolderButton">Prepare</button>
+      </div>
+
+      <div class="row" id="folderOptions" hidden>
+        <label><input id="copyInput" type="checkbox"> Run a copy, leaving my folder untouched</label>
+      </div>
+
+      <div class="row" id="repoRow">
         <input id="repoInput" class="grow" type="text" spellcheck="false" autocomplete="off"
                placeholder="owner/repo, or a git URL" aria-label="Repository">
         <select id="refSelect" aria-label="Branch" style="max-width:300px">
@@ -544,13 +560,98 @@ const starter = {
   subdir: document.getElementById('subdirInput'),
   inputs: document.getElementById('inputsInput'),
   fresh: document.getElementById('freshInput'),
+
+  // A folder on this machine: no checkout, and by default no copy either - QuickRun runs it where
+  // it lies. Which is why the copy switch says what it protects rather than what it does.
+  folder: document.getElementById('folderInput'),
+  folderRow: document.getElementById('folderRow'),
+  folderOptions: document.getElementById('folderOptions'),
+  repoRow: document.getElementById('repoRow'),
+  browse: document.getElementById('browseButton'),
+  prepareFolder: document.getElementById('prepareFolderButton'),
+  copy: document.getElementById('copyInput'),
+  details: null,
 };
 
 // The last repository, so a second run is one click. Never the token: that stays in memory only.
 try { starter.repo.value = localStorage.getItem('quickrun.repo') ?? ''; } catch { /* private window */ }
+try { starter.folder.value = localStorage.getItem('quickrun.folder') ?? ''; } catch { /* private window */ }
 
 function say(message) {
   starter.state.textContent = message ?? '';
+}
+
+/** Which of the two the form is asking for. */
+function chooseSource(kind) {
+  const folder = kind === 'folder';
+
+  starter.repoRow.hidden = folder;
+  starter.folderRow.hidden = !folder;
+  starter.folderOptions.hidden = !folder;
+
+  // The token, pull request and subdirectory are about a repository and mean nothing for a folder.
+  starter.details ??= document.querySelector('#runs details');
+  if (starter.details) starter.details.hidden = folder;
+
+  starter.plan.hidden = true;
+  say('');
+}
+
+document.querySelectorAll('input[name="source"]').forEach((radio) => {
+  radio.addEventListener('change', () => chooseSource(radio.value));
+});
+
+// A page cannot be given a path by a file input - that is deliberate in every browser - so the
+// window is asked to open the picker every other program opens. Without a window there is none, and
+// then the path is typed.
+starter.browse.addEventListener('click', async () => {
+  starter.browse.disabled = true;
+
+  try {
+    const chosen = await api('/api/dashboard/folder', { method: 'POST' });
+
+    if (!chosen.picker) say('no window here to open a picker with - type or paste the path instead');
+    else if (chosen.path) starter.folder.value = chosen.path;
+  } catch (failure) {
+    say(failure.message);
+  } finally {
+    starter.browse.disabled = false;
+  }
+});
+
+starter.prepareFolder.addEventListener('click', prepareFolder);
+
+starter.folder.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') prepareFolder();
+});
+
+/** Prepares a folder on this machine. Nothing is checked out, and nothing runs until it is confirmed. */
+async function prepareFolder() {
+  const path = starter.folder.value.trim();
+  if (!path) { say('a folder is needed'); return; }
+
+  starter.prepareFolder.disabled = true;
+  starter.plan.hidden = true;
+  say(starter.copy.checked ? 'copying and building the plan…' : 'reading the folder…');
+
+  try {
+    renderPlan(await api('/api/dashboard/run', {
+      method: 'POST',
+      body: JSON.stringify({ path, copy: starter.copy.checked, inputs: parseInputs(starter.inputs.value) }),
+    }));
+    say('');
+
+    try { localStorage.setItem('quickrun.folder', path); } catch { /* private window */ }
+  } catch (failure) {
+    if (failure.run?.state === 'awaitingInput') {
+      renderPlan(failure.run);
+      say('this project asks for a few values first');
+    } else {
+      say(failure.message);
+    }
+  } finally {
+    starter.prepareFolder.disabled = false;
+  }
 }
 
 function typedRef() {
@@ -1550,8 +1651,7 @@ document.getElementById('cleanAll').addEventListener('click', async () => {
     const outcome = await api('/api/dashboard/workspaces', { method: 'DELETE' });
 
     // Removing thirteen of fifteen and saying nothing about the other two is not an answer.
-    if (outcome?.failed?.length) sayWorkspace(outcome.failed.join('
-'));
+    if (outcome?.failed?.length) sayWorkspace(outcome.failed.join('\n'));
   } catch (failure) {
     sayWorkspace(failure.message);
   }

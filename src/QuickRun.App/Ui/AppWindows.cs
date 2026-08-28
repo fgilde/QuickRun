@@ -1,3 +1,4 @@
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using QuickRun.App.Daemon;
 using QuickRun.Core.Run;
@@ -38,4 +39,29 @@ public static class AppWindows
             // After Show, because there is no view to point anywhere before the window exists.
             if (hash.Length > 0) window.GoTo(hash);
         });
+
+    /// <summary>
+    /// Asks for a folder with the system's own picker, over the window if there is one.
+    /// <para>
+    /// The page cannot do this itself: a file input hands a browser the contents of a selection and
+    /// never the path, on purpose. So the page asks the host, and the host - which is a desktop
+    /// application - opens the picker every other program opens.
+    /// </para>
+    /// </summary>
+    /// <returns>The folder, or null when the picker was dismissed or there was no window.</returns>
+    public static async Task<string?> PickFolderAsync()
+    {
+        return await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            if (_dashboard is not { } window) return null;
+
+            var folders = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Choose a folder to run",
+                AllowMultiple = false,
+            });
+
+            return folders.Count == 0 ? null : folders[0].TryGetLocalPath();
+        });
+    }
 }

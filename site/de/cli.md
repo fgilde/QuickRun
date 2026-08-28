@@ -84,6 +84,16 @@ Bewusst nur von hier: ein Ordner auf dieser Maschine ist von der Kommandozeile u
 Kontextmenü startbar, nie über die Browser-Erweiterung. Die Erweiterung fragt nach Repositories, und
 eine Anfrage mit einem Pfad oder einer `file:`-URL wird dort abgelehnt.
 
+### Aus dem Fenster
+
+Das Formular fragt nach einem Repository **oder einem Ordner auf dieser Maschine** — Letzteres mit
+einem Durchsuchen-Knopf: einer Seite kann in keinem Browser ein Pfad übergeben werden, also öffnet
+das Fenster den System-Dialog für sie. Ohne Fenster — bei headless gestartetem QuickRun — wird der
+Pfad getippt.
+
+Ein Ordner ohne `quickrun.yml` ist keine Sackgasse: QuickRun liest das Projekt und schlägt Befehle
+vor, genau wie bei einem Repository, und sagt dazu, dass es geraten hat.
+
 ## `quickrun open`
 
 ```bash
@@ -102,8 +112,14 @@ Konsole, die niemand sieht, ist keine Bestätigung.
 
 ### „Run with QuickRun" im Dateimanager
 
-`quickrun install` legt den Eintrag an, `quickrun uninstall` entfernt ihn wieder. Auf einem Ordner,
-auf der leeren Fläche in einem Ordner und auf einer `quickrun.yml`.
+QuickRun legt den Eintrag beim Start an und hält ihn auf die laufende Kopie gerichtet — ein Update
+verschiebt die Binary, und ein Menüeintrag, der auf den alten Ort zeigt, ist schlimmer als keiner.
+`quickrun uninstall` entfernt ihn. Auf einem Ordner, auf der leeren Fläche in einem Ordner und auf
+einer `quickrun.yml`.
+
+Nichts davon braucht Administratorrechte: unter Windows steht alles in `HKCU`, sonst im eigenen
+Home-Verzeichnis. Den Autostart schaltet QuickRun als Einziges nie von selbst ein — das ist eine
+Entscheidung, und sie steht in den Einstellungen.
 
 **Windows** schreibt vier Schlüssel unter `HKCU\Software\Classes` — ohne Administratorrechte, und die
 `.yml`-Einträge liegen unter `SystemFileAssociations`: das stellt den Eintrag neben das, was YAML

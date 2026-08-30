@@ -67,13 +67,19 @@ jobs:
             fi
           done
 
-          # --- the Edge store, which nobody can hurry ---------------------------------------------
-          # Reported, never repaired: Microsoft reviews one submission at a time and edge-catchup.yml
-          # is what keeps trying. A store waiting on review is not a broken release.
+          # --- the two stores, which nobody can hurry ----------------------------------------------
+          # Reported, never repaired: both review what they are sent, and a store waiting on a
+          # reviewer is not a broken release. Edge is also chased by edge-catchup.yml, which exists
+          # because that store refuses a submission while it is still reviewing the last one.
           store=$(curl -fsSL --max-time 30 \
             "https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/$CRX_ID" \
             | jq -r '.version // empty')
           echo "note     Edge store serves ${store:-unknown}"
+
+          amo=$(curl -fsSL --max-time 30 \
+            "https://addons.mozilla.org/api/v5/addons/addon/quickrun/" \
+            | jq -r '.current_version.version // empty')
+          echo "note     Firefox add-ons serves ${amo:-unknown}"
 
           if [ -z "$behind" ]; then
             echo "::notice::every channel is on $released"

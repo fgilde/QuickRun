@@ -11,7 +11,8 @@
 export const STORES = {
   chrome: null,
   edge: 'https://microsoftedge.microsoft.com/addons/detail/quickrun/dbnknhijahmiildfabckibabpieobnhd',
-  firefox: null,
+  // Without a language in the path: AMO sends the reader to their own.
+  firefox: 'https://addons.mozilla.org/firefox/addon/quickrun/',
 };
 
 /** The listing a browser installs from, or null while there is none to send anyone to. */

@@ -404,17 +404,31 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Submit to winget
+        # A repository that says no is worth seeing, not worth turning a finished release red.
+        continue-on-error: true
         shell: pwsh
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
           if (-not $env:WINGET_TOKEN) {
-            Write-Host "::notice::WINGET_TOKEN not set - skipping winget"
+            Write-Host "::warning::WINGET_TOKEN not set - this release was not submitted to winget"
             exit 0
           }
 
           $version = $env:GITHUB_REF_NAME -replace '^v', ''
           $base = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$version"
+
+          # wingetcreate update needs a package winget already carries. The first version of any
+          # package goes in through a New-Package pull request that a Microsoft moderator merges by
+          # hand, and until that happens there is nothing to update - while a second pull request
+          # for the same new package would only get in the way of the first.
+          $manifests = 'https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/f/fgilde/QuickRun'
+          $known = (Invoke-WebRequest -UseBasicParsing -Method Head -SkipHttpErrorCheck $manifests).StatusCode
+
+          if ($known -ne 200) {
+            Write-Host "::warning::winget does not carry fgilde.QuickRun yet - the New-Package pull request has to be merged before an update can be submitted"
+            exit 0
+          }
 
           Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
 
@@ -424,3 +438,5 @@ jobs:
             --urls "$base/quickrun-win-x64.zip|x64" "$base/quickrun-win-arm64.zip|arm64" `
             --token $env:WINGET_TOKEN `
             --submit
+
+          Write-Host "::notice::QuickRun $version is submitted to winget - it lands when the pull request is merged"

@@ -81,6 +81,13 @@ jobs:
             | jq -r '.current_version.version // empty')
           echo "note     Firefox add-ons serves ${amo:-unknown}"
 
+          # winget, where a version lands when a Microsoft moderator merges the pull request. Listed
+          # rather than repaired for the same reason as the stores: nobody here can merge it.
+          winget=$(curl -fsSL --max-time 30 \
+            "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/f/fgilde/QuickRun" \
+            | jq -r 'if type == "array" then ([.[].name] | sort | last) else empty end' || true)
+          echo "note     winget carries ${winget:-nothing yet}"
+
           if [ -z "$behind" ]; then
             echo "::notice::every channel is on $released"
             exit 0

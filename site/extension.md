@@ -137,6 +137,32 @@ another launcher's scripts, or QuickRun's reading of the files.
 Running a pull request means running the branch it comes from, fetched as `refs/pull/<n>/head`.
 That works for pull requests from forks too, and it is what the button on a pull request page does.
 
+## Starting from a link
+
+A GitHub address can ask for the plan by itself:
+
+```
+https://github.com/acme/app?executeQuickRun
+https://github.com/acme/app/tree/preview?executeQuickRun=true
+https://github.com/acme/app?executeQuickRun=ci/demo.yml
+```
+
+The extension does what pressing the button does: it prepares the run and opens the **confirmation
+window** with the command list. It does not start anything. That is deliberate - a link that ran
+commands by itself would be a way to spend someone else's afternoon, or their machine, on one click.
+The window is still read and Run is still pressed by whoever owns the machine.
+
+With a file name, that config is used instead of the one the repository would have chosen - useful
+where a repository carries several, one per demo or per environment. The name has to be a `.yml` or
+`.yaml` file inside the repository, written relative to its root: `ci/demo.yml` is a config, while
+`../secrets.yml`, `/etc/anything.yml` and a URL are not, and are refused. The extension checks that,
+and QuickRun checks it again before opening anything - a value out of a web address is a stranger's
+string on both sides.
+
+`?executeQuickRun=false` is the same as not asking, so a link can be built with the parameter
+switched off. It acts once per address: GitHub renders through `pushState`, and clicking around the
+repository afterwards does not prepare a second run.
+
 ## Building it yourself
 
 ```bash

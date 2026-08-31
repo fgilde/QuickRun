@@ -391,6 +391,13 @@ public static class RunPipeline
 
         if (file is not null)
         {
+            // A relative name means a file in the checkout, and "../.." must not turn it into one
+            // outside. An absolute path stays allowed: that is somebody at a command line naming a
+            // config of their own, which is a different thing from a name arriving over HTTP.
+            if (!Path.IsPathRooted(explicitPath)
+                && !Path.GetFullPath(file).StartsWith(Path.GetFullPath(root), StringComparison.Ordinal))
+                return (null, $"config '{explicitPath}' is outside {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
+
             if (!File.Exists(file))
                 return (null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
 

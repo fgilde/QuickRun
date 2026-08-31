@@ -66,5 +66,52 @@ globalThis.QuickRunTargets = (() => {
     }
   }
 
-  return { parseLocation, refFromTreeHref };
+  /**
+   * What `?executeQuickRun` in the address asks for, so a link can do what the button does.
+   *
+   * It opens the confirmation window - the same window the button opens, with the same command list
+   * and the same Run to press. A link that started commands by itself would be a one-click way to
+   * run a stranger's code, so the parameter saves a click on the page and none of the deciding.
+   *
+   * `?executeQuickRun` or `=true` means the config the repository would use anyway; a file name
+   * means that config instead. The name is checked here so a typo says so rather than travelling to
+   * the daemon - which checks it again, because a value out of an address is a stranger's string.
+   *
+   * @returns null when not asked for, {config} when it is, or {error} when the value is unusable.
+   */
+  function parseAutorun(search) {
+    const query = new URLSearchParams(search ?? '');
+
+    let value = null;
+    let asked = false;
+
+    for (const [key, raw] of query.entries()) {
+      if (key.toLowerCase() !== 'executequickrun') continue;
+      asked = true;
+      value = (raw ?? '').trim();
+    }
+
+    if (!asked) return null;
+    if (value === '' || ['true', '1', 'yes', 'on'].includes(value.toLowerCase())) return { config: null };
+    if (['false', '0', 'no', 'off'].includes(value.toLowerCase())) return null;
+
+    if (!/\.ya?ml$/i.test(value)) return { error: 'executeQuickRun needs a .yml file' };
+    if (value.length > 200) return { error: 'that config name is too long' };
+    if (/[\u0000-\u001f\u007f]/.test(value)) return { error: 'that config name is not a file name' };
+    if (value.includes('://')) return { error: 'a config is a file in the repository, not a URL' };
+
+    // Anchored anywhere but the repository root, or stepping out of it, is not a config of this
+    // repository - and it is the shape an attacker would reach for first. A drive letter and a home
+    // directory are anchors too, and neither leaves an empty first segment to catch them by.
+    if (/^[a-z]:/i.test(value) || value.startsWith('~'))
+      return { error: 'a config is named relative to the repository root' };
+
+    const segments = value.split(/[\\/]/);
+    if (segments.some((s) => s === '' || s === '.' || s === '..'))
+      return { error: 'a config is named relative to the repository root' };
+
+    return { config: value };
+  }
+
+  return { parseLocation, refFromTreeHref, parseAutorun };
 })();

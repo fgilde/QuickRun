@@ -230,7 +230,7 @@ function setState(button, state) {
   button.dataset.state = state;
 }
 
-async function onClick(button, target) {
+async function onClick(button, target, config = null) {
   const status = await send({ type: 'status' });
 
   if (status.state === 'not-installed') {
@@ -249,7 +249,9 @@ async function onClick(button, target) {
   setState(button, 'working');
   setLabel(button, 'Preparing...');
 
-  const result = await send({ type: 'run', target: asTarget(target) });
+  // config travels beside the target rather than inside it, so every other message this content
+  // script sends keeps exactly the shape it had.
+  const result = await send({ type: 'run', target: asTarget(target), config });
 
   if (result.error) {
     setState(button, 'error');
@@ -339,7 +341,39 @@ async function inject() {
     // A reload forgets which run this tab started; the daemon has not. Without this the button
     // offers to start a second run of something that is already running.
     if (status.state === 'ready') adopt(button, target);
+
+    // A link may ask for the plan straight away. Only the first button on the page, and only once
+    // per address: GitHub renders through pushState, so inject() runs again and again on what is,
+    // to a reader, the same page.
+    autorun(button, target);
   }
+}
+
+/** Which address has already had its ?executeQuickRun acted on. */
+let autorunFor = null;
+
+/**
+ * Acts on `?executeQuickRun` by doing what a click does: the plan, in the confirmation window.
+ *
+ * Not the running of it. The window still has to be read and Run still has to be pressed - a link
+ * that ran commands on its own would be someone else's click on your machine.
+ */
+async function autorun(button, target) {
+  const wanted = QuickRunTargets.parseAutorun(location.search);
+  if (!wanted) return;
+  if (autorunFor === location.href) return;
+
+  autorunFor = location.href;
+
+  if (wanted.error) {
+    setState(button, 'error');
+    setLabel(button, wanted.error);
+    return;
+  }
+
+  if (button.dataset.runId) return;   // already running: the button is a menu, not a start
+
+  await onClick(button, target, wanted.config);
 }
 
 /** Puts a button back in touch with the run of its own branch, if one is still going. */

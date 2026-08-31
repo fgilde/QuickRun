@@ -73,4 +73,52 @@ public class DaemonAuthorizationTests
     [InlineData("ssh://git@example.com/acme/app")]
     public void AnOrdinaryRepositoryIsNotMistakenForOne(string repo) =>
         Assert.False(DaemonHost.PointsAtThisMachine(repo), repo);
+
+    /// <summary>
+    /// A config named over HTTP is a stranger's string, and it decides which file QuickRun opens -
+    /// a parse failure then quotes what it found. So only a file inside the checkout counts.
+    /// </summary>
+    [Theory]
+    [InlineData("quickrun.yml")]
+    [InlineData("ci/quickrun.yml")]
+    [InlineData("deploy/other.yaml")]
+    [InlineData("a/b/c/run.YML")]
+    public void AConfigInsideTheRepositoryIsAccepted(string config) =>
+        Assert.True(DaemonHost.ConfigInsideRepository(config), config);
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("/etc/passwd")]
+    [InlineData("/etc/shadow.yml")]
+    [InlineData("C:/Windows/win.yml")]
+    [InlineData(@"c:\windows\win.yaml")]
+    [InlineData("~/secrets.yml")]
+    [InlineData("../outside.yml")]
+    [InlineData("ci/../../outside.yml")]
+    [InlineData("./quickrun.yml")]
+    [InlineData(@"\\server\share\run.yml")]
+    [InlineData("https://evil.example.com/run.yml")]
+    [InlineData("quickrun.txt")]
+    [InlineData("quickrun.yml.exe")]
+    [InlineData("run.yml.txt")]
+    public void AnythingElseIsRefused(string config) =>
+        Assert.False(DaemonHost.ConfigInsideRepository(config), config);
+
+    [Fact]
+    public void AVeryLongNameIsRefused() =>
+        Assert.False(DaemonHost.ConfigInsideRepository(new string('a', 300) + ".yml"));
+
+    /// <summary>
+    /// A NUL ends a string for the operating system while .NET carries on past it, so "run.yml\0.exe"
+    /// is one name to the check and another to the file system. Newlines have no business in a file
+    /// name either.
+    /// </summary>
+    [Fact]
+    public void AControlCharacterIsRefused()
+    {
+        Assert.False(DaemonHost.ConfigInsideRepository("run.yml\0.exe"));
+        Assert.False(DaemonHost.ConfigInsideRepository("run\n.yml"));
+        Assert.False(DaemonHost.ConfigInsideRepository("run\t.yml"));
+    }
 }

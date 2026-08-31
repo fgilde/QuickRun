@@ -859,6 +859,14 @@ public static class DaemonHost
             // a file: URL, which is the same thing wearing a scheme.
             if (PointsAtThisMachine(request.Repo)) return Unauthorized();
 
+            // A config may be named here - a repository can hold more than one - but only as a file
+            // inside that repository.
+            if (!string.IsNullOrWhiteSpace(request.Config) && !ConfigInsideRepository(request.Config))
+                return Results.BadRequest(new
+                {
+                    error = "a config has to be a .yml file inside the repository, named relative to its root",
+                });
+
             var args = new RunArgs(
                 request.Repo,
                 request.Ref,
@@ -999,6 +1007,32 @@ public static class DaemonHost
 
         // A Windows drive letter, however the rest is spelled.
         return value.Length >= 2 && char.IsAsciiLetter(value[0]) && value[1] == ':';
+    }
+
+    /// <summary>
+    /// Whether a config named by a browser is a file inside the repository being run.
+    /// <para>
+    /// It is a name from a web address, so it is a stranger's string. Path.Combine hands back an
+    /// absolute path unchanged and keeps no watch over "..", which would let a page choose which
+    /// file on this machine QuickRun reads - and a parse error quotes what it read. So: relative,
+    /// anchored nowhere, no step upwards, and a config's own extension.
+    /// </para>
+    /// </summary>
+    internal static bool ConfigInsideRepository(string? value)
+    {
+        var path = (value ?? "").Trim();
+        if (path.Length == 0) return false;
+        if (path.Length > 200) return false;
+
+        if (path.Any(c => char.IsControl(c))) return false;
+        if (Path.IsPathRooted(path) || PointsAtThisMachine(path)) return false;
+        if (path.Contains("://", StringComparison.Ordinal)) return false;
+
+        var segments = path.Split('/', '\\');
+        if (segments.Any(s => s.Length == 0 || s is "." or "..")) return false;
+
+        return path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)
+               || path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static bool Authorized(HttpContext context)

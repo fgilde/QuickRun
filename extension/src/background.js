@@ -47,7 +47,7 @@ async function handle(message, sender) {
     case 'status':
       return status();
     case 'run':
-      return startRun(message.target, sender?.tab?.id);
+      return startRun(message.target, sender?.tab?.id, message.config ?? null);
     case 'confirmResult':
       return decideRun(message.runId, Boolean(message.approved));
     case 'inputs':
@@ -110,10 +110,12 @@ async function bootstrapDaemon() {
   return { started: false, reason: 'no answer after starting' };
 }
 
-async function startRun(target, tabId) {
+async function startRun(target, tabId, config = null) {
   const { port } = await api.settings();
 
-  const prepared = await api.prepare(target, { port });
+  // A named config is added only when there is one, so a run without one sends the same request it
+  // always sent. The daemon checks the name again - it arrives from a web address.
+  const prepared = await api.prepare(config ? { ...target, config } : target, { port });
 
   // A config whose inputs have no values is not a failure: it is a form to fill in, and the window
   // is where that happens - so the window opens with it instead of the click ending in an error.

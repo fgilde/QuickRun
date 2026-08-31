@@ -142,6 +142,32 @@ Einen Pull Request zu starten heißt, den Branch zu starten, aus dem er kommt �
 `refs/pull/<n>/head`. Das funktioniert auch bei Pull Requests aus Forks, und genau das macht der
 Button auf einer PR-Seite.
 
+## Aus einem Link starten
+
+Eine GitHub-Adresse kann den Plan selbst anfordern:
+
+```
+https://github.com/acme/app?executeQuickRun
+https://github.com/acme/app/tree/preview?executeQuickRun=true
+https://github.com/acme/app?executeQuickRun=ci/demo.yml
+```
+
+Die Erweiterung macht dann genau das, was ein Klick auf den Button macht: Sie bereitet den Lauf vor
+und öffnet das **Bestätigungsfenster** mit der Befehlsliste. Gestartet wird nichts. Das ist Absicht —
+ein Link, der von sich aus Befehle ausführt, wäre ein Weg, mit einem Klick über den Rechner eines
+anderen zu verfügen. Gelesen und bestätigt wird weiterhin von dem, dem der Rechner gehört.
+
+Mit einem Dateinamen wird diese Config genutzt statt der, die das Repository sonst gewählt hätte —
+praktisch, wo ein Repository mehrere mitbringt, eine pro Demo oder pro Umgebung. Der Name muss eine
+`.yml`- oder `.yaml`-Datei im Repository sein, relativ zu dessen Wurzel: `ci/demo.yml` ist eine
+Config, `../secrets.yml`, `/etc/irgendwas.yml` und eine URL sind keine und werden abgelehnt. Die
+Erweiterung prüft das, und QuickRun prüft es erneut, bevor es irgendetwas öffnet — ein Wert aus einer
+Webadresse ist auf beiden Seiten der Zeichenkette eines Fremden.
+
+`?executeQuickRun=false` ist dasselbe wie gar keine Angabe, ein Link kann den Parameter also
+abgeschaltet enthalten. Es greift einmal pro Adresse: GitHub rendert über `pushState`, und wer sich
+danach durch das Repository klickt, bereitet keinen zweiten Lauf vor.
+
 ## Selbst bauen
 
 ```bash

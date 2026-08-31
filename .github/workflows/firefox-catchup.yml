@@ -1,0 +1,72 @@
+name: firefox-catchup
+
+# The Firefox add-on is uploaded by the release, and was not: the AMO credentials were never set, so
+# every release since 0.7.9 skipped that step in silence and the listing stayed four versions back.
+# This comes back once a day and uploads the released build whenever the listing has fallen behind,
+# so a release that could not reach AMO - or an upload AMO refused - fixes itself instead of waiting
+# for the next tag.
+
+on:
+  schedule:
+    - cron: '31 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload the released build if the listing is behind
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$AMO_JWT_ISSUER" ] || [ -z "$AMO_JWT_SECRET" ]; then
+            echo "::warning::no AMO credentials - the Firefox listing keeps whatever was uploaded by hand"
+            exit 0
+          fi
+
+          released=$(gh release view --repo ${{ github.repository }} --json tagName --jq .tagName | sed 's/^v//')
+
+          # The public API, so this asks what readers actually get rather than what was submitted.
+          listed=$(curl -fsSL --max-time 30 \
+            "https://addons.mozilla.org/api/v5/addons/addon/quickrun/" \
+            | jq -r '.current_version.version // empty' || true)
+
+          echo "released $released, listing has ${listed:-unknown}"
+
+          if [ "$listed" = "$released" ]; then
+            echo "::notice::the Firefox listing is on $listed - nothing to catch up"
+            exit 0
+          fi
+
+          gh release download "v$released" \
+            --repo ${{ github.repository }} \
+            --pattern quickrun-extension-firefox.zip --dir .
+
+          # web-ext signs a directory, not an archive.
+          unzip -q quickrun-extension-firefox.zip -d firefox
+
+          # The id in the manifest is what decides which add-on this becomes a version of, so a
+          # mismatch would quietly create a second listing instead of updating this one.
+          id=$(jq -r '.browser_specific_settings.gecko.id // empty' firefox/manifest.json)
+          if [ "$id" != "quickrun@fgilde.org" ]; then
+            echo "::error::the build carries the id '$id' - uploading it would create a new add-on"
+            exit 1
+          fi
+
+          # --approval-timeout 0: upload and stop. A listed add-on waits for a human reviewer, and
+          # waiting for that here would only turn a working upload into a failed job.
+          npx --yes web-ext@8 sign \
+            --source-dir firefox \
+            --channel listed \
+            --approval-timeout 0 \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET"
+
+          echo "::notice::QuickRun $released is uploaded to addons.mozilla.org - it goes live when review passes"

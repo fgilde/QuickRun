@@ -342,10 +342,10 @@ async function inject() {
     // offers to start a second run of something that is already running.
     if (status.state === 'ready') adopt(button, target);
 
-    // A link may ask for the plan straight away. Only the first button on the page, and only once
-    // per address: GitHub renders through pushState, so inject() runs again and again on what is,
-    // to a reader, the same page.
-    autorun(button, target);
+    // A link may ask for the plan straight away - for the page's own button, never for a row in
+    // the branch list. "Run this repository" is a thing an address can mean; "run whichever branch
+    // this list happens to have put first" is not.
+    if (!target.compact) autorun(button, target);
   }
 }
 

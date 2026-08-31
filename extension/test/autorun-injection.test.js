@@ -160,6 +160,43 @@ test('switched off is the same as absent', async () => {
   assert.equal(runsOf(await inject('?executeQuickRun=false')).length, 0);
 });
 
+test('a link to a branch prepares that branch', async () => {
+  const runs = runsOf(await inject('?executeQuickRun', { path: '/acme/app/tree/preview' }));
+
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].target.repo, 'acme/app');
+  assert.equal(runs[0].target.ref, 'preview');
+  assert.equal(runs[0].target.pr, null);
+});
+
+test('a branch with slashes in its name survives', async () => {
+  const runs = runsOf(await inject('?executeQuickRun', { path: '/acme/app/tree/feature/deep/name' }));
+
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].target.ref, 'feature/deep/name');
+});
+
+test('a link to a pull request prepares that pull request', async () => {
+  const runs = runsOf(await inject('?executeQuickRun', { path: '/acme/app/pull/42' }));
+
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].target.repo, 'acme/app');
+  assert.equal(runs[0].target.pr, 42);
+  assert.equal(runs[0].target.ref, null);
+});
+
+test('a branch or a pull request can name its own config', async () => {
+  const branch = runsOf(await inject('?executeQuickRun=ci/demo.yml', { path: '/acme/app/tree/preview' }));
+  assert.equal(branch.length, 1);
+  assert.equal(branch[0].target.ref, 'preview');
+  assert.equal(branch[0].config, 'ci/demo.yml');
+
+  const pull = runsOf(await inject('?executeQuickRun=ci/demo.yml', { path: '/acme/app/pull/42' }));
+  assert.equal(pull.length, 1);
+  assert.equal(pull[0].target.pr, 42);
+  assert.equal(pull[0].config, 'ci/demo.yml');
+});
+
 test('a branch list does not run whichever branch happens to be first', async () => {
   // Every row on /branches gets a button. An address can mean "run this repository"; it cannot
   // mean "run whichever branch this list put at the top".

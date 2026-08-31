@@ -164,6 +164,22 @@ Config, `../secrets.yml`, `/etc/irgendwas.yml` und eine URL sind keine und werde
 Erweiterung prüft das, und QuickRun prüft es erneut, bevor es irgendetwas öffnet — ein Wert aus einer
 Webadresse ist auf beiden Seiten der Zeichenkette eines Fremden.
 
+Es funktioniert überall, wo die Seite einen eigenen Button hat, und bereitet genau das vor, was
+dieser Button vorbereiten würde:
+
+| Adresse | Was vorbereitet wird |
+| --- | --- |
+| `/acme/app?executeQuickRun` | der Standard-Branch des Repositories |
+| `/acme/app/tree/preview?executeQuickRun` | der Branch `preview` |
+| `/acme/app/tree/feature/ein/name?executeQuickRun` | der Branch `feature/ein/name` |
+| `/acme/app/pull/42?executeQuickRun` | Pull Request 42, geholt als `refs/pull/42/head` |
+| `/acme/app/branches?executeQuickRun` | nichts — siehe unten |
+
+Die Branch-Liste ist die eine Ausnahme. Dort bekommt jede Zeile ihren eigenen Button, es gibt also
+keinen einzelnen Lauf, den die Adresse meinen könnte — und „der Branch, den die Liste zufällig oben
+zeigt" ist keine Antwort, auf die man handeln sollte. Wer auf den Branch selbst verlinkt
+(`/tree/<branch>`), bekommt genau ihn.
+
 `?executeQuickRun=false` ist dasselbe wie gar keine Angabe, ein Link kann den Parameter also
 abgeschaltet enthalten. Es greift einmal pro Adresse: GitHub rendert über `pushState`, und wer sich
 danach durch das Repository klickt, bereitet keinen zweiten Lauf vor.

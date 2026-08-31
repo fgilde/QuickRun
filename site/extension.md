@@ -159,6 +159,20 @@ where a repository carries several, one per demo or per environment. The name ha
 and QuickRun checks it again before opening anything - a value out of a web address is a stranger's
 string on both sides.
 
+It works wherever the page has a button of its own, and it prepares exactly what that button would:
+
+| Address | What is prepared |
+| --- | --- |
+| `/acme/app?executeQuickRun` | the repository's default branch |
+| `/acme/app/tree/preview?executeQuickRun` | the branch `preview` |
+| `/acme/app/tree/feature/some/name?executeQuickRun` | the branch `feature/some/name` |
+| `/acme/app/pull/42?executeQuickRun` | pull request 42, fetched as `refs/pull/42/head` |
+| `/acme/app/branches?executeQuickRun` | nothing - see below |
+
+The branch list is the one exception. Every row there gets its own button, so there is no single
+run the address could mean, and "whichever branch the list happens to show first" is not an answer
+worth acting on. Link to the branch itself - `/tree/<branch>` - and it works.
+
 `?executeQuickRun=false` is the same as not asking, so a link can be built with the parameter
 switched off. It acts once per address: GitHub renders through `pushState`, and clicking around the
 repository afterwards does not prepare a second run.

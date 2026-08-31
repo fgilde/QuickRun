@@ -70,7 +70,12 @@ public class InstallSourceTests
     {
         Assert.Equal("winget upgrade fgilde.QuickRun", InstallSource.Winget.UpgradeCommand());
         Assert.Equal("scoop update quickrun", InstallSource.Scoop.UpgradeCommand());
-        Assert.Equal("brew upgrade quickrun", InstallSource.Brew.UpgradeCommand());
+        Assert.Equal("brew upgrade quickrun", InstallSource.Brew.UpgradeCommand("/opt/homebrew/Cellar/quickrun/0.9.3/bin/quickrun"));
+
+        // The cask and the formula are both called "quickrun" in the tap, so the plain command
+        // means the formula - and does nothing for the app bundle the cask installs.
+        Assert.Equal("brew upgrade --cask quickrun",
+            InstallSource.Brew.UpgradeCommand("/Applications/QuickRun.app/Contents/MacOS/quickrun"));
         Assert.Equal("apt upgrade quickrun", InstallSource.Apt.UpgradeCommand());
     }
 }

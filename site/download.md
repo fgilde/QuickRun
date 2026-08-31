@@ -43,8 +43,24 @@ brew install --cask https://quickrun.org/quickrun-cask.rb
 brew install https://quickrun.org/quickrun.rb
 ```
 
-Either way, `brew upgrade quickrun` updates it and QuickRun leaves its own binary alone, because
-Homebrew owns it.
+Updating is `brew update` first - that fetches the tap - and then the one that matches what you
+installed. The cask and the formula are both called `quickrun`, and a plain `brew upgrade quickrun`
+means the formula:
+
+```bash
+brew update
+brew upgrade --cask quickrun   # the app
+brew upgrade quickrun          # the command line only
+```
+
+Installed from a URL rather than the tap? Homebrew has no tap to check for a newer version, so
+install it again - the URL always serves the current one:
+
+```bash
+brew reinstall --cask https://quickrun.org/quickrun-cask.rb
+```
+
+Either way QuickRun leaves its own binary alone, because Homebrew owns it.
 
 The bundle is also a plain download, if you would rather not use Homebrew:
 

@@ -70,15 +70,36 @@ public static class InstallSources
     /// <summary>Whether QuickRun may overwrite its own binary.</summary>
     public static bool MayReplaceItself(this InstallSource source) => source == InstallSource.Standalone;
 
-    /// <summary>What to tell the user to run when QuickRun must not update itself.</summary>
-    public static string UpgradeCommand(this InstallSource source) => source switch
+    /// <summary>
+    /// What to tell the user to run when QuickRun must not update itself.
+    /// </summary>
+    /// <param name="executablePath">
+    /// Where this copy runs from, which is what separates a Homebrew cask from a Homebrew formula.
+    /// Defaults to the running process.
+    /// </param>
+    public static string UpgradeCommand(this InstallSource source, string? executablePath = null) => source switch
     {
         InstallSource.Winget => "winget upgrade fgilde.QuickRun",
         InstallSource.Scoop => "scoop update quickrun",
-        InstallSource.Brew => "brew upgrade quickrun",
+        InstallSource.Brew => IsCask(executablePath ?? Environment.ProcessPath)
+            ? "brew upgrade --cask quickrun"
+            : "brew upgrade quickrun",
         InstallSource.Apt => "apt upgrade quickrun",
         _ => "quickrun update",
     };
+
+    /// <summary>
+    /// Whether this is the cask rather than the formula.
+    /// <para>
+    /// The tap carries both under the name "quickrun" - the cask installs QuickRun.app and links
+    /// the binary inside the bundle onto the PATH, the formula installs the bare command. So
+    /// "brew upgrade quickrun" means the formula, and told everyone who installed the app the one
+    /// command that would not update it.
+    /// </para>
+    /// </summary>
+    private static bool IsCask(string? executablePath) =>
+        (executablePath ?? "").Replace('\\', '/')
+        .Contains(".app/Contents/MacOS/", StringComparison.OrdinalIgnoreCase);
 
     private static bool Contains(string path, string fragment) =>
         path.Contains(fragment, StringComparison.OrdinalIgnoreCase);

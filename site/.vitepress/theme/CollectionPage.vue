@@ -43,6 +43,7 @@ const t = computed(() => (german.value
       copy: 'Kopieren',
       copied: 'Kopiert',
       viewing: 'Config aus der QuickRun-Sammlung',
+      onGitHub: 'Auf GitHub ansehen',
       startingHere: 'QuickRun läuft — das Fenster öffnet sich mit dem Plan.',
       startingThere: 'QuickRun antwortet hier nicht — die Startseite erklärt den Rest.',
       configFailed: 'Diese Config konnte nicht geladen werden.',
@@ -72,6 +73,7 @@ const t = computed(() => (german.value
       copy: 'Copy',
       copied: 'Copied',
       viewing: "A config from QuickRun's collection",
+      onGitHub: 'View on GitHub',
       startingHere: 'QuickRun is running - its window opens with the plan.',
       startingThere: 'QuickRun is not answering here - the start page explains the rest.',
       configFailed: 'This config could not be loaded.',
@@ -189,9 +191,17 @@ const configLink = (entry) => withBase('/' + entry.config);
           <img :src="entry.icon" :alt="''" width="40" height="40" loading="lazy" decoding="async">
           <div class="qr-collection-name">
             <strong>{{ entry.name }}</strong>
-            <a class="qr-collection-repo" :href="`https://github.com/${entry.repo}`"
-               target="_blank" rel="noreferrer">{{ entry.repo }}</a>
+            <span class="qr-collection-repo">{{ entry.repo }}</span>
           </div>
+
+          <!-- The repository itself, in its own tab. Top right of the card, where a link off the
+               page belongs - the buttons at the bottom are the ones that do something here. -->
+          <a class="qr-collection-gh" :href="`https://github.com/${entry.repo}`"
+             target="_blank" rel="noreferrer" :title="t.onGitHub" :aria-label="t.onGitHub">
+            <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.05-.13-.36-.95.08-1.98 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.03.13 1.85.08 1.98.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.94-.01 2.2 0 .21.15.46.55.38A7.995 7.995 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+            </svg>
+          </a>
         </div>
 
         <p v-if="entry.description" class="qr-collection-text">{{ entry.description }}</p>
@@ -270,6 +280,15 @@ const configLink = (entry) => withBase('/' + entry.config);
 .qr-collection-head img { border-radius: 8px; flex: none; }
 .qr-collection-name { display: grid; min-width: 0; }
 .qr-collection-repo { font-size: 12px; opacity: 0.75; overflow-wrap: anywhere; }
+
+.qr-collection-gh {
+  /* Pushed right rather than trailing the name: with a short name the icon otherwise sits in the
+     middle of the card, which reads as part of the title. */
+  flex: none; margin-left: auto; align-self: flex-start; display: inline-flex;
+  padding: 4px; border-radius: 6px; color: inherit; opacity: 0.55;
+  transition: opacity .15s, background-color .15s;
+}
+.qr-collection-gh:hover { opacity: 1; background: rgba(127, 127, 127, 0.14); }
 
 .qr-collection-text {
   margin: 0; font-size: 13.5px; opacity: 0.85; flex: 1;

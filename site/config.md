@@ -34,6 +34,8 @@ name: My App                   # optional, default is the repository name
 description: ...               # optional
 icon: assets/logo.png          # optional, repository-relative path or URL
 docs: https://...              # optional, shown in the UI
+repository: acme/app           # optional, only for a config that lives outside the repository
+ref: main                       # optional, with repository: which branch, tag or commit
 
 requires:                      # optional prerequisite checks
   - tool: dotnet               # any command; known tools get better version probes
@@ -83,6 +85,32 @@ tasks:                         # optional, started in parallel unless dependsOn 
 stop:                          # optional, run when you stop the app
   - docker compose down
 ```
+
+## `repository`
+
+A config committed next to the code needs no `repository`: the repository is the one it sits in.
+
+It matters for a config that travels on its own - a file you open with **Run file**, or one out of
+[the collection](/collection) - because otherwise there is nothing to check out:
+
+```yaml
+name: Demo
+repository: acme/app          # owner/repo, a GitHub URL, or any git URL
+ref: preview                  # optional
+tasks:
+  - run: npm start
+```
+
+Any of the three shapes the window's own field takes works: `acme/app`,
+`https://github.com/acme/app`, `git@example.com:acme/app.git`.
+
+Without it, a config file you opened runs the folder it sits in - and only then, because a file that
+arrived from somewhere else may not decide that. A config named by a `quickrun://` link and carrying
+no `repository` is asked about instead: the window wants to know which repository it is for.
+
+A run described by a config from outside gets a checkout of its own, keyed on that config. So a
+curated config, a file you opened and a draft in the config builder never share a `node_modules`, a
+`.env` or a build output with the repository's own quickrun.yml.
 
 ## `requires`
 

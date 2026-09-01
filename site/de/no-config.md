@@ -4,8 +4,49 @@ Die meisten Repositories haben nie von QuickRun gehört. Fehlt eine `quickrun.ym
 QuickRun selbst, wie das Repository startet — in dieser Reihenfolge:
 
 1. ein Run-Skript im Wurzelverzeichnis — `quickrun.ps1`, `quickrun.sh`, `run.ps1`, `run.sh`
-2. **die Config eines anderen Launchers**, derzeit [Pinokio](#pinokio)
-3. **Erkennung** anhand der vorhandenen Dateien
+2. **QuickRuns eigene Sammlung** — eine Config, die für dieses Repository bereitliegt, [siehe unten](#die-sammlung)
+3. **die Config eines anderen Launchers**, derzeit [Pinokio](#pinokio)
+4. **Erkennung** anhand der vorhandenen Dateien
+
+Vor allen vier steht alles, was spezifischer ist: zuerst die `quickrun.yml` des Repositories selbst,
+dann eine Config, die du für dieses Repository im Config-Builder gespeichert hast. Weder die Sammlung
+noch die Erkennung kommen jemals davor.
+
+## Die Sammlung
+
+Manche Repositories werden nie eine `quickrun.yml` committen, und QuickRuns Lesen ihrer Dateien ist
+eine Vermutung — eine gute, aber eine Vermutung. Deshalb hält QuickRun Configs für bekannte
+Repositories bereit und nutzt eine davon, wenn das Repository selbst keine mitbringt.
+[Alle ansehen](/de/collection), oder direkt im
+[configs-Verzeichnis](https://github.com/fgilde/QuickRun/tree/main/configs) des Repositories.
+
+Die Suche ist eine einzige Anfrage für das gestartete Repository:
+
+```
+acme/app  →  https://quickrun.org/configs/acme/app.yml
+```
+
+Die Antwort wird einen Tag lang in QuickRuns eigenem Verzeichnis zwischengespeichert, und eine
+zwischengespeicherte Config wird auch genutzt, wenn kein Netz erreichbar ist — sie wurde ja für
+dieses Repository geschrieben.
+
+Der Plan nennt die Herkunft, im Fenster und im Bestätigungsfenster: *QuickRuns gesammelte Config für
+dieses Repository*. Eine fehlerhafte gesammelte Config wird mit einem Hinweis übersprungen statt den
+Lauf scheitern zu lassen, und die Erkennung übernimmt.
+
+**Was das kostet, und wie man es abschaltet.** Die Anfrage verrät quickrun.org, welches Repository
+du startest. Sie passiert nur für ein Repository, das nichts eigenes mitbringt, und niemals für einen
+Ordner auf deinem Rechner. Um nie zu fragen:
+
+```bash
+QUICKRUN_NO_COLLECTION=1
+```
+
+Damit verhält sich QuickRun genau so, wie es sich vor der Sammlung verhalten hat.
+
+Zum Beitragen: eine `configs/<owner>/<repo>.yml` anlegen, mit einem `repository:`-Feld, das genau
+dieses Repository nennt. Die Testsuite parst und validiert jede Config in diesem Verzeichnis, eine
+fehlerhafte kann also nicht gemergt werden.
 
 Was dabei herauskommt, ist ein Plan wie jeder andere: die Befehlsliste wird angezeigt, es läuft
 nichts ohne Bestätigung, und das Log-Fenster nennt in der ersten Zeile, woher der Plan stammt.

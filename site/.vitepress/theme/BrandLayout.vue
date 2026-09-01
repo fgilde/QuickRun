@@ -15,6 +15,7 @@ const t = computed(() => (de.value
       nav: [
         { text: 'Was es macht', href: '#features' },
         { text: 'Screenshots', href: `${home.value}tour` },
+        { text: 'Sammlung', href: `${home.value}collection` },
         { text: 'Fragen', href: `${home.value}faq` },
         { text: 'Dokumentation', href: `${home.value}install` },
       ],
@@ -27,6 +28,7 @@ const t = computed(() => (de.value
       nav: [
         { text: 'What it does', href: '#features' },
         { text: 'Screenshots', href: `${home.value}tour` },
+        { text: 'Collection', href: `${home.value}collection` },
         { text: 'Questions', href: `${home.value}faq` },
         { text: 'Documentation', href: `${home.value}install` },
       ],

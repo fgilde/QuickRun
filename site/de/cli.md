@@ -47,6 +47,7 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `-i, --input` | eine deklarierte Eingabe füllen, wiederholbar |
 | `-t, --token` | Zugriffstoken für ein privates Repository |
 | `-c, --config` | andere Config-Datei verwenden, relativ zum Projekt-Root |
+| `-f, --file` | eine einzelne Config-Datei starten, egal wo sie liegt — siehe unten |
 | `--path` | einen Ordner dieser Maschine ausführen, statt ein Repository auszuchecken |
 | `--copy` | mit `--path`: eine Kopie unter `runs/` ausführen, das Original bleibt unberührt |
 | `--fresh` | Workspace löschen und neu klonen |
@@ -54,6 +55,28 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `--no-open` | keine Browser-URL öffnen, die die Config anfordert |
 
 Ohne `--yes` wird nichts ausgeführt, bevor der Plan gedruckt und bestätigt wurde.
+
+## `quickrun run --file`
+
+Eine einzelne Config-Datei, allein gestartet:
+
+```bash
+quickrun run --file ./demo.yml
+quickrun run --file ~/configs/acme.yml
+```
+
+Was läuft, entscheidet die Datei:
+
+- sie nennt ein `repository:` — dieses Repository wird ausgecheckt, und die Datei bestimmt den Ablauf
+- sie nennt keines — der Ordner, in dem die Datei liegt, läuft an seinem Platz
+
+Die zweite Regel gilt nur, weil du die Datei selbst benannt hast. Eine Config, die von woanders
+kommt, darf das nicht entscheiden: `quickrun://runfile?path=…` und der Knopf **Datei starten** im
+Fenster übergeben die Datei zwar, aber bei einer Datei ohne `repository:` aus einem Link wird
+nachgefragt statt angenommen. Ein Repository auf der Kommandozeile schlägt das in der Datei.
+
+Ein Lauf mit einer Config von außen bekommt einen eigenen Checkout und kann deshalb nicht mit der
+`quickrun.yml` des Repositories kollidieren.
 
 ## `quickrun run` auf einem Ordner
 

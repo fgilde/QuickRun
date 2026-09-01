@@ -1,0 +1,1460 @@
+[
+  {
+    "repo": "ace-step/ACE-Step",
+    "name": "ACE-Step (music)",
+    "description": "ACE-Step: A Step Towards Music Generation Foundation Model GPU recommended.",
+    "docs": "https://github.com/ace-step/ACE-Step",
+    "port": 7860,
+    "icon": "https://github.com/ace-step.png?size=80",
+    "config": "configs/ace-step/ACE-Step.yml"
+  },
+  {
+    "repo": "actualbudget/actual",
+    "name": "Actual Budget",
+    "description": "A local-first personal finance app",
+    "docs": "https://actualbudget.org",
+    "port": 5006,
+    "icon": "https://github.com/actualbudget.png?size=80",
+    "config": "configs/actualbudget/actual.yml"
+  },
+  {
+    "repo": "AdguardTeam/AdGuardHome",
+    "name": "AdGuard Home",
+    "description": "Network-wide ads & trackers blocking DNS server",
+    "docs": "https://adguard.com/adguard-home/overview.html",
+    "port": 3000,
+    "icon": "https://github.com/AdguardTeam.png?size=80",
+    "config": "configs/AdguardTeam/AdGuardHome.yml"
+  },
+  {
+    "repo": "Mintplex-Labs/anything-llm",
+    "name": "AnythingLLM",
+    "description": "Stop renting your intelligence. Own it with AnythingLLM. Everything you need for a powerful local-first agent experience",
+    "docs": "https://anythingllm.com",
+    "port": 3001,
+    "icon": "https://github.com/Mintplex-Labs.png?size=80",
+    "config": "configs/Mintplex-Labs/anything-llm.yml"
+  },
+  {
+    "repo": "ArchiveBox/ArchiveBox",
+    "name": "ArchiveBox",
+    "description": "🗃 Open source self-hosted web archiving. Takes URLs/browser history/bookmarks/Pocket/Pinboard/etc., saves HTML, JS, PDFs, media, and more... Create an admin login with 'archivebox manage createsuperuser' in the container.",
+    "docs": "https://archivebox.io",
+    "port": 8000,
+    "icon": "https://github.com/ArchiveBox.png?size=80",
+    "config": "configs/ArchiveBox/ArchiveBox.yml"
+  },
+  {
+    "repo": "advplyr/audiobookshelf",
+    "name": "Audiobookshelf",
+    "description": "Self-hosted audiobook and podcast server",
+    "docs": "https://www.audiobookshelf.org",
+    "port": 80,
+    "icon": "https://github.com/advplyr.png?size=80",
+    "config": "configs/advplyr/audiobookshelf.yml"
+  },
+  {
+    "repo": "autobrr/autobrr",
+    "name": "autobrr",
+    "description": "autobrr — real-time download automation from IRC announce + RSS into the *arr apps / download clients. Create the account on first visit.",
+    "docs": "https://autobrr.com",
+    "port": 7474,
+    "icon": "https://github.com/autobrr.png?size=80",
+    "config": "configs/autobrr/autobrr.yml"
+  },
+  {
+    "repo": "sabre-io/Baikal",
+    "name": "Baikal",
+    "description": "Baïkal is a Calendar+Contacts server Finish setup (admin + SQLite/MySQL) via the web installer on first visit.",
+    "docs": "https://sabre.io/baikal/",
+    "port": 80,
+    "icon": "https://github.com/sabre-io.png?size=80",
+    "config": "configs/sabre-io/Baikal.yml"
+  },
+  {
+    "repo": "morpheus65535/bazarr",
+    "name": "Bazarr",
+    "description": "Bazarr is a companion application to Sonarr and Radarr. It manages and downloads subtitles based on your requirements. You define your preferences by TV show or movie and Bazarr takes care of everything for you. Bazarr — companion to Sonarr/Radarr that manages & downloads subtitles.",
+    "docs": "https://www.bazarr.media",
+    "port": 6767,
+    "icon": "https://github.com/morpheus65535.png?size=80",
+    "config": "configs/morpheus65535/bazarr.yml"
+  },
+  {
+    "repo": "bitcoin-cash-node/bitcoin-cash-node",
+    "name": "Bitcoin Cash Node",
+    "description": "This is a mirror of the official Bitcoin Cash Node repository. Please see README.md https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node",
+    "docs": "https://bitcoincashnode.org",
+    "port": 8332,
+    "icon": "https://github.com/bitcoin-cash-node.png?size=80",
+    "config": "configs/bitcoin-cash-node/bitcoin-cash-node.yml"
+  },
+  {
+    "repo": "bitcoinknots/bitcoin",
+    "name": "Bitcoin Knots",
+    "description": "Bitcoin Knots enhanced Bitcoin node/wallet software",
+    "docs": "https://bitcoinknots.org",
+    "port": 8332,
+    "icon": "https://github.com/bitcoinknots.png?size=80",
+    "config": "configs/bitcoinknots/bitcoin.yml"
+  },
+  {
+    "repo": "seedtool/seedtool",
+    "name": "Bitcoin Seed Tool",
+    "description": "# Bitcoin Seed Tool ... This tool offers a space for bitcoiners to experiment and learn how bitcoin wallets are generated using different sources of entropy (randomness). The page also offers many other seed related functionalites, some of which are outlined below. The online version can be found at https://bitcoiner.guide/seed. ... NEVER use the online version of this tool to create or interact with seeds used to…",
+    "docs": "https://github.com/dennysubke/seedtool-web",
+    "port": 8080,
+    "icon": "https://github.com/seedtool.png?size=80",
+    "config": "configs/seedtool/seedtool.yml"
+  },
+  {
+    "repo": "BookStackApp/BookStack",
+    "name": "BookStack",
+    "description": "NOW MANAGED ON CODEBERG MariaDB companion. APP_KEY seeded (base64). Set APP_URL to how you reach it (default http://localhost). Built-in first login: admin@admin.com / password (change it).",
+    "docs": "https://www.bookstackapp.com",
+    "port": 80,
+    "icon": "https://github.com/BookStackApp.png?size=80",
+    "config": "configs/BookStackApp/BookStack.yml"
+  },
+  {
+    "repo": "janoside/btc-rpc-explorer",
+    "name": "BTC RPC Explorer",
+    "description": "Database-free, self-hosted Bitcoin explorer, via RPC to Bitcoin Core.",
+    "docs": "https://github.com/janoside/btc-rpc-explorer",
+    "port": 3002,
+    "icon": "https://github.com/janoside.png?size=80",
+    "config": "configs/janoside/btc-rpc-explorer.yml"
+  },
+  {
+    "repo": "janeczku/calibre-web",
+    "name": "Calibre-Web",
+    "description": ":books: Web app for browsing, reading and downloading eBooks stored in a Calibre database Calibre-Web — clean web UI to browse/read/download your Calibre e-book library (login admin / admin123).",
+    "docs": "https://github.com/janeczku/calibre-web",
+    "port": 8083,
+    "icon": "https://github.com/janeczku.png?size=80",
+    "config": "configs/janeczku/calibre-web.yml"
+  },
+  {
+    "repo": "dgtlmoon/changedetection.io",
+    "name": "changedetection.io",
+    "description": "changedetection.io — watch web pages for changes and get notified. (Add a Playwright/browserless companion later for JS-heavy pages.)",
+    "docs": "https://changedetection.io",
+    "port": 5000,
+    "icon": "https://github.com/dgtlmoon.png?size=80",
+    "config": "configs/dgtlmoon/changedetection.io.yml"
+  },
+  {
+    "repo": "coder/code-server",
+    "name": "code-server",
+    "description": "code-server — VS Code in the browser. Login password seeded as a parameter (change it); without it code-server generates a random one each start.",
+    "docs": "https://github.com/coder/code-server",
+    "port": 8080,
+    "icon": "https://github.com/coder.png?size=80",
+    "config": "configs/coder/code-server.yml"
+  },
+  {
+    "repo": "Comfy-Org/ComfyUI",
+    "name": "ComfyUI",
+    "description": "The most powerful and modular diffusion model GUI, api and backend with a graph/nodes interface. GPU recommended.",
+    "docs": "https://github.com/comfyanonymous/ComfyUI",
+    "port": 8188,
+    "icon": "https://github.com/Comfy-Org.png?size=80",
+    "config": "configs/Comfy-Org/ComfyUI.yml"
+  },
+  {
+    "repo": "ElementsProject/lightning",
+    "name": "Core Lightning",
+    "description": "Core Lightning — Lightning Network implementation focusing on spec compliance and performance",
+    "docs": "https://github.com/ElementsProject/lightning",
+    "port": 9735,
+    "icon": "https://github.com/ElementsProject.png?size=80",
+    "config": "configs/ElementsProject/lightning.yml"
+  },
+  {
+    "repo": "azukaar/Cosmos-Server",
+    "name": "Cosmos Server",
+    "description": "☁️ The Most Secure and Easy Selfhosted Home Server. Take control of your data and privacy without sacrificing security and stability (Authentication, anti-DDOS, anti-bot)",
+    "docs": "https://cosmos-cloud.io",
+    "port": 80,
+    "icon": "https://github.com/azukaar.png?size=80",
+    "config": "configs/azukaar/Cosmos-Server.yml"
+  },
+  {
+    "repo": "fgilde/CoworkeeNextJs",
+    "name": "Coworkee",
+    "description": "Coworkee — the self-hosted HR platform for a whole team: employees with org chart, absence and leave with an approval workflow, time tracking, documents, onboarding checklists, performance reviews, analytics, a recruiting pipeline and announcements. Nine modules in one app, German and English, light and dark, role-based permissions (RBAC), GDPR-friendly because it stays on your own server. A setup wizard creates the admin account on first visit — or set DEMO to 1 to seed demo data and show the demo logins.",
+    "docs": "https://coworkee.de",
+    "port": 3000,
+    "icon": "https://github.com/fgilde.png?size=80",
+    "config": "configs/fgilde/CoworkeeNextJs.yml"
+  },
+  {
+    "repo": "gchq/CyberChef",
+    "name": "CyberChef",
+    "description": "The Cyber Swiss Army Knife - a web app for encryption, encoding, compression and data analysis",
+    "docs": "https://gchq.github.io/CyberChef/",
+    "port": 8000,
+    "icon": "https://github.com/gchq.png?size=80",
+    "config": "configs/gchq/CyberChef.yml"
+  },
+  {
+    "repo": "lissy93/dashy",
+    "name": "Dashy",
+    "description": "🚀 A self-hostable personal dashboard built for you. Includes status-checking, widgets, themes, icon packs, a UI editor and tons more!",
+    "docs": "https://dashy.to",
+    "port": 8080,
+    "icon": "https://github.com/lissy93.png?size=80",
+    "config": "configs/lissy93/dashy.yml"
+  },
+  {
+    "repo": "deluge-team/deluge",
+    "name": "Deluge",
+    "description": "## A Lightweight Torrent Client with a Plugin Ecosystem ... Deluge is a free, cross-platform BitTorrent client with full encryption, a web UI, and an extensible plugin system. Unlike qBittorrent, which bundles everything into one package, Deluge separates the daemon (libtorrent engine) from its interfaces — you can control one daemon from the web UI, a desktop GTK client, or the command line simultaneously. This…",
+    "docs": "https://deluge-torrent.org",
+    "port": 8112,
+    "icon": "https://github.com/deluge-team.png?size=80",
+    "config": "configs/deluge-team/deluge.yml"
+  },
+  {
+    "repo": "louislam/dockge",
+    "name": "Dockge",
+    "description": "A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented manager",
+    "docs": "https://github.com/louislam/dockge",
+    "port": 5001,
+    "icon": "https://github.com/louislam.png?size=80",
+    "config": "configs/louislam/dockge.yml"
+  },
+  {
+    "repo": "docuseal/docuseal",
+    "name": "DocuSeal",
+    "description": "DocuSeal — open-source document signing (DocuSign alternative). SQLite by default (set DATABASE_URL for Postgres/MySQL). Create the admin account on first visit.",
+    "docs": "https://www.docuseal.com",
+    "port": 3000,
+    "icon": "https://github.com/docuseal.png?size=80",
+    "config": "configs/docuseal/docuseal.yml"
+  },
+  {
+    "repo": "Dolibarr/dolibarr",
+    "name": "Dolibarr",
+    "description": "Dolibarr — open-source ERP and CRM (invoices, orders, stock, projects). MariaDB companion included; the admin account below is created on first start.",
+    "docs": "https://www.dolibarr.org",
+    "port": 80,
+    "icon": "https://github.com/Dolibarr.png?size=80",
+    "config": "configs/Dolibarr/dolibarr.yml"
+  },
+  {
+    "repo": "amir20/dozzle",
+    "name": "Dozzle",
+    "description": "Realtime log viewer for containers. Supports Docker, Swarm and K8s.",
+    "docs": "https://dozzle.dev",
+    "port": 8080,
+    "icon": "https://github.com/amir20.png?size=80",
+    "config": "configs/amir20/dozzle.yml"
+  },
+  {
+    "repo": "jgraph/drawio",
+    "name": "Draw.io",
+    "description": "draw.io is a JavaScript, client-side editor for general diagramming.",
+    "docs": "https://www.drawio.com",
+    "port": 8080,
+    "icon": "https://github.com/jgraph.png?size=80",
+    "config": "configs/jgraph/drawio.yml"
+  },
+  {
+    "repo": "drupal/drupal",
+    "name": "Drupal",
+    "description": "Drupal — PHP CMS/framework for structured content (official Apache image). Comes with a Postgres companion; the browser installer asks for the database — host drupal-db, name/user/password all \"drupal\".",
+    "docs": "https://www.drupal.org",
+    "port": 80,
+    "icon": "https://github.com/drupal.png?size=80",
+    "config": "configs/drupal/drupal.yml"
+  },
+  {
+    "repo": "duplicati/duplicati",
+    "name": "Duplicati",
+    "description": "Store securely encrypted backups in the cloud!",
+    "docs": "https://www.duplicati.com",
+    "port": 8200,
+    "icon": "https://github.com/duplicati.png?size=80",
+    "config": "configs/duplicati/duplicati.yml"
+  },
+  {
+    "repo": "romanz/electrs",
+    "name": "electrs",
+    "description": "Rust Electrum server (romanz/electrs). Needs a local Bitcoin Core node with txindex — reads the blocks dir + points at its RPC.",
+    "docs": "https://github.com/romanz/electrs",
+    "port": 50001,
+    "icon": "https://github.com/romanz.png?size=80",
+    "config": "configs/romanz/electrs.yml"
+  },
+  {
+    "repo": "spesmilo/electrumx",
+    "name": "ElectrumX",
+    "description": "Server impl for Electrum Protocol, for public-facing or personal usage ElectrumX server (env-configurable). Requires an external Bitcoin Core node with txindex; set DAEMON_URL to its RPC.",
+    "docs": "https://github.com/lukechilds/docker-electrumx",
+    "port": 50001,
+    "icon": "https://github.com/spesmilo.png?size=80",
+    "config": "configs/spesmilo/electrumx.yml"
+  },
+  {
+    "repo": "MediaBrowser/Emby",
+    "name": "Emby",
+    "description": "Emby Server is a personal media server with apps on just about every device. Create the admin account via the first-run wizard. Mount your media; GPU for transcoding.",
+    "docs": "https://emby.media",
+    "port": 8096,
+    "icon": "https://github.com/MediaBrowser.png?size=80",
+    "config": "configs/MediaBrowser/Emby.yml"
+  },
+  {
+    "repo": "esphome/esphome",
+    "name": "ESPHome",
+    "description": "ESPHome is a system to control your ESP32, ESP8266, BK72xx, RP2040 by simple yet powerful configuration files and control them remotely through Home Automation systems.",
+    "docs": "https://esphome.io",
+    "port": 6052,
+    "icon": "https://github.com/esphome.png?size=80",
+    "config": "configs/esphome/esphome.yml"
+  },
+  {
+    "repo": "ether/etherpad",
+    "name": "Etherpad",
+    "description": "Etherpad: A modern really-real-time collaborative document editor. Admin UI (/admin) login admin + the seeded ADMIN_PASSWORD.",
+    "docs": "https://etherpad.org",
+    "port": 9001,
+    "icon": "https://github.com/ether.png?size=80",
+    "config": "configs/ether/etherpad.yml"
+  },
+  {
+    "repo": "excalidraw/excalidraw",
+    "name": "Excalidraw",
+    "description": "Virtual whiteboard for sketching hand-drawn like diagrams",
+    "docs": "https://excalidraw.com",
+    "port": 80,
+    "icon": "https://github.com/excalidraw.png?size=80",
+    "config": "configs/excalidraw/excalidraw.yml"
+  },
+  {
+    "repo": "filebrowser/filebrowser",
+    "name": "File Browser",
+    "description": "📂 Web File Browser File Browser — a tidy web file manager for a directory (login admin / admin, change it).",
+    "docs": "https://filebrowser.org",
+    "port": 80,
+    "icon": "https://github.com/filebrowser.png?size=80",
+    "config": "configs/filebrowser/filebrowser.yml"
+  },
+  {
+    "repo": "mickael-kerjean/filestash",
+    "name": "Filestash",
+    "description": ":file_folder: Universal File Storage Client",
+    "docs": "https://www.filestash.app",
+    "port": 8334,
+    "icon": "https://github.com/mickael-kerjean.png?size=80",
+    "config": "configs/mickael-kerjean/filestash.yml"
+  },
+  {
+    "repo": "firefly-iii/firefly-iii",
+    "name": "Firefly III",
+    "description": "Firefly III — self-hosted personal finance manager. Comes with a Postgres companion. APP_KEY must stay exactly 32 chars.",
+    "docs": "https://www.firefly-iii.org",
+    "port": 8080,
+    "icon": "https://github.com/firefly-iii.png?size=80",
+    "config": "configs/firefly-iii/firefly-iii.yml"
+  },
+  {
+    "repo": "FlareSolverr/FlareSolverr",
+    "name": "FlareSolverr",
+    "description": "Proxy server to bypass Cloudflare protection",
+    "docs": "https://github.com/FlareSolverr/FlareSolverr",
+    "port": 8191,
+    "icon": "https://github.com/FlareSolverr.png?size=80",
+    "config": "configs/FlareSolverr/FlareSolverr.yml"
+  },
+  {
+    "repo": "dullage/flatnotes",
+    "name": "flatnotes",
+    "description": "flatnotes — database-less markdown notes over a flat folder. Username/password + session secret seeded as params.",
+    "docs": "https://github.com/dullage/flatnotes",
+    "port": 8080,
+    "icon": "https://github.com/dullage.png?size=80",
+    "config": "configs/dullage/flatnotes.yml"
+  },
+  {
+    "repo": "FlowiseAI/Flowise",
+    "name": "Flowise",
+    "description": "Build AI Agents, Visually",
+    "docs": "https://flowiseai.com",
+    "port": 3000,
+    "icon": "https://github.com/FlowiseAI.png?size=80",
+    "config": "configs/FlowiseAI/Flowise.yml"
+  },
+  {
+    "repo": "foldergram/foldergram",
+    "name": "Foldergram",
+    "description": "Self-hosted folder-based Instagram-style photo and video gallery app. Point volumes at your media.",
+    "docs": "https://github.com/foldergram/foldergram",
+    "port": 4141,
+    "icon": "https://github.com/foldergram.png?size=80",
+    "config": "configs/foldergram/foldergram.yml"
+  },
+  {
+    "repo": "FreshRSS/FreshRSS",
+    "name": "FreshRSS",
+    "description": "A free, self-hostable news aggregator…",
+    "docs": "https://freshrss.org",
+    "port": 80,
+    "icon": "https://github.com/FreshRSS.png?size=80",
+    "config": "configs/FreshRSS/FreshRSS.yml"
+  },
+  {
+    "repo": "blakeblackshear/frigate",
+    "name": "Frigate NVR",
+    "description": "NVR with realtime local object detection for IP cameras Ships a minimal config.yml (no cameras, auth/tls off) so it starts; add cameras + a detector (Coral/GPU).",
+    "docs": "https://frigate.video",
+    "port": 8971,
+    "icon": "https://github.com/blakeblackshear.png?size=80",
+    "config": "configs/blakeblackshear/frigate.yml"
+  },
+  {
+    "repo": "cculian/Fulcrum",
+    "name": "Fulcrum",
+    "description": "Fulcrum — fast SPV/Electrum server for BTC/BCH/LTC. Requires an external Bitcoin Core node with RPC + txindex; configure via a mounted fulcrum.conf. SSL on 50002.",
+    "docs": "https://github.com/cculianu/Fulcrum",
+    "port": 50001,
+    "icon": "https://github.com/cculian.png?size=80",
+    "config": "configs/cculian/Fulcrum.yml"
+  },
+  {
+    "repo": "TryGhost/Ghost",
+    "name": "Ghost",
+    "description": "Independent technology for modern publishing, memberships, subscriptions and newsletters. MySQL companion (Ghost 5 requires MySQL). Set url to how you reach it (default localhost:2368).",
+    "docs": "https://ghost.org",
+    "port": 2368,
+    "icon": "https://github.com/TryGhost.png?size=80",
+    "config": "configs/TryGhost/Ghost.yml"
+  },
+  {
+    "repo": "ghostfolio/ghostfolio",
+    "name": "Ghostfolio",
+    "description": "Open Source Wealth Management Software. Angular + NestJS + Prisma + Nx + TypeScript 🤍 Postgres + Redis companions. ACCESS_TOKEN_SALT & JWT_SECRET_KEY seeded as params (change them).",
+    "docs": "https://ghostfol.io",
+    "port": 3333,
+    "icon": "https://github.com/ghostfolio.png?size=80",
+    "config": "configs/ghostfolio/ghostfolio.yml"
+  },
+  {
+    "repo": "go-gitea/gitea",
+    "name": "Gitea",
+    "description": "Git with a cup of tea! Painless self-hosted all-in-one software development service, including Git hosting, code review, team collaboration, package registry and CI/CD",
+    "docs": "https://about.gitea.com",
+    "port": 3000,
+    "icon": "https://github.com/go-gitea.png?size=80",
+    "config": "configs/go-gitea/gitea.yml"
+  },
+  {
+    "repo": "nicolargo/glances",
+    "name": "Glances",
+    "description": "Glances an Eye on your system. A top/htop alternative for GNU/Linux, BSD, Mac OS and Windows operating systems.",
+    "docs": "https://nicolargo.github.io/glances/",
+    "port": 61208,
+    "icon": "https://github.com/nicolargo.png?size=80",
+    "config": "configs/nicolargo/glances.yml"
+  },
+  {
+    "repo": "Forceu/Gokapi",
+    "name": "Gokapi",
+    "description": "Lightweight selfhosted Firefox Send alternative without public upload. AWS S3 supported.",
+    "docs": "https://github.com/Forceu/Gokapi",
+    "port": 53842,
+    "icon": "https://github.com/Forceu.png?size=80",
+    "config": "configs/Forceu/Gokapi.yml"
+  },
+  {
+    "repo": "gotify/server",
+    "name": "Gotify",
+    "description": "A simple server for sending and receiving messages in real-time per WebSocket. (Includes a sleek web-ui) Gotify — simple self-hosted server for push notifications (login admin / admin, change it).",
+    "docs": "https://gotify.net",
+    "port": 80,
+    "icon": "https://github.com/gotify.png?size=80",
+    "config": "configs/gotify/server.yml"
+  },
+  {
+    "repo": "grafana/grafana",
+    "name": "Grafana",
+    "description": "The open and composable observability and data visualization platform. Visualize metrics, logs, and traces from multiple sources like Prometheus, Loki, Elasticsearch, InfluxDB, Postgres and many more. Grafana — dashboards & visualization over your metrics/logs (login admin / admin).",
+    "docs": "https://grafana.com",
+    "port": 3000,
+    "icon": "https://github.com/grafana.png?size=80",
+    "config": "configs/grafana/grafana.yml"
+  },
+  {
+    "repo": "getgrav/grav",
+    "name": "Grav",
+    "description": "Grav — flat-file PHP CMS: no database, content is Markdown on disk. Create the admin account in the browser on first visit.",
+    "docs": "https://getgrav.org",
+    "port": 80,
+    "icon": "https://github.com/getgrav.png?size=80",
+    "config": "configs/getgrav/grav.yml"
+  },
+  {
+    "repo": "grocy/grocy",
+    "name": "Grocy",
+    "description": "ERP beyond your fridge - Grocy is a web-based self-hosted groceries & household management solution for your home Grocy — ERP for your fridge: groceries, stock, chores & recipes (login admin / admin).",
+    "docs": "https://grocy.info",
+    "port": 80,
+    "icon": "https://github.com/grocy.png?size=80",
+    "config": "configs/grocy/grocy.yml"
+  },
+  {
+    "repo": "fgilde/hausverwaltung",
+    "name": "HaVeWa",
+    "description": "HaVeWa — property management for rentals and German condominium associations (WEG) in one system: properties, units, people and meters, rental contracts with staggered and index rent, receivables with SEPA mandates and a three-stage dunning process, operating-cost statements per BetrKV with a flexible allocation-key engine and the 30/70 split of the HeizkostenV, camt.053 bank import plus DATEV and SEPA export. For WEG: co-ownership shares, business plan, annual statement, maintenance reserves, owners' meeting with resolution collection per §24 WEG, an owner self-service portal and the asset report. Plus calendar and deadlines, tickets, documents and an AI assistant. GDPR- and GoBD-oriented. Set SEED_DEMO to true for a demo dataset, or give the admin account below and log straight in.",
+    "docs": "https://havewa.app",
+    "port": 3000,
+    "icon": "https://github.com/fgilde.png?size=80",
+    "config": "configs/fgilde/hausverwaltung.yml"
+  },
+  {
+    "repo": "hedgedoc/hedgedoc",
+    "name": "HedgeDoc",
+    "description": "HedgeDoc - Ideas grow better together Postgres companion. Set CMD_DOMAIN to your host (default localhost) — CMD_URL_ADDPORT keeps the port in links.",
+    "docs": "https://hedgedoc.org",
+    "port": 3000,
+    "icon": "https://github.com/hedgedoc.png?size=80",
+    "config": "configs/hedgedoc/hedgedoc.yml"
+  },
+  {
+    "repo": "linuxserver/Heimdall",
+    "name": "Heimdall",
+    "description": "An Application dashboard and launcher",
+    "docs": "https://heimdall.site",
+    "port": 80,
+    "icon": "https://github.com/linuxserver.png?size=80",
+    "config": "configs/linuxserver/Heimdall.yml"
+  },
+  {
+    "repo": "NousResearch/hermes-agent",
+    "name": "Hermes Agent",
+    "description": "Hermes Agent (Nous Research) — AI agent gateway + dashboard. Runs standalone with the auth gate off (HERMES_UMBREL_APP_PROXY_AUTH=1) so the dashboard is UNAUTHENTICATED — only expose on a trusted LAN, not publicly. Supply model API keys in-app.",
+    "docs": "https://nousresearch.com",
+    "port": 18789,
+    "icon": "https://github.com/NousResearch.png?size=80",
+    "config": "configs/NousResearch/hermes-agent.yml"
+  },
+  {
+    "repo": "ajnart/homarr",
+    "name": "Homarr",
+    "description": "Customizable browser's home page to interact with your homeserver's Docker containers (e.g. Sonarr/Radarr) Requires SECRET_ENCRYPTION_KEY (64 hex) or it exits — seeded as a parameter (rotating it invalidates stored integration secrets).",
+    "docs": "https://homarr.dev",
+    "port": 7575,
+    "icon": "https://github.com/ajnart.png?size=80",
+    "config": "configs/ajnart/homarr.yml"
+  },
+  {
+    "repo": "home-assistant/core",
+    "name": "Home Assistant",
+    "description": ":house_with_garden: Open source home automation that puts local control and privacy first.",
+    "docs": "https://www.home-assistant.io",
+    "port": 8123,
+    "icon": "https://github.com/home-assistant.png?size=80",
+    "config": "configs/home-assistant/core.yml"
+  },
+  {
+    "repo": "hay-kot/homebox",
+    "name": "Homebox",
+    "description": "Homebox is the inventory and organization system built for the Home User Needs an API-key pepper (>= 32 bytes) — seeded as a parameter; rotating it invalidates issued API keys.",
+    "docs": "https://homebox.software",
+    "port": 7745,
+    "icon": "https://github.com/hay-kot.png?size=80",
+    "config": "configs/hay-kot/homebox.yml"
+  },
+  {
+    "repo": "homebridge/homebridge",
+    "name": "Homebridge",
+    "description": "HomeKit support for the impatient. Homebridge — bridge non-HomeKit devices into Apple HomeKit; config UI on :8581 (create admin on first visit).",
+    "docs": "https://homebridge.io",
+    "port": 8581,
+    "icon": "https://github.com/homebridge.png?size=80",
+    "config": "configs/homebridge/homebridge.yml"
+  },
+  {
+    "repo": "benphelps/homepage",
+    "name": "Homepage",
+    "description": "A modern, fully static, fast, secure fully proxied, highly customizable application dashboard with integrations for over 100 services and translations into multiple languages. Easily configured via YAML files or through docker label discovery. HOMEPAGE_ALLOWED_HOSTS=* (dev) so it doesn't reject the Aspire host; config volume so /app/config exists.",
+    "docs": "https://gethomepage.dev",
+    "port": 3000,
+    "icon": "https://github.com/benphelps.png?size=80",
+    "config": "configs/benphelps/homepage.yml"
+  },
+  {
+    "repo": "bastienwirtz/homer",
+    "name": "Homer",
+    "description": "Homer — a dead-simple static homepage/dashboard for your services (edit assets/config.yml).",
+    "docs": "https://github.com/bastienwirtz/homer",
+    "port": 8080,
+    "icon": "https://github.com/bastienwirtz.png?size=80",
+    "config": "configs/bastienwirtz/homer.yml"
+  },
+  {
+    "repo": "immich-app/immich",
+    "name": "Immich",
+    "description": "Immich — self-hosted photo & video backup. Comes with Immich's VectorChord Postgres + Redis + the ML container (scaffold — add a media library volume as needed).",
+    "docs": "https://immich.app",
+    "port": 2283,
+    "icon": "https://github.com/immich-app.png?size=80",
+    "config": "configs/immich-app/immich.yml"
+  },
+  {
+    "repo": "influxdata/influxdb",
+    "name": "InfluxDB v2",
+    "description": "# Quantified Self: Building a Pro-Level Health Dashboard with InfluxDB and Grafana ... In this tutorial, we are diving deep into Health Data Engineering. We will use InfluxDB as our high-performance time-series engine, Grafana for stunning visualizations, and Airflow to orchestrate the ETL (Extract, Transform, Load) process. By the end of this guide, you’ll have a professional-grade Quantified Self dashboard that…",
+    "docs": "https://www.influxdata.com",
+    "port": 8086,
+    "icon": "https://github.com/influxdata.png?size=80",
+    "config": "configs/influxdata/influxdb.yml"
+  },
+  {
+    "repo": "CorentinTh/it-tools",
+    "name": "IT-Tools",
+    "description": "IT-Tools — a big box of handy dev utilities (encoders, converters, generators…).",
+    "docs": "https://it-tools.tech",
+    "port": 80,
+    "icon": "https://github.com/CorentinTh.png?size=80",
+    "config": "configs/CorentinTh/it-tools.yml"
+  },
+  {
+    "repo": "Jackett/Jackett",
+    "name": "Jackett",
+    "description": "Jackett — indexer proxy that translates tracker searches for the *arr apps.",
+    "docs": "https://github.com/Jackett/Jackett",
+    "port": 9117,
+    "icon": "https://github.com/Jackett.png?size=80",
+    "config": "configs/Jackett/Jackett.yml"
+  },
+  {
+    "repo": "jaegertracing/jaeger",
+    "name": "Jaeger",
+    "description": "Jaeger backend is released as a single binary or container image (see Downloads). Despite that, it can be configured to operate in different roles, such as all-in-one, collector, query, and ingester (see Architecture). ... An explicit YAML configuration file must be provided via the`--config` command line argument (see Configuration). When running in a container, the path to the config file must be mapped into the…",
+    "docs": "https://www.jaegertracing.io",
+    "port": 16686,
+    "icon": "https://github.com/jaegertracing.png?size=80",
+    "config": "configs/jaegertracing/jaeger.yml"
+  },
+  {
+    "repo": "jellyfin/jellyfin",
+    "name": "Jellyfin",
+    "description": "Jellyfin enables you to collect, manage, and stream your media. Run the Jellyfin server on your system and gain access to the leading free-software entertainment system, bells and whistles included. ... With a large array of official and third-party clients, Jellyfin is available on most popular platforms. Your media is ready to follow you, wherever you go. ... Jellyfin is Free Software, licensed under the GNU GPL.…",
+    "docs": "https://jellyfin.org",
+    "port": 8096,
+    "icon": "https://github.com/jellyfin.png?size=80",
+    "config": "configs/jellyfin/jellyfin.yml"
+  },
+  {
+    "repo": "Fallenbagel/jellyseerr",
+    "name": "Jellyseerr",
+    "description": "Jellyseerr — media request & discovery frontend for Jellyfin/Emby/Plex.",
+    "docs": "https://github.com/Fallenbagel/jellyseerr",
+    "port": 5055,
+    "icon": "https://github.com/Fallenbagel.png?size=80",
+    "config": "configs/Fallenbagel/jellyseerr.yml"
+  },
+  {
+    "repo": "joinstr/joinstr",
+    "name": "Joinstr",
+    "description": "Joinstr — Nostr-based coinjoin wallet UI. Requires an external Bitcoin Core node over RPC (set the RPC params) — useless without a node.",
+    "docs": "https://github.com/1440000bytes/joinstr",
+    "port": 5000,
+    "icon": "https://github.com/joinstr.png?size=80",
+    "config": "configs/joinstr/joinstr.yml"
+  },
+  {
+    "repo": "joomla/joomla-cms",
+    "name": "Joomla",
+    "description": "Joomla — PHP CMS for sites and portals (official Apache image). MariaDB companion included; fill in the admin account below and the installer runs unattended on first start.",
+    "docs": "https://www.joomla.org",
+    "port": 80,
+    "icon": "https://github.com/joomla.png?size=80",
+    "config": "configs/joomla/joomla-cms.yml"
+  },
+  {
+    "repo": "jupyterlab/jupyterlab",
+    "name": "JupyterLab",
+    "description": "JupyterLab — notebooks for data science / Python. Access needs the token (?token=...), seeded as a parameter. Use scipy/datascience image variants for more libs.",
+    "docs": "https://jupyter.org",
+    "port": 8888,
+    "icon": "https://github.com/jupyterlab.png?size=80",
+    "config": "configs/jupyterlab/jupyterlab.yml"
+  },
+  {
+    "repo": "kanboard/kanboard",
+    "name": "Kanboard",
+    "description": "Kanboard — lean kanban project management. Single container, SQLite on a volume, no database needed. First login: admin / admin — change it.",
+    "docs": "https://kanboard.org",
+    "port": 80,
+    "icon": "https://github.com/kanboard.png?size=80",
+    "config": "configs/kanboard/kanboard.yml"
+  },
+  {
+    "repo": "Kareadita/Kavita",
+    "name": "Kavita",
+    "description": "Kavita — fast, cross-platform reading server (comics, manga, books).",
+    "docs": "https://www.kavitareader.com",
+    "port": 5000,
+    "icon": "https://github.com/Kareadita.png?size=80",
+    "config": "configs/Kareadita/Kavita.yml"
+  },
+  {
+    "repo": "kimai/kimai",
+    "name": "Kimai",
+    "description": "Kimai — self-hosted time tracking for teams and freelancers. MariaDB companion included; the first admin account is created from the mail address and password below.",
+    "docs": "https://www.kimai.org",
+    "port": 8001,
+    "icon": "https://github.com/kimai.png?size=80",
+    "config": "configs/kimai/kimai.yml"
+  },
+  {
+    "repo": "gotson/komga",
+    "name": "Komga",
+    "description": "Komga — self-hosted comics/manga/e-book server.",
+    "docs": "https://komga.org",
+    "port": 25600,
+    "icon": "https://github.com/gotson.png?size=80",
+    "config": "configs/gotson/komga.yml"
+  },
+  {
+    "repo": "langflow-ai/langflow",
+    "name": "Langflow",
+    "description": "This section includes the ... the world. ... To self-host your local server through an ngrok gateway, see Deploy a public Langflow server. This approach uses ngrok to forward traffic and share your local Langflow server over the internet, without deploying to a cloud provider or exposing your network directly. Superuser seeded (admin/admin — change it).",
+    "docs": "https://www.langflow.org",
+    "port": 7860,
+    "icon": "https://github.com/langflow-ai.png?size=80",
+    "config": "configs/langflow-ai/langflow.yml"
+  },
+  {
+    "repo": "leaf-wiki/leaf-wiki",
+    "name": "LeafWiki",
+    "description": "LeafWiki — lightweight self-hosted wiki (single Go binary + SQLite, Markdown on disk). Set ALLOW_INSECURE=true for plain HTTP.",
+    "docs": "https://leafwiki.com",
+    "port": 8080,
+    "icon": "https://github.com/leaf-wiki.png?size=80",
+    "config": "configs/leaf-wiki/leaf-wiki.yml"
+  },
+  {
+    "repo": "danny-avila/LibreChat",
+    "name": "LibreChat",
+    "description": "LibreChat — polished multi-model chat UI. Comes with Mongo + Meilisearch companions (scaffold — finish the connection env).",
+    "docs": "https://www.librechat.ai",
+    "port": 3080,
+    "icon": "https://github.com/danny-avila.png?size=80",
+    "config": "configs/danny-avila/LibreChat.yml"
+  },
+  {
+    "repo": "LibrePhotos/librephotos",
+    "name": "LibrePhotos",
+    "description": "GitHub - LibrePhotos/librephotos: A self-hosted open source photo management service. · GitHub ... A self-hosted, open-source photo management service with automatic face recognition, object detection, and semantic search — powered by modern machine learning. ... A self-hosted open source photo management service. Admin from params (admin / please-change-me).",
+    "docs": "https://www.librephotos.com",
+    "port": 8001,
+    "icon": "https://github.com/LibrePhotos.png?size=80",
+    "config": "configs/LibrePhotos/librephotos.yml"
+  },
+  {
+    "repo": "librespeed/speedtest",
+    "name": "LibreSpeed",
+    "description": "LibreSpeed — self-hosted network speed test (no Flash/Java, single container).",
+    "docs": "https://librespeed.org",
+    "port": 80,
+    "icon": "https://github.com/librespeed.png?size=80",
+    "config": "configs/librespeed/speedtest.yml"
+  },
+  {
+    "repo": "uav4geo/LibreTranslate",
+    "name": "LibreTranslate",
+    "description": "LibreTranslate — self-hosted machine translation API/UI (downloads language models on first start).",
+    "docs": "https://libretranslate.com",
+    "port": 5000,
+    "icon": "https://github.com/uav4geo.png?size=80",
+    "config": "configs/uav4geo/LibreTranslate.yml"
+  },
+  {
+    "repo": "Lidarr/Lidarr",
+    "name": "Lidarr",
+    "description": "Lidarr — music collection manager for the *arr stack (pairs with Prowlarr + a download client).",
+    "docs": "https://lidarr.audio",
+    "port": 8686,
+    "icon": "https://github.com/Lidarr.png?size=80",
+    "config": "configs/Lidarr/Lidarr.yml"
+  },
+  {
+    "repo": "LimeSurvey/LimeSurvey",
+    "name": "LimeSurvey",
+    "description": "LimeSurvey — full-featured survey and questionnaire tool. MariaDB companion included; the admin account below is created on first start.",
+    "docs": "https://www.limesurvey.org",
+    "port": 8080,
+    "icon": "https://github.com/LimeSurvey.png?size=80",
+    "config": "configs/LimeSurvey/LimeSurvey.yml"
+  },
+  {
+    "repo": "sissbruecker/linkding",
+    "name": "linkding",
+    "description": "A self-hosted bookmark manager designed to be minimal, fast, and easy to set up. ... Automatically fetches titles, descriptions, icons and preview images of bookmarked websites. Seeds an admin user (change the password).",
+    "docs": "https://linkding.link",
+    "port": 9090,
+    "icon": "https://github.com/sissbruecker.png?size=80",
+    "config": "configs/sissbruecker/linkding.yml"
+  },
+  {
+    "repo": "JulianPrieber/linkstack",
+    "name": "LinkStack",
+    "description": "LinkStack — self-hosted 'link in bio' page. Complete admin + setup via the web wizard on first run.",
+    "docs": "https://linkstack.org",
+    "port": 80,
+    "icon": "https://github.com/JulianPrieber.png?size=80",
+    "config": "configs/JulianPrieber/linkstack.yml"
+  },
+  {
+    "repo": "linkwarden/linkwarden",
+    "name": "Linkwarden",
+    "description": "Linkwarden is a self-hosted, open-source collaborative bookmark manager to collect, read, annotate, and fully preserve what matters, all in one place. ... The objective is to organize useful webpages and articles you find across the web in one place, and since useful webpages can go away (see the inevitability of Link Rot), Linkwarden also saves a copy of each webpage in multiple formats, ensuring accessibility…",
+    "docs": "https://linkwarden.app",
+    "port": 3000,
+    "icon": "https://github.com/linkwarden.png?size=80",
+    "config": "configs/linkwarden/linkwarden.yml"
+  },
+  {
+    "repo": "lnbits/lnbits",
+    "name": "LNbits",
+    "description": "LNbits, free and open-source Lightning wallet and accounts system. ... # LNbits — The most powerful Bitcoin & Lightning toolkit ... LNbits is a lightweight Python server that sits on top of your Lightning funding source. It gives you safe, isolated wallets, a clean API, and an extension system for rapidly adding features - without locking you into a single node implementation. The Inspiration for LNBits came from…",
+    "docs": "https://lnbits.com",
+    "port": 5000,
+    "icon": "https://github.com/lnbits.png?size=80",
+    "config": "configs/lnbits/lnbits.yml"
+  },
+  {
+    "repo": "lobehub/lobe-chat",
+    "name": "LobeChat",
+    "description": "LobeChat — polished chat UI for OpenAI/Claude/Ollama and more (enter your API keys in-app).",
+    "docs": "https://lobehub.com",
+    "port": 3210,
+    "icon": "https://github.com/lobehub.png?size=80",
+    "config": "configs/lobehub/lobe-chat.yml"
+  },
+  {
+    "repo": "mudler/LocalAGI",
+    "name": "LocalAGI",
+    "description": "LocalAGI — self-hostable AI agent platform (mudler). Comes with a LocalAI companion; set LOCALAGI_MODEL to a model your LocalAI has pulled (scaffold — provide/pull the model).",
+    "docs": "https://github.com/mudler/LocalAGI",
+    "port": 3000,
+    "icon": "https://github.com/mudler.png?size=80",
+    "config": "configs/mudler/LocalAGI.yml"
+  },
+  {
+    "repo": "mudler/LocalRecall",
+    "name": "LocalRecall",
+    "description": "LocalRecall — local RAG / long-term memory server (mudler, pairs with LocalAI).",
+    "docs": "https://github.com/mudler/LocalRecall",
+    "port": 8080,
+    "icon": "https://github.com/mudler.png?size=80",
+    "config": "configs/mudler/LocalRecall.yml"
+  },
+  {
+    "repo": "laxxx-lab/lx-family-planner",
+    "name": "LX Family Planner",
+    "description": "LX Family — self-hosted \"Family OS\": calendars, chores, meal and shopping planning, chat, cloud files and child-friendly profiles. The first family is created in the browser after install; further registration stays closed.",
+    "docs": "https://github.com/laxxx-lab/lx-family-planner",
+    "port": 3001,
+    "icon": "https://github.com/laxxx-lab.png?size=80",
+    "config": "configs/laxxx-lab/lx-family-planner.yml"
+  },
+  {
+    "repo": "fgilde/Maestro",
+    "name": "Maestro",
+    "description": "All-in-one, 100% local AI video, image and music studio with a Director mode that plans music videos and short films from a prompt. GPU strongly recommended.",
+    "docs": "https://github.com/fgilde/Maestro",
+    "port": 7860,
+    "icon": "https://github.com/fgilde.png?size=80",
+    "config": "configs/fgilde/Maestro.yml"
+  },
+  {
+    "repo": "matomo-org/matomo",
+    "name": "Matomo",
+    "description": "Matomo — self-hosted web analytics (the Google Analytics alternative), official Apache image. MariaDB companion included; the browser installer picks up the database settings, then you create the super user.",
+    "docs": "https://matomo.org",
+    "port": 80,
+    "icon": "https://github.com/matomo-org.png?size=80",
+    "config": "configs/matomo-org/matomo.yml"
+  },
+  {
+    "repo": "mattermost/mattermost",
+    "name": "Mattermost",
+    "description": "Mattermost — self-hosted team chat (Slack alternative). Postgres companion. Create the admin account on first run.",
+    "docs": "https://mattermost.com",
+    "port": 8065,
+    "icon": "https://github.com/mattermost.png?size=80",
+    "config": "configs/mattermost/mattermost.yml"
+  },
+  {
+    "repo": "mealie-recipes/mealie",
+    "name": "Mealie",
+    "description": "Mealie is a self hosted recipe manager and meal planner with a RestAPI backend and a reactive frontend application built in Vue for a pleasant user experience for the whole family. Easily add recipes into your database by providing the url and Mealie will automatically import the relevant data or add a family recipe with the UI editor. Mealie also provides an API for interactions from 3rd party applications.",
+    "docs": "https://mealie.io",
+    "port": 9000,
+    "icon": "https://github.com/mealie-recipes.png?size=80",
+    "config": "configs/mealie-recipes/mealie.yml"
+  },
+  {
+    "repo": "usememos/memos",
+    "name": "Memos",
+    "description": "Memos — lightweight, privacy-first note/memo hub.",
+    "docs": "https://www.usememos.com",
+    "port": 5230,
+    "icon": "https://github.com/usememos.png?size=80",
+    "config": "configs/usememos/memos.yml"
+  },
+  {
+    "repo": "mempool/mempool",
+    "name": "mempool",
+    "description": "mempool.space self-hosted explorer/visualizer. Frontend + backend + MariaDB. Point the backend at an external Bitcoin Core (CORE_RPC_*) and Electrum server (ELECTRUM_HOST).",
+    "docs": "https://github.com/mempool/mempool",
+    "port": 8080,
+    "icon": "https://github.com/mempool.png?size=80",
+    "config": "configs/mempool/mempool.yml"
+  },
+  {
+    "repo": "metabase/metabase",
+    "name": "Metabase",
+    "description": "Metabase — BI dashboards & ad-hoc analytics over your databases.",
+    "docs": "https://www.metabase.com",
+    "port": 3000,
+    "icon": "https://github.com/metabase.png?size=80",
+    "config": "configs/metabase/metabase.yml"
+  },
+  {
+    "repo": "alexta69/metube",
+    "name": "MeTube",
+    "description": "MeTube — self-hosted web UI for yt-dlp; download video/audio from YouTube and hundreds of sites.",
+    "docs": "https://github.com/alexta69/metube",
+    "port": 8081,
+    "icon": "https://github.com/alexta69.png?size=80",
+    "config": "configs/alexta69/metube.yml"
+  },
+  {
+    "repo": "minio/minio",
+    "name": "MinIO",
+    "description": "MinIO — S3-compatible object storage; console on :9001 (S3 API :9000). Pinned to the last release with a full browser console. Root user/password seeded as params (>= 8 chars).",
+    "docs": "https://min.io",
+    "port": 9001,
+    "icon": "https://github.com/minio.png?size=80",
+    "config": "configs/minio/minio.yml"
+  },
+  {
+    "repo": "monicahq/monica",
+    "name": "Monica",
+    "description": "Monica — a personal CRM: remember everything about your friends and family. MariaDB companion included; APP_KEY is generated for you (32 chars, keep it stable), then register the first account in the browser.",
+    "docs": "https://www.monicahq.com",
+    "port": 80,
+    "icon": "https://github.com/monicahq.png?size=80",
+    "config": "configs/monicahq/monica.yml"
+  },
+  {
+    "repo": "fgilde/MuseForge",
+    "name": "MuseForge",
+    "description": "Self-hosted AI media studio: video, image, audio, long-form text and audiobooks, with an LLM-planned Director mode. Drivable from the browser, a script or an AI agent over MCP. GPU strongly recommended.",
+    "docs": "https://github.com/fgilde/MuseForge",
+    "port": 7860,
+    "icon": "https://github.com/fgilde.png?size=80",
+    "config": "configs/fgilde/MuseForge.yml"
+  },
+  {
+    "repo": "gnmyt/myspeed",
+    "name": "MySpeed",
+    "description": "MySpeed — scheduled internet speed-test monitoring with history/graphs. Set an access password in the UI after first launch.",
+    "docs": "https://myspeed.dev",
+    "port": 5216,
+    "icon": "https://github.com/gnmyt.png?size=80",
+    "config": "configs/gnmyt/myspeed.yml"
+  },
+  {
+    "repo": "navidrome/navidrome",
+    "name": "Navidrome",
+    "description": "Navidrome — self-hosted music streaming (Subsonic-compatible).",
+    "docs": "https://www.navidrome.org",
+    "port": 4533,
+    "icon": "https://github.com/navidrome.png?size=80",
+    "config": "configs/navidrome/navidrome.yml"
+  },
+  {
+    "repo": "nextcloud/server",
+    "name": "Nextcloud",
+    "description": "Nextcloud — self-hosted files, calendar, collaboration.",
+    "docs": "https://nextcloud.com",
+    "port": 80,
+    "icon": "https://github.com/nextcloud.png?size=80",
+    "config": "configs/nextcloud/server.yml"
+  },
+  {
+    "repo": "jc21/nginx-proxy-manager",
+    "name": "Nginx Proxy Manager",
+    "description": "Nginx Proxy Manager — reverse proxy + Let's Encrypt with a friendly UI (admin on :81; proxies 80/443). Default login admin@example.com / changeme. Needs /data + /etc/letsencrypt volumes or it refuses to start.",
+    "docs": "https://nginxproxymanager.com",
+    "port": 81,
+    "icon": "https://github.com/jc21.png?size=80",
+    "config": "configs/jc21/nginx-proxy-manager.yml"
+  },
+  {
+    "repo": "nocodb/nocodb",
+    "name": "NocoDB",
+    "description": "NocoDB — turn any database into a smart spreadsheet (Airtable-style). SQLite by default, no DB setup needed.",
+    "docs": "https://nocodb.com",
+    "port": 8080,
+    "icon": "https://github.com/nocodb.png?size=80",
+    "config": "configs/nocodb/nocodb.yml"
+  },
+  {
+    "repo": "node-red/node-red",
+    "name": "Node-RED",
+    "description": "Node-RED is a flow-based programming tool, originally developed by IBM Emerging Technology Services team and now a part of the OpenJS Foundation. ... Node-RED provides a browser-based flow editor that makes it easy to wire together flows using the wide range of nodes in the palette. Flows can be then deployed to the runtime in a single-click. ... The light-weight runtime is built on Node.js, taking full advantage…",
+    "docs": "https://nodered.org",
+    "port": 1880,
+    "icon": "https://github.com/node-red.png?size=80",
+    "config": "configs/node-red/node-red.yml"
+  },
+  {
+    "repo": "binwiederhier/ntfy",
+    "name": "ntfy",
+    "description": "ntfy — simple pub/sub push notifications to your phone/desktop via HTTP. Runs the 'serve' subcommand (bare ntfy just prints help and exits).",
+    "docs": "https://ntfy.sh",
+    "port": 80,
+    "icon": "https://github.com/binwiederhier.png?size=80",
+    "config": "configs/binwiederhier/ntfy.yml"
+  },
+  {
+    "repo": "OctoPrint/OctoPrint",
+    "name": "OctoPrint",
+    "description": "OctoPrint — web control & monitoring for a 3D printer. Starts into the setup wizard; to print, pass the printer's serial device.",
+    "docs": "https://octoprint.org",
+    "port": 80,
+    "icon": "https://github.com/OctoPrint.png?size=80",
+    "config": "configs/OctoPrint/OctoPrint.yml"
+  },
+  {
+    "repo": "ONLYOFFICE/DocumentServer",
+    "name": "OnlyOffice",
+    "description": "I believe this is just a description based on the fact, that ONLYOFFICE Docs is a web-based application. Therefore it has to be “hosted” on a machine (PC) and can then also be accessed and used from other PCs via web-browser, either from outside and/or inside a network-environment, depending on the configuration of the host/network … As in comparison to ONLYOFFICE Destktop installations. ... Firstly, Desktop…",
+    "docs": "https://www.onlyoffice.com",
+    "port": 80,
+    "icon": "https://github.com/ONLYOFFICE.png?size=80",
+    "config": "configs/ONLYOFFICE/DocumentServer.yml"
+  },
+  {
+    "repo": "open-webui/open-webui",
+    "name": "Open WebUI",
+    "description": "Open WebUI — chat UI for Ollama / OpenAI-compatible backends. Point OLLAMA_BASE_URL / OPENAI_API_BASE_URL at your model resource.",
+    "docs": "https://openwebui.com",
+    "port": 8080,
+    "icon": "https://github.com/open-webui.png?size=80",
+    "config": "configs/open-webui/open-webui.yml"
+  },
+  {
+    "repo": "openclaw/openclaw",
+    "name": "OpenClaw",
+    "description": "OpenClaw — AI 'does-things' agent with a bundled headless browser + control UI. APP_SEED (identity/encryption) seeded as a parameter — keep it stable or state is lost. Model provider key set in-app.",
+    "docs": "https://github.com/getumbrel/openclaw-umbrel",
+    "port": 18789,
+    "icon": "https://github.com/openclaw.png?size=80",
+    "config": "configs/openclaw/openclaw.yml"
+  },
+  {
+    "repo": "outline/outline",
+    "name": "Outline",
+    "description": "# Hosting Outline ... This guide contains documentation for installing and configuring the Outline knowledge base in a variety of environments. There is a separate guide that on how to use Outline for general documentation of Outline's features. ... While we've done our best to make this as easy as possible, however please note that Outline is engineered as a horizontally scalable cloud platform and requires…",
+    "docs": "https://www.getoutline.com",
+    "port": 3000,
+    "icon": "https://github.com/outline.png?size=80",
+    "config": "configs/outline/outline.yml"
+  },
+  {
+    "repo": "sct/overseerr",
+    "name": "Overseerr",
+    "description": "Overseerr — media request & discovery for Plex (Radarr/Sonarr integration).",
+    "docs": "https://overseerr.dev",
+    "port": 5055,
+    "icon": "https://github.com/sct.png?size=80",
+    "config": "configs/sct/overseerr.yml"
+  },
+  {
+    "repo": "paperclip-ai/paperclip",
+    "name": "Paperclip AI",
+    "description": "Paperclip (paperclipai) — open platform for orchestrating AI agents. API on 3100; embedded Postgres, no DB setup needed. BETTER_AUTH_SECRET seeded as a parameter (change it).",
+    "docs": "https://github.com/paperclipai/paperclip",
+    "port": 3100,
+    "icon": "https://github.com/paperclip-ai.png?size=80",
+    "config": "configs/paperclip-ai/paperclip.yml"
+  },
+  {
+    "repo": "paperless-ai/paperless-ai",
+    "name": "Paperless-AI",
+    "description": "Paperless-AI — AI companion for Paperless-ngx: auto tagging/classification + semantic search. Point it at your Paperless instance.",
+    "docs": "https://github.com/clusterzx/paperless-ai",
+    "port": 3000,
+    "icon": "https://github.com/paperless-ai.png?size=80",
+    "config": "configs/paperless-ai/paperless-ai.yml"
+  },
+  {
+    "repo": "paperless-ngx/paperless-ngx",
+    "name": "Paperless-ngx",
+    "description": "Paperless-ngx — scan/OCR document management. Comes with a Postgres + Redis companion (scaffold — finish the connection env).",
+    "docs": "https://docs.paperless-ngx.com",
+    "port": 8000,
+    "icon": "https://github.com/paperless-ngx.png?size=80",
+    "config": "configs/paperless-ngx/paperless-ngx.yml"
+  },
+  {
+    "repo": "pearcircle/seeder",
+    "name": "PearCircle Seeder",
+    "description": "Run a blind seeder for your PearCircle circles on your Umbrel so their history stays in sync even when every phone is offline. ... PearCircle is a peer-to-peer location-sharing app with no accounts and no servers: a circle's data lives only on its members' devices and syncs directly between them. That means a circle is only reachable while at least one member's phone is online. This app runs the PearCircle…",
+    "docs": "https://github.com/peerloomllc/pearcircle-seeder",
+    "port": 8730,
+    "icon": "https://github.com/pearcircle.png?size=80",
+    "config": "configs/pearcircle/seeder.yml"
+  },
+  {
+    "repo": "penpot/penpot",
+    "name": "Penpot",
+    "description": "Penpot — open-source design & prototyping (Figma alternative). Frontend + backend + exporter + Postgres + Redis. Register the first account in-app. Set PENPOT_PUBLIC_URI to how you reach it.",
+    "docs": "https://penpot.app",
+    "port": 8080,
+    "icon": "https://github.com/penpot.png?size=80",
+    "config": "configs/penpot/penpot.yml"
+  },
+  {
+    "repo": "photoprism/photoprism",
+    "name": "PhotoPrism",
+    "description": "PhotoPrism® Pro provides your organization with access to additional configuration and deployment options — all fully GDPR-compliant, hosted on your own infrastructure, and backed by our team. ... Our mission is to provide the most user- and privacy-friendly solution to keep your pictures organized and accessible. That’s why PhotoPrism was built from the ground up to run wherever you need it, without compromising…",
+    "docs": "https://www.photoprism.app",
+    "port": 2342,
+    "icon": "https://github.com/photoprism.png?size=80",
+    "config": "configs/photoprism/photoprism.yml"
+  },
+  {
+    "repo": "phpmyadmin/phpmyadmin",
+    "name": "phpMyAdmin",
+    "description": "phpMyAdmin — the web UI for MySQL/MariaDB. Arbitrary-server mode is on, so you type the database host at login (e.g. another resource in your stack) instead of wiring it up front.",
+    "docs": "https://www.phpmyadmin.net",
+    "port": 80,
+    "icon": "https://github.com/phpmyadmin.png?size=80",
+    "config": "configs/phpmyadmin/phpmyadmin.yml"
+  },
+  {
+    "repo": "pi-hole/pi-hole",
+    "name": "Pi-hole",
+    "description": "Pi-hole — network-wide ad/tracker blocking DNS. Admin login password seeded as a parameter (change it). Also binds DNS on :53 (host port conflicts possible).",
+    "docs": "https://pi-hole.net",
+    "port": 80,
+    "icon": "https://github.com/pi-hole.png?size=80",
+    "config": "configs/pi-hole/pi-hole.yml"
+  },
+  {
+    "repo": "Piwigo/Piwigo",
+    "name": "Piwigo",
+    "description": "Piwigo — photo gallery manager for large collections. MariaDB companion included; the browser installer asks for the database — host piwigo-db, name/user/password all \"piwigo\".",
+    "docs": "https://piwigo.org",
+    "port": 80,
+    "icon": "https://github.com/Piwigo.png?size=80",
+    "config": "configs/Piwigo/Piwigo.yml"
+  },
+  {
+    "repo": "plankanban/planka",
+    "name": "Planka",
+    "description": "Planka — Trello-style kanban boards. Postgres companion. Set BASE_URL to how you reach it (default localhost:1337). Login = the seeded admin email / password (default admin@aspireui.local / please-change-me).",
+    "docs": "https://planka.app",
+    "port": 1337,
+    "icon": "https://github.com/plankanban.png?size=80",
+    "config": "configs/plankanban/planka.yml"
+  },
+  {
+    "repo": "plexinc/plex",
+    "name": "Plex",
+    "description": "Plex Media Server — movies/TV/music. Open the UI at http://<host>:32400/web (the bare URL returns \"Bad Request\"). Published on fixed port 32400. Optional PLEX_CLAIM (from plex.tv/claim, ~4 min) links your account. ALLOWED_NETWORKS lets your LAN in; GPU for transcoding.",
+    "docs": "https://www.plex.tv",
+    "port": 32400,
+    "icon": "https://github.com/plexinc.png?size=80",
+    "config": "configs/plexinc/plex.yml"
+  },
+  {
+    "repo": "portainer/portainer",
+    "name": "Portainer",
+    "description": "**Portainer Community Edition** is a lightweight service delivery platform for containerized applications that can be used to manage Docker, Swarm, Kubernetes and ACI environments. It is designed to be as simple to deploy as it is to use. The application allows you to manage all your orchestrator resources (containers, images, volumes, networks and more) through a ‘smart’ GUI and/or an extensive API. ... Portainer…",
+    "docs": "https://www.portainer.io",
+    "port": 9000,
+    "icon": "https://github.com/portainer.png?size=80",
+    "config": "configs/portainer/portainer.yml"
+  },
+  {
+    "repo": "Prowlarr/Prowlarr",
+    "name": "Prowlarr",
+    "description": "Prowlarr is an indexer manager/proxy built on the popular *arr .net/reactjs base stack to integrate with your various PVR apps, supporting management of both Torrent Trackers and Usenet Indexers. ... Prowlarr is an indexer manager/proxy built on the popular \\*arr .net/reactjs base stack to integrate with your various PVR apps. Prowlarr supports management of both Torrent Trackers and Usenet Indexers. It integrates…",
+    "docs": "https://prowlarr.com",
+    "port": 9696,
+    "icon": "https://github.com/Prowlarr.png?size=80",
+    "config": "configs/Prowlarr/Prowlarr.yml"
+  },
+  {
+    "repo": "qbittorrent/qBittorrent",
+    "name": "qBittorrent",
+    "description": "qBittorrent is a free, open-source BitTorrent client with a built-in web UI. It’s the most popular self-hosted torrent client — lightweight, feature-rich, and widely supported by the *arr stack (Sonarr, Radarr, Lidarr). qBittorrent replaces paid or ad-supported clients like uTorrent and BitTorrent, with better privacy and full control over your downloads. ... qBittorrent has a more feature-rich web UI, better *arr…",
+    "docs": "https://www.qbittorrent.org",
+    "port": 8080,
+    "icon": "https://github.com/qbittorrent.png?size=80",
+    "config": "configs/qbittorrent/qBittorrent.yml"
+  },
+  {
+    "repo": "Radarr/Radarr",
+    "name": "Radarr",
+    "description": "Movie organizer/manager for usenet and torrent users. ... Radarr is a movie collection manager for Usenet and BitTorrent users. It can monitor multiple RSS feeds for new movies and will interface with clients and indexers to grab, sort, and rename them. It can also be configured to automatically upgrade the quality of existing files in the library when a better quality format becomes available.",
+    "docs": "https://radarr.video",
+    "port": 7878,
+    "icon": "https://github.com/Radarr.png?size=80",
+    "config": "configs/Radarr/Radarr.yml"
+  },
+  {
+    "repo": "saubyk/c-lightning-REST",
+    "name": "Ride The Lightning",
+    "description": "RTL — web UI for LND / Core Lightning / Eclair nodes. Needs an existing LN node: mount its macaroon + point RTLConfig at the node.",
+    "docs": "https://github.com/Ride-The-Lightning/RTL",
+    "port": 3000,
+    "icon": "https://github.com/saubyk.png?size=80",
+    "config": "configs/saubyk/c-lightning-REST.yml"
+  },
+  {
+    "repo": "meienberger/runtipi",
+    "name": "Runtipi",
+    "description": "Runtipi — self-hosted homeserver / app manager. Postgres + RabbitMQ companions; local SQLite cache at /cache. Backend/dashboard served on :3000 (we publish that directly, bypassing runtipi’s own Traefik). Mounts the Docker socket to manage apps (works on Linux; skipped on Docker Desktop, so app-management is Linux/Proxmox-only). EXPERIMENTAL orchestrator.",
+    "docs": "https://runtipi.io",
+    "port": 3000,
+    "icon": "https://github.com/meienberger.png?size=80",
+    "config": "configs/meienberger/runtipi.yml"
+  },
+  {
+    "repo": "vladmandic/automatic",
+    "name": "SD.Next",
+    "description": "SD.Next — all-in-one WebUI for generative image/video (vladmandic). CUDA image shown; ROCm/IPEX/OpenVINO variants exist. GPU recommended.",
+    "docs": "https://github.com/vladmandic/sdnext",
+    "port": 7860,
+    "icon": "https://github.com/vladmandic.png?size=80",
+    "config": "configs/vladmandic/automatic.yml"
+  },
+  {
+    "repo": "searxng/searxng",
+    "name": "SearXNG",
+    "description": "Search without being tracked. ... SearXNG is a free internet metasearch engine which aggregates results from up to 279 search services. Users are neither tracked nor profiled. Additionally, SearXNG can be used over Tor for online anonymity. ... Get started with SearXNG by using one of the instances listed at searx.space. If you don’t trust anyone, you can set up your own, see Installation.",
+    "docs": "https://docs.searxng.org",
+    "port": 8080,
+    "icon": "https://github.com/searxng.png?size=80",
+    "config": "configs/searxng/searxng.yml"
+  },
+  {
+    "repo": "shaarli/Shaarli",
+    "name": "Shaarli",
+    "description": "Shaarli — a minimalist, database-free bookmark manager (personal link log with RSS). Create the admin account in the browser on first visit.",
+    "docs": "https://shaarli.readthedocs.io",
+    "port": 80,
+    "icon": "https://github.com/shaarli.png?size=80",
+    "config": "configs/shaarli/Shaarli.yml"
+  },
+  {
+    "repo": "go-shiori/shiori",
+    "name": "Shiori",
+    "description": "Shiori — simple bookmarks manager (Pocket-like). First-run login is shiori / gopher — change it after logging in (Shiori has no env for initial credentials). SHIORI_HTTP_SECRET_KEY seeded as a parameter so sessions survive restarts.",
+    "docs": "https://github.com/go-shiori/shiori",
+    "port": 8080,
+    "icon": "https://github.com/go-shiori.png?size=80",
+    "config": "configs/go-shiori/shiori.yml"
+  },
+  {
+    "repo": "skybro/skybro",
+    "name": "SkyBro",
+    "description": "SkyBro — overhead flight tracker with alerts (uses OpenSky/Open-Meteo, no API key). Ships a tracker companion; both share /data on Umbrel — our companion can't share the volume yet, so the dashboard may show empty until that's wired. Home coords + Pushover/Discord set in-app.",
+    "docs": "https://github.com/xdeekay/skybro",
+    "port": 5000,
+    "icon": "https://github.com/skybro.png?size=80",
+    "config": "configs/skybro/skybro.yml"
+  },
+  {
+    "repo": "snipe/snipe-it",
+    "name": "Snipe-IT",
+    "description": "Snipe-IT — IT asset and license management. MariaDB companion included. APP_KEY is generated for you and must stay stable; set APP_URL to the address you reach it on, then finish the setup in the browser.",
+    "docs": "https://snipeitapp.com",
+    "port": 80,
+    "icon": "https://github.com/snipe.png?size=80",
+    "config": "configs/snipe/snipe-it.yml"
+  },
+  {
+    "repo": "Sonarr/Sonarr",
+    "name": "Sonarr",
+    "description": "## Sonarr is an internet PVR for Usenet and Torrents. ... Sonarr is an internet PVR for Usenet and Torrents. ... Sonarr is supported natively on Windows. Sonarr can be installed as Windows Service or System Tray Application.",
+    "docs": "https://sonarr.tv",
+    "port": 8989,
+    "icon": "https://github.com/Sonarr.png?size=80",
+    "config": "configs/Sonarr/Sonarr.yml"
+  },
+  {
+    "repo": "Stirling-Tools/Stirling-PDF",
+    "name": "Stirling-PDF",
+    "description": "Stirling PDF is a locally hosted web application that allows you to perform various operations on PDF files. With 60+ tools, flexible deployment options, and enterprise features, it's the comprehensive PDF solution for individuals and organizations.",
+    "docs": "https://www.stirlingpdf.com",
+    "port": 8080,
+    "icon": "https://github.com/Stirling-Tools.png?size=80",
+    "config": "configs/Stirling-Tools/Stirling-PDF.yml"
+  },
+  {
+    "repo": "syncthing/syncthing",
+    "name": "Syncthing",
+    "description": "Syncthing — continuous, peer-to-peer file synchronization (web UI on 8384).",
+    "docs": "https://syncthing.net",
+    "port": 8384,
+    "icon": "https://github.com/syncthing.png?size=80",
+    "config": "configs/syncthing/syncthing.yml"
+  },
+  {
+    "repo": "Tautulli/Tautulli",
+    "name": "Tautulli",
+    "description": "Tautulli is the best web application to monitor, view analytics, and receive notifications about your Plex Media Server. ... Tautulli is a 3rd party application that you can run alongside your Plex Media Server to monitor activity and track various statistics. Most importantly, these statistics include what has been watched, who watched it, when and where they watched it, and how it was watched. The only thing…",
+    "docs": "https://tautulli.com",
+    "port": 8181,
+    "icon": "https://github.com/Tautulli.png?size=80",
+    "config": "configs/Tautulli/Tautulli.yml"
+  },
+  {
+    "repo": "transmute/transmute",
+    "name": "Transmute",
+    "description": "Self hosted file converter for images, video, audio, json, excel and more. Supports close to 3,000 conversions! ... **Transmute** is a free, open-source, self-hosted file conversion and compression tool built for privacy and automation. Convert images, video, audio, documents, spreadsheets, subtitles, and fonts entirely locally, or compress supported files to make them smaller without sending anything to a third…",
+    "docs": "https://transmute.sh",
+    "port": 3313,
+    "icon": "https://github.com/transmute.png?size=80",
+    "config": "configs/transmute/transmute.yml"
+  },
+  {
+    "repo": "getumbrel/umbrel",
+    "name": "Umbrel (umbrelOS)",
+    "description": "Umbrel is a small device that sits in your home and lets you store your files, stream your media, run your own AI, and much more. All the convenience of the cloud, but your data stays with you. You access it from any device (phone, tablet, or computer) right in your browser. ... umbrelOS is the operating system that powers every Umbrel — think macOS or Windows, but for your home server. It's designed to be simple…",
+    "docs": "https://umbrel.com",
+    "port": 80,
+    "icon": "https://github.com/getumbrel.png?size=80",
+    "config": "configs/getumbrel/umbrel.yml"
+  },
+  {
+    "repo": "louislam/uptime-kuma",
+    "name": "Uptime Kuma",
+    "description": "Uptime Kuma — self-hosted uptime/status monitoring.",
+    "docs": "https://github.com/louislam/uptime-kuma",
+    "port": 3001,
+    "icon": "https://github.com/louislam.png?size=80",
+    "config": "configs/louislam/uptime-kuma.yml"
+  },
+  {
+    "repo": "valorgrid/valorgrid",
+    "name": "ValorGrid",
+    "description": "Add ValorGrid to the CasaOS AppStore. ... ValorGrid is a private, single-user local portfolio dashboard with SQLite persistence, local backups, and portfolio views for holdings, allocation, movements, monthly tracking, and history. Set an auth password (params); add an Alpha Vantage API key for live market prices.",
+    "docs": "https://github.com/aivm23/valorgrid",
+    "port": 1325,
+    "icon": "https://github.com/valorgrid.png?size=80",
+    "config": "configs/valorgrid/valorgrid.yml"
+  },
+  {
+    "repo": "dani-garcia/vaultwarden",
+    "name": "Vaultwarden",
+    "description": "Vaultwarden — lightweight Bitwarden-compatible password manager server.",
+    "docs": "https://github.com/dani-garcia/vaultwarden",
+    "port": 80,
+    "icon": "https://github.com/dani-garcia.png?size=80",
+    "config": "configs/dani-garcia/vaultwarden.yml"
+  },
+  {
+    "repo": "fgilde/videola",
+    "name": "Videola",
+    "description": "Videola — a browser-based video editor on a Rust core: import, cut and trim on the timeline, effects, transitions, masks, keyframes, colour scopes, an audio mixing desk with EBU R128 loudness, subtitles and export. Works on desktop, tablet and phone, and ships an HTTP API plus an MCP server for agents. The editor opens without a login; the API and the server-side storage root need the access token below.",
+    "docs": "https://fgilde.github.io/videola/",
+    "port": 7331,
+    "icon": "https://github.com/fgilde.png?size=80",
+    "config": "configs/fgilde/videola.yml"
+  },
+  {
+    "repo": "go-vikunja/vikunja",
+    "name": "Vikunja",
+    "description": "Vikunja — self-hosted to-do / task & project management. CORS disabled (single container); runs as root so it can create its files dir (image runs as uid 1000 but /app/vikunja is root-owned).",
+    "docs": "https://vikunja.io",
+    "port": 3456,
+    "icon": "https://github.com/go-vikunja.png?size=80",
+    "config": "configs/go-vikunja/vikunja.yml"
+  },
+  {
+    "repo": "wallabag/wallabag",
+    "name": "wallabag",
+    "description": "wallabag — save and read articles later, ad-free (the self-hosted Pocket). Runs on SQLite in a single container. First login: wallabag / wallabag — change it right away.",
+    "docs": "https://wallabag.org",
+    "port": 80,
+    "icon": "https://github.com/wallabag.png?size=80",
+    "config": "configs/wallabag/wallabag.yml"
+  },
+  {
+    "repo": "ellite/Wallos",
+    "name": "Wallos",
+    "description": "Wallos — self-hosted subscription tracker & budget overview (SQLite).",
+    "docs": "https://github.com/ellite/Wallos",
+    "port": 80,
+    "icon": "https://github.com/ellite.png?size=80",
+    "config": "configs/ellite/Wallos.yml"
+  },
+  {
+    "repo": "fgilde/WebDataStudio",
+    "name": "WebDataStudio",
+    "description": "WebDataStudio — a database studio that runs in the browser: PostgreSQL, MySQL/MariaDB, SQL Server, SQLite, Oracle, DuckDB, ClickHouse, MongoDB and Redis in one container. Schema explorer, SQL editor with completion and history, a visual query builder, result charts, ER diagrams, schema editing and comparison between connections, saved and scheduled queries, an administration surface and an MCP endpoint for AI agents. Connections are added in the studio or passed in as WDS_CONN_<NAME> variables. Set the admin account below — with no user and password there is no login screen at all, so never publish it without one. Building a stack instead? Add WebDataStudio to a database resource in the builder and the connection is wired for you.",
+    "docs": "https://fgilde.github.io/WebDataStudio/",
+    "port": 8080,
+    "icon": "https://github.com/fgilde.png?size=80",
+    "config": "configs/fgilde/WebDataStudio.yml"
+  },
+  {
+    "repo": "ahmetoner/whisper-asr-webservice",
+    "name": "Whisper ASR",
+    "description": "Whisper ASR web service — speech-to-text HTTP API (openai-whisper / faster-whisper).",
+    "docs": "https://github.com/ahmetoner/whisper-asr-webservice",
+    "port": 9000,
+    "icon": "https://github.com/ahmetoner.png?size=80",
+    "config": "configs/ahmetoner/whisper-asr-webservice.yml"
+  },
+  {
+    "repo": "benbusby/whoogle-search",
+    "name": "Whoogle",
+    "description": "Whoogle — private, ad-free Google search proxy (no JS, no tracking).",
+    "docs": "https://github.com/benbusby/whoogle-search",
+    "port": 5000,
+    "icon": "https://github.com/benbusby.png?size=80",
+    "config": "configs/benbusby/whoogle-search.yml"
+  },
+  {
+    "repo": "requarks/wiki",
+    "name": "Wiki.js",
+    "description": "Wiki.js — modern, powerful wiki. Postgres companion included.",
+    "docs": "https://js.wiki",
+    "port": 3000,
+    "icon": "https://github.com/requarks.png?size=80",
+    "config": "configs/requarks/wiki.yml"
+  },
+  {
+    "repo": "WordPress/WordPress",
+    "name": "WordPress",
+    "description": "WordPress — the classic PHP blog/CMS (official Apache image). Comes with a MariaDB companion; the famous five-minute install runs in the browser on first visit.",
+    "docs": "https://wordpress.org",
+    "port": 80,
+    "icon": "https://github.com/WordPress.png?size=80",
+    "config": "configs/WordPress/WordPress.yml"
+  },
+  {
+    "repo": "ulsklyc/yuvomi",
+    "name": "Yuvomi",
+    "description": "Yuvomi — self-hosted family planner as a fast PWA: shared calendar (CalDAV/Google/ICS sync), tasks, shopping lists, meal planner, contacts, budget and housekeeping. Create the first household in the browser after install.",
+    "docs": "https://github.com/ulsklyc/yuvomi",
+    "port": 3000,
+    "icon": "https://github.com/ulsklyc.png?size=80",
+    "config": "configs/ulsklyc/yuvomi.yml"
+  }
+]

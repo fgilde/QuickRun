@@ -4,8 +4,47 @@ Most repositories have never heard of QuickRun. When there is no `quickrun.yml`,
 how to start the repository itself, in this order:
 
 1. a root run script — `quickrun.ps1`, `quickrun.sh`, `run.ps1`, `run.sh`
-2. **another launcher's config**, currently [Pinokio](#pinokio)
-3. **detection** from the files that are there
+2. **QuickRun's own collection** — a config kept for this repository, [see below](#the-collection)
+3. **another launcher's config**, currently [Pinokio](#pinokio)
+4. **detection** from the files that are there
+
+Ahead of all four sits anything you have that is more specific: the repository's own `quickrun.yml`
+first, then a config you saved for that repository in the config builder. Neither the collection nor
+detection can ever get in front of those.
+
+## The collection
+
+Some repositories will never commit a `quickrun.yml`, and QuickRun reading their files is a guess —
+a decent one, but a guess. So QuickRun keeps configs for known repositories and uses one when the
+repository ships nothing itself. [Browse them](/collection), or look at the
+[configs directory](https://github.com/fgilde/QuickRun/tree/main/configs) in the repository.
+
+The lookup is a single request for the repository being started:
+
+```
+acme/app  →  https://quickrun.org/configs/acme/app.yml
+```
+
+The answer is cached for a day under QuickRun's own directory, and a cached config is used when the
+network is unreachable — it was still written for this repository.
+
+The plan says where it came from, in the window and in the confirmation window: *QuickRun's collected
+config for this repository*. A broken collected config is skipped with a note rather than failing the
+run, and detection takes over.
+
+**What this costs, and how to switch it off.** Asking tells quickrun.org which repository you are
+starting. It only happens for a repository that has nothing of its own, and never for a folder on
+your machine. To never ask:
+
+```bash
+QUICKRUN_NO_COLLECTION=1
+```
+
+With that set, QuickRun behaves exactly as it did before the collection existed.
+
+To contribute one, add `configs/<owner>/<repo>.yml` with a `repository:` field naming that same
+repository. The test suite parses and validates every config in that tree, so a broken one cannot be
+merged.
 
 Whatever comes out of that is a plan like any other: the command list is shown, nothing runs until
 you approve it, and the log window says where the plan came from as its first line.

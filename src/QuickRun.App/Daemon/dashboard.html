@@ -515,6 +515,12 @@ function openTabFromHash() {
     const prepared = wanted.get('id');
     if (prepared) { showPrepared(prepared); return; }
 
+    // A config file this link named. It is run through the same panel a repository is, and it is
+    // labelled as having come from a link - which also means it may not fall back to the folder it
+    // sits in. Nothing starts until the commands have been read here.
+    const file = wanted.get('file');
+    if (file) { runConfigFile(file, { fromLink: true }); return; }
+
     const repo = wanted.get('repo');
     if (repo) prefillRun(repo, wanted.get('ref'), wanted.get('pr'));
     return;

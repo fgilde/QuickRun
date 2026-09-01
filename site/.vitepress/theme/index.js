@@ -12,6 +12,7 @@ import Gallery from './Gallery.vue';
 import GetPage from './GetPage.vue';
 import LandingPage from './LandingPage.vue';
 import RunPage from './RunPage.vue';
+import CollectionPage from './CollectionPage.vue';
 import SiteFooter from './SiteFooter.vue';
 import TourPage from './TourPage.vue';
 
@@ -42,6 +43,7 @@ export default {
     app.component('LandingPage', LandingPage);
     app.component('GetPage', GetPage);
     app.component('RunPage', RunPage);
+    app.component('CollectionPage', CollectionPage);
     app.component('TourPage', TourPage);
     app.component('FaqPage', FaqPage);
     app.component('Gallery', Gallery);

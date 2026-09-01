@@ -34,6 +34,8 @@ name: My App                   # optional, Standard ist der Repository-Name
 description: ...               # optional
 icon: assets/logo.png          # optional, Pfad im Repository oder URL
 docs: https://...              # optional, wird in der UI verlinkt
+repository: acme/app           # optional, nur für eine Config außerhalb des Repositories
+ref: main                       # optional, mit repository: welcher Branch, Tag oder Commit
 
 requires:                      # optionale Voraussetzungsprüfungen
   - tool: dotnet               # beliebiger Befehl; bekannte Tools werden gezielter abgefragt
@@ -83,6 +85,34 @@ tasks:                         # optional, parallel gestartet, sofern dependsOn 
 stop:                          # optional, läuft beim Stoppen
   - docker compose down
 ```
+
+## `repository`
+
+Eine Config, die neben dem Code liegt, braucht kein `repository`: Das Repository ist das, in dem sie
+liegt.
+
+Wichtig ist es für eine Config, die allein reist — eine Datei, die über **Datei starten** geöffnet
+wird, oder eine aus [der Sammlung](/de/collection) —, weil es sonst nichts zum Auschecken gibt:
+
+```yaml
+name: Demo
+repository: acme/app          # owner/repo, eine GitHub-URL oder jede git-URL
+ref: preview                  # optional
+tasks:
+  - run: npm start
+```
+
+Alle drei Formen, die auch das Feld im Fenster nimmt, funktionieren: `acme/app`,
+`https://github.com/acme/app`, `git@example.com:acme/app.git`.
+
+Ohne Angabe läuft eine geöffnete Config-Datei in dem Ordner, in dem sie liegt — und nur dann, denn
+eine Datei, die von außen kam, darf das nicht entscheiden. Eine Config, die ein `quickrun://`-Link
+nennt und kein `repository` enthält, führt zur Rückfrage: Das Fenster will wissen, für welches
+Repository sie ist.
+
+Ein Lauf mit einer Config von außen bekommt einen eigenen Checkout, abgeleitet aus dieser Config.
+So teilen eine kuratierte Config, eine geöffnete Datei und ein Entwurf im Config-Builder niemals
+`node_modules`, `.env` oder Build-Ausgabe mit der quickrun.yml des Repositories.
 
 ## `requires`
 

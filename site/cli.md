@@ -46,6 +46,7 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `-i, --input` | fill a declared input, repeatable |
 | `-t, --token` | access token for a private repository |
 | `-c, --config` | use a different config file, relative to the project root |
+| `-f, --file` | run a single config file, wherever it is — see below |
 | `--path` | run a folder on this machine instead of checking a repository out |
 | `--copy` | with `--path`: run a copy under `runs/`, leaving the folder alone |
 | `--fresh` | delete the workspace and clone again |
@@ -53,6 +54,28 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `--no-open` | do not open any browser URL the config asks for |
 
 Nothing executes before the plan is printed and confirmed, unless `--yes` is given.
+
+## `quickrun run --file`
+
+One config file, run on its own:
+
+```bash
+quickrun run --file ./demo.yml
+quickrun run --file ~/configs/acme.yml
+```
+
+What it runs depends on the file:
+
+- it names a `repository:` — that repository is checked out and the file decides how it runs
+- it names none — the folder the file is in runs, in place
+
+The second rule only applies because you named the file yourself. A config that arrives from
+somewhere else never gets to decide that: `quickrun://runfile?path=…` and the window's **Run file**
+button both hand the file over, but a file with no `repository:` that came from a link is asked about
+rather than assumed. A repository named on the command line wins over one in the file.
+
+A run described by an outside config gets a checkout of its own, so it cannot collide with the
+repository's own `quickrun.yml`.
 
 ## `quickrun run` on a folder
 

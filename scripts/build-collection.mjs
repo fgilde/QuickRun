@@ -219,5 +219,33 @@ for (const app of presets) {
 
 writeFileSync(listing, written.sort().join('\n') + '\n');
 
+// An index, so the site can show the collection without reading a hundred and sixty files. Written
+// in the same pass, so it cannot describe something that is not there.
+//
+// The icon is the owner's GitHub avatar rather than the catalogue's artwork: that artwork belongs to
+// the projects, and copying it into this repository is not ours to do. An avatar is public, usually
+// is the project's own mark, and costs this repository nothing.
+const index = written.map((relative) => {
+  const [owner, file] = relative.split('/');
+  const repo = file.replace(/\.yml$/, '');
+
+  const app = presets.find((a) => {
+    const target = repoOf(a.github);
+    return target && `${target.owner}/${target.repo}.yml` === relative;
+  });
+
+  return {
+    repo: `${owner}/${repo}`,
+    name: app?.label ?? repo,
+    description: String(app?.description ?? '').replace(/\s+/g, ' ').trim(),
+    docs: app?.website ?? `https://github.com/${owner}/${repo}`,
+    port: app?.port ?? null,
+    icon: `https://github.com/${owner}.png?size=80`,
+    config: `configs/${relative}`,
+  };
+}).sort((a, b) => a.name.localeCompare(b.name));
+
+writeFileSync(join(outDir, 'index.json'), JSON.stringify(index, null, 2) + '\n');
+
 console.log(`wrote ${written.length} configs into ${outDir}`);
 for (const note of skipped) console.log(`  skipped ${note}`);

@@ -141,16 +141,50 @@ internal static class RunTarget
 {
     public static string? From(Uri url)
     {
-        // quickrun://run?repo=... and quickrun://run/?repo=... are the same thing to a browser.
-        if (!string.Equals(url.Host, "run", StringComparison.OrdinalIgnoreCase)) return null;
-
         var parsed = System.Web.HttpUtility.ParseQueryString(url.Query);
-        return From(name => parsed[name]);
+
+        // quickrun://run?repo=... and quickrun://run/?repo=... are the same thing to a browser.
+        if (string.Equals(url.Host, "run", StringComparison.OrdinalIgnoreCase))
+            return From(name => parsed[name]);
+
+        // quickrun://runfile?path=... names a config file on this machine. Carried, because it was
+        // asked for - and carried as "file", which is what tells the window this came from a link
+        // rather than from its own picker. The window says so before the commands, and the daemon
+        // refuses to fall back to the file's own directory for it.
+        if (string.Equals(url.Host, "runfile", StringComparison.OrdinalIgnoreCase))
+            return FromFile(parsed["path"]);
+
+        return null;
+    }
+
+    /// <summary>
+    /// The config file a link names, or null when it is not one.
+    /// <para>
+    /// Checked here and again in the daemon. A link is written by somebody else, and this one points
+    /// at a file on the reader's own disk - the narrowest thing that can still be useful is a .yml
+    /// path and nothing else.
+    /// </para>
+    /// </summary>
+    private static string? FromFile(string? path)
+    {
+        var file = (path ?? "").Trim();
+
+        if (file.Length == 0 || file.Length > 400) return null;
+        if (file.Any(char.IsControl)) return null;
+        if (file.Contains("://", StringComparison.Ordinal)) return null;
+
+        if (!file.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)
+            && !file.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return $"file={Uri.EscapeDataString(file)}";
     }
 
     /// <summary>The same target out of a request's query string, for <c>/api/show</c>.</summary>
     public static string? FromQuery(IQueryCollection query) =>
-        From(name => query[name].FirstOrDefault());
+        query["file"].FirstOrDefault() is { Length: > 0 } file
+            ? FromFile(file)
+            : From(name => query[name].FirstOrDefault());
 
     private static string? From(Func<string, string?> query)
     {

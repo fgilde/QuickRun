@@ -66,4 +66,40 @@ public class RunTargetTests
         Assert.Equal("repo=fgilde%2FQuickRun",
             From($"quickrun://run?repo=fgilde/QuickRun&ref={new string('x', 400)}"));
     }
+
+    /// <summary>
+    /// A link may name a config file on this machine, and the window then says it came from a link -
+    /// which is also what stops it running the folder that file sits in.
+    /// </summary>
+    [Fact]
+    public void A_link_may_name_a_config_file()
+    {
+        Assert.Equal("file=C%3A%5Cdev%5Cdemo%5Cquickrun.yml",
+            From(@"quickrun://runfile?path=C:\dev\demo\quickrun.yml"));
+
+        Assert.Equal("file=%2Fhome%2Fme%2Fdemo.yaml",
+            From("quickrun://runfile?path=/home/me/demo.yaml"));
+    }
+
+    /// <summary>
+    /// And nothing else. Whatever a link can carry, somebody else wrote - so a path that is not a
+    /// config is not carried at all, rather than carried and rejected later.
+    /// </summary>
+    [Theory]
+    [InlineData("quickrun://runfile")]
+    [InlineData("quickrun://runfile?path=")]
+    [InlineData("quickrun://runfile?path=C:/dev/secrets.txt")]
+    [InlineData("quickrun://runfile?path=C:/dev/quickrun.yml.exe")]
+    [InlineData("quickrun://runfile?path=https://evil.example.com/run.yml")]
+    [InlineData("quickrun://runfile?path=file:///C:/dev/quickrun.yml")]
+    public void Anything_that_is_not_a_config_file_is_not_carried(string url)
+    {
+        Assert.Null(From(url));
+    }
+
+    [Fact]
+    public void An_absurdly_long_path_is_not_carried()
+    {
+        Assert.Null(From($"quickrun://runfile?path=C:/{new string('x', 500)}.yml"));
+    }
 }

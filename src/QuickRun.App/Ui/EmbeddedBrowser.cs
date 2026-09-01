@@ -27,9 +27,11 @@ public static class EmbeddedBrowser
     public static bool Available()
     {
         if (Environment.GetEnvironmentVariable(OptOut) is { Length: > 0 }) return false;
-        if (!OperatingSystem.IsWindows()) return false;
 
-        return WebView2Available();
+        // Windows can be asked in advance and cheaply. Elsewhere the only honest way to find out is
+        // to create the thing: WebKitGTK is a package a Linux machine may or may not have, and a
+        // guess either way would be wrong on somebody's machine.
+        return !OperatingSystem.IsWindows() || WebView2Available();
     }
 
     /// <summary>
@@ -44,7 +46,37 @@ public static class EmbeddedBrowser
     {
         if (!Available()) return null;
 
-        return OperatingSystem.IsWindows() ? Windows(url, onFailure, background) : null;
+        return OperatingSystem.IsWindows()
+            ? Windows(url, onFailure, background)
+            : Elsewhere(url, onFailure);
+    }
+
+    /// <summary>
+    /// macOS and Linux, through Avalonia's own WebView control.
+    /// <para>
+    /// It renders in the system engine - WKWebView on macOS, WebKitGTK on Linux - so nothing is
+    /// bundled here either. Which matters more than it sounds: it is the difference between one
+    /// interface and two. Every feature used to have to be built twice, once as a page and once as
+    /// a native list, and the native one was always the poorer of the two.
+    /// </para>
+    /// <para>
+    /// Linux without WebKitGTK installed is a real machine, and there the control cannot start. It
+    /// says so and the window falls back to the native view, which is why this catches broadly:
+    /// a missing native library surfaces as any of a handful of exceptions, and a window that draws
+    /// nothing would be worse than the older, plainer one.
+    /// </para>
+    /// </summary>
+    private static Control? Elsewhere(string url, Action<string> onFailure)
+    {
+        try
+        {
+            return new NativeWebView { Source = new Uri(url) };
+        }
+        catch (Exception e)
+        {
+            onFailure(e.Message);
+            return null;
+        }
     }
 
     [SupportedOSPlatform("windows")]

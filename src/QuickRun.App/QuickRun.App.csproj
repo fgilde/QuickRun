@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" />
+    <!-- The system WebView on every desktop: WebView2, WKWebView, WebKitGTK. One UI to keep. -->
+    <PackageReference Include="Avalonia.Controls.WebView" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Spectre.Console.Cli" />
     <!-- The window hosts the local web UI where a system WebView exists. Managed wrappers only:

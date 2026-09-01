@@ -44,16 +44,27 @@ public sealed class TrayApp : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        _icon = new TrayIcon
+        // A tray icon is a courtesy; the window is the program. Not every desktop has somewhere to
+        // put an icon - GNOME needs an extension for it, a bare window manager has nothing at all -
+        // and when creating one threw, everything below it was skipped: no window opened, and
+        // QuickRun looked like it had started and drawn nothing.
+        try
         {
-            Icon = LoadIcon(),
-            ToolTipText = Tooltip,
-            IsVisible = true,
-            Menu = BuildMenu(),
-        };
+            _icon = new TrayIcon
+            {
+                Icon = LoadIcon(),
+                ToolTipText = Tooltip,
+                IsVisible = true,
+                Menu = BuildMenu(),
+            };
 
-        // Clicking the icon itself is the shortest path to the thing people want.
-        _icon.Clicked += (_, _) => OpenDashboard?.Invoke();
+            // Clicking the icon itself is the shortest path to the thing people want.
+            _icon.Clicked += (_, _) => OpenDashboard?.Invoke();
+        }
+        catch (Exception e)
+        {
+            Output.Warn($"no tray icon on this desktop ({e.Message}) - the window is still here");
+        }
 
         base.OnFrameworkInitializationCompleted();
 

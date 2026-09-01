@@ -38,6 +38,9 @@ public sealed record ConfigFileRequest(
 /// <summary>Which workspace to show in the file manager - none means the directory they live in.</summary>
 public sealed record RevealRequest(string? Id);
 
+/// <summary>One entry of the trusted-site list, on its way in or out.</summary>
+public sealed record TrustedSiteRequest(string? Site, bool? Remove);
+
 /// <summary>Values for the inputs a config declares.</summary>
 public sealed record InputsRequest(Dictionary<string, string?>? Inputs);
 
@@ -133,6 +136,7 @@ public static class DaemonHost
         builder.Services.AddSingleton(store);
         builder.Services.AddSingleton(new RunRegistry(store, UiCommand.Launch));
         builder.Services.AddSingleton(new Dashboard());
+        builder.Services.AddSingleton(new TrustedSites(store.Root));
         builder.Services.AddSingleton(new ListenerPort(port));
         builder.Services.AddSingleton(new HostControl());
 
@@ -865,6 +869,38 @@ public static class DaemonHost
             return Results.Json(new { path = await pick(), picker = true }, Json);
         });
 
+        // The sites allowed to ask for the window. Behind the dashboard token like every other
+        // setting: this is the list that decides which pages get to reach in, so a page must not be
+        // able to add itself to it.
+        app.MapGet("/api/dashboard/trusted-sites", (HttpContext context, Dashboard dashboard,
+            TrustedSites trusted) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            return Results.Json(new
+            {
+                sites = trusted.Patterns,
+                path = trusted.Path,
+                defaults = TrustedSites.Default,
+            }, Json);
+        });
+
+        app.MapPost("/api/dashboard/trusted-sites", (TrustedSiteRequest request, HttpContext context,
+            Dashboard dashboard, TrustedSites trusted) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var site = TrustedSites.Normalise(request.Site ?? "");
+            if (site.Length == 0)
+                return Results.Json(new { error = "that is not a host name" }, Json,
+                    statusCode: StatusCodes.Status400BadRequest);
+
+            if (request.Remove == true) trusted.Remove(site);
+            else trusted.Add(site);
+
+            return Results.Json(new { sites = trusted.Patterns }, Json);
+        });
+
         // And the same for a config file: the green Run file button.
         app.MapPost("/api/dashboard/pick-config", async (HttpContext context, Dashboard dashboard, HostControl host) =>
         {
@@ -934,11 +970,38 @@ public static class DaemonHost
                     statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
-        app.MapPost("/api/show", (HttpContext context, HostControl host) =>
+        // The one door a web page may knock on, and only a page the user has trusted.
+        //
+        // What it does is open QuickRun's own window on a plan - the same window the extension's
+        // button ends at, showing the same commands, waiting for the same person. It cannot start
+        // anything: /api/run and everything past it stay behind Authorized(), which no page passes.
+        // So the worst a trusted site can do with this is make a window appear.
+        //
+        // It is here rather than in a looser Authorized() on purpose. Trusting quickrun.org to open
+        // a window is a small thing; trusting it to reach every endpoint would mean anything that
+        // ever gets a script onto that page can drive every installation of QuickRun.
+        app.MapMethods("/api/show", new[] { "POST", "OPTIONS" }, (HttpContext context,
+            HostControl host, TrustedSites trusted) =>
         {
-            if (!Authorized(context)) return Unauthorized();
+            var origin = context.Request.Headers.Origin.ToString();
+            var fromTrustedSite = FromTrustedSite(context, trusted);
 
-            var target = RunTarget.FromQuery(context.Request.Query);
+            // Named, never "*": the answer is readable by the site that asked and by nobody else.
+            if (fromTrustedSite)
+            {
+                context.Response.Headers.AccessControlAllowOrigin = origin;
+                context.Response.Headers.Vary = "Origin";
+            }
+
+            // A preflight only ever asks whether the real request would be allowed. The methods and
+            // the lifetime are already on the response - every response carries them - so the answer
+            // here is the allowed origin above, or nothing.
+            if (HttpMethods.IsOptions(context.Request.Method))
+                return fromTrustedSite ? Results.NoContent() : Unauthorized();
+
+            if (!Authorized(context) && !fromTrustedSite) return Unauthorized();
+
+            var target = RunTarget.FromQuery(context.Request.Query, allowFile: !fromTrustedSite);
 
             if (host.ShowWindow is not { } show) return Results.Json(new { shown = false }, Json);
 
@@ -1174,6 +1237,17 @@ public static class DaemonHost
 
         return string.IsNullOrEmpty(origin) || FromExtensionOrigin(origin);
     }
+
+    /// <summary>
+    /// Whether this is a web page the user has trusted with the window - and only the window.
+    /// <para>
+    /// Deliberately not folded into <see cref="Authorized"/>: that answer opens every endpoint, and
+    /// a site trusted to ask for a window is not a site trusted to start a run, read one, or name a
+    /// file on this machine.
+    /// </para>
+    /// </summary>
+    internal static bool FromTrustedSite(HttpContext context, TrustedSites trusted) =>
+        !Authorized(context) && trusted.Trusts(context.Request.Headers.Origin.ToString());
 
     private static bool FromExtensionOrigin(string origin) =>
         !string.IsNullOrEmpty(origin)

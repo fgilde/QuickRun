@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
 import ConfigView from './ConfigView.vue';
+import { present } from './local.js';
 
 const { lang } = useData();
 const de = computed(() => lang.value.startsWith('de'));
@@ -255,8 +256,13 @@ function open() {
  *   navigate rather than open a tab: a browser blocks window.open that no click asked for, and a
  *   blocked popup would look exactly like nothing happening.
  */
-function go({ automatic }) {
+async function go({ automatic }) {
   pressed.value = true;
+
+  // Where the reader trusts this site, QuickRun opens its own window and this page stays put. A
+  // refusal here is the normal answer anywhere else, and costs one request.
+  if (running.value
+      && await present({ repo: repo.value, ref: reference.value, pr: pr.value })) return;
 
   if (running.value && !automatic) window.open(target.value, '_blank', 'noopener');
   else location.href = target.value;

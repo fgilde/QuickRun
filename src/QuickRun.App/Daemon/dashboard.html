@@ -69,6 +69,8 @@ nav button[data-busy="1"] { font-weight: 600; }
 .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .row + .row { margin-top: 10px; }
 .grow { flex: 1; min-width: 0; }
+ul.plain { list-style: none; margin: 0; padding: 0; }
+ul.plain > li + li { margin-top: 8px; }
 .name { font-weight: 600; overflow-wrap: anywhere; }
 code, .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px;
@@ -351,6 +353,24 @@ ol.plan .phase {
       </div>
       <p class="muted" style="margin:10px 0 0" id="pathHow"></p>
       <p id="pathDetail" class="muted mono" style="margin:0"></p>
+    </div>
+
+    <div class="card">
+      <h2>Sites allowed to open this window</h2>
+      <p class="muted" style="margin:0 0 10px">
+        A page on one of these sites can ask QuickRun to open its window on a plan, instead of
+        sending you through a link to get here. It cannot start anything: whatever it asks for
+        appears here and waits for you, exactly as it does now.
+        <span class="mono">quickrun.org</span> is listed because that is where QuickRun is
+        downloaded from. Remove it and the site falls back to the link, which still works.
+      </p>
+      <ul id="trustedList" class="plain"></ul>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="trustedInput" class="grow" placeholder="example.com or *.example.com"
+               autocomplete="off" spellcheck="false">
+        <button id="trustedAdd" class="ghost">Add</button>
+      </div>
+      <p class="muted mono" style="margin:8px 0 0" id="trustedPath"></p>
     </div>
 
     <div class="card">
@@ -1583,7 +1603,79 @@ const settings = {
 async function loadSettings() {
   const state = await api('/api/dashboard/settings').catch(() => null);
   if (state) renderSettings(state);
+
+  loadTrusted();
 }
+
+/* ---- the sites allowed to ask for this window --------------------------------------------- */
+
+const trusted = {
+  list: document.getElementById('trustedList'),
+  input: document.getElementById('trustedInput'),
+  add: document.getElementById('trustedAdd'),
+  path: document.getElementById('trustedPath'),
+};
+
+async function loadTrusted() {
+  const state = await api('/api/dashboard/trusted-sites').catch(() => null);
+  if (!state) return;
+
+  renderTrusted(state.sites);
+  trusted.path.textContent = state.path ? `the list is a file: ${state.path}` : '';
+}
+
+function renderTrusted(sites) {
+  trusted.list.replaceChildren();
+
+  if (!sites || sites.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'muted';
+    empty.textContent = 'No site can ask - every page uses the link instead.';
+    trusted.list.append(empty);
+    return;
+  }
+
+  for (const site of sites) {
+    const row = document.createElement('li');
+    row.className = 'row';
+
+    // textContent: this is a host out of a file somebody may have edited by hand.
+    const name = document.createElement('span');
+    name.className = 'grow mono';
+    name.textContent = site;
+
+    const remove = document.createElement('button');
+    remove.className = 'ghost';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => changeTrusted(site, true));
+
+    row.append(name, remove);
+    trusted.list.append(row);
+  }
+}
+
+async function changeTrusted(site, remove) {
+  try {
+    const result = await api('/api/dashboard/trusted-sites', {
+      method: 'POST',
+      body: JSON.stringify({ site, remove }),
+    });
+
+    renderTrusted(result.sites);
+    if (!remove) trusted.input.value = '';
+  } catch (failure) {
+    say(failure.message);
+  }
+}
+
+trusted.add.addEventListener('click', () => {
+  const site = trusted.input.value.trim();
+  if (site) changeTrusted(site, false);
+});
+
+trusted.input.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') trusted.add.click();
+});
 
 function renderSettings(state) {
   settings.autostart.checked = state.autostart.enabled;

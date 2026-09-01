@@ -8,10 +8,16 @@
 //
 //   answering()  - ask whether anything is listening, and learn nothing else. A no-cors request
 //                  comes back opaque; that it came back at all is the whole answer.
-//   open()       - hand a target over. With QuickRun running that is its own page, which shows the
-//                  plan and asks; without it, the quickrun:// scheme, which starts it first.
+//   present()    - ask the local QuickRun to open its own window on a plan. Works only where the
+//                  reader has this site in their trusted list, which quickrun.org is by default:
+//                  the site the application was downloaded from. Refused anywhere else, and the
+//                  refusal is not an error - it is the answer, and open() takes over.
+//   open()       - hand a target over the way that always works. With QuickRun running that is a
+//                  tab on its own page, which shows the plan and asks; without it, the quickrun://
+//                  scheme, which starts it first.
 //
-// Neither can start anything. What arrives on the other side is a plan waiting for a person.
+// None of them can start anything. What arrives on the other side is a plan waiting for a person -
+// and present() is a shortcut to the same window, not a way around it.
 
 export const DEFAULT_PORT = 9876;
 
@@ -63,6 +69,54 @@ export function targetFor(running, target, port = DEFAULT_PORT) {
   return running
     ? `http://127.0.0.1:${port}/#run?${query}`
     : `quickrun://run?${query}`;
+}
+
+/**
+ * Asks the local QuickRun to open its window on this target.
+ *
+ * Only a site in the reader's trusted list gets an answer here, so a refusal is expected and means
+ * nothing is wrong. Returns true when the window was opened and there is nothing left to do.
+ */
+export async function present(target, { port = DEFAULT_PORT } = {}) {
+  try {
+    const answer = await fetch(`http://127.0.0.1:${port}/api/show?${carry(target)}`, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-store',
+    });
+
+    // Not trusted here answers 403, and an older QuickRun answers it too - both mean "use the link".
+    if (!answer.ok) return false;
+
+    return (await answer.json())?.shown === true;
+  } catch {
+    // Nothing listening, or the browser refused the cross-origin request. Either way: the link.
+    return false;
+  }
+}
+
+/**
+ * Hands a target over, by whichever way works.
+ *
+ * The window first, where the reader trusts this site: they stay on this page and the plan appears
+ * beside it. Otherwise the way that has always worked. Navigating rather than opening a tab for the
+ * fallback is deliberate - after waiting for the answer above, the click is over as far as the
+ * browser is concerned, and a blocked popup looks exactly like nothing happening.
+ */
+export async function hand(running, target, { port = DEFAULT_PORT } = {}) {
+  if (running && await present(target, { port })) return 'window';
+
+  const url = targetFor(running, target, port);
+
+  // A tab is still friendlier where the browser allows one this late. Where it does not, window.open
+  // returns nothing rather than throwing, and navigating is what is left.
+  if (running) {
+    const tab = window.open(url, '_blank', 'noopener');
+    if (tab) return 'tab';
+  }
+
+  location.href = url;
+  return running ? 'tab' : 'scheme';
 }
 
 /**

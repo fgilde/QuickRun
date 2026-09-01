@@ -12,7 +12,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
 import ConfigView from './ConfigView.vue';
-import { answering, open as handOver } from './local.js';
+import { answering, hand } from './local.js';
 
 const { lang } = useData();
 const german = computed(() => lang.value.startsWith('de'));
@@ -184,7 +184,9 @@ function close() {
  */
 function run(entry, { fromCollection = false } = {}) {
   if (running.value) {
-    handOver(true, { repo: entry.repo, fromCollection });
+    // Its own window where this site is trusted - quickrun.org is, out of the box - and a tab on
+    // QuickRun's page where it is not. Both end at the same plan, waiting for the same approval.
+    hand(true, { repo: entry.repo, fromCollection });
     return;
   }
 

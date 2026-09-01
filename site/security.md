@@ -36,6 +36,30 @@ keep working, changed commands do not.
 - There is no pairing token any more. It guarded against exactly what the origin check guards
   against, while costing every user a setup step.
 
+## Sites allowed to open the window
+
+A web page still cannot start anything. What a page on a trusted site may do is ask the local
+QuickRun to open **its own window** on a plan, instead of sending you through a `quickrun://` link
+or a new tab to get to the same place.
+
+- `POST /api/show` is the only endpoint a web page ever reaches, and it does one thing: open the
+  window. Everything that could start, stop or read a run stays behind the extension check above,
+  which a page still cannot pass. The worst a trusted site can do is make a window appear.
+- The plan that appears there waits for you, exactly as it does when the extension puts it there.
+- `*.quickrun.org` is on the list to begin with, because that is where QuickRun is downloaded from:
+  whoever installed it from that page has already trusted it with rather more than a window.
+- Only `https` counts. On plain `http` anything in between can rewrite the page while the `Origin`
+  header still reads as the trusted name, so the name would be no evidence at all. `http://localhost`
+  is the exception - there is nothing in between.
+- The subdomain form matches whole labels. `*.example.com` covers `example.com` and
+  `app.example.com`, and never `notexample.com` or `example.com.attacker.net`.
+- A trusted site may name a repository and which config to use. It may **not** name a file on your
+  machine: that is refused here whatever the site, and remains something you point at yourself.
+- A page cannot add itself to the list. The list is edited in **Settings** in QuickRun's window,
+  which is behind its own token, or in the file that window names.
+- Emptying the list turns the whole thing off, including the default. Every page then falls back to
+  the link, which is what it did before this existed.
+
 ## What a link may carry
 
 A `quickrun://` link - what a [README badge](/badge) ends up following - is a string written by

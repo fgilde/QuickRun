@@ -181,9 +181,15 @@ internal static class RunTarget
     }
 
     /// <summary>The same target out of a request's query string, for <c>/api/show</c>.</summary>
-    public static string? FromQuery(IQueryCollection query) =>
+    /// <param name="allowFile">
+    /// Whether a path on this machine may be named. True for the extension and for a
+    /// <c>quickrun://</c> link, which is somebody clicking a link they were given; false for a web
+    /// page, however trusted - a page naming a file on the reader's disk is the thing the origin
+    /// rules exist to prevent, and trusting a site to open a window is not trusting it with that.
+    /// </param>
+    public static string? FromQuery(IQueryCollection query, bool allowFile = true) =>
         query["file"].FirstOrDefault() is { Length: > 0 } file
-            ? FromFile(file)
+            ? allowFile ? FromFile(file) : null
             : From(name => query[name].FirstOrDefault());
 
     private static string? From(Func<string, string?> query)
@@ -210,6 +216,12 @@ internal static class RunTarget
 
         if (int.TryParse(query("pr"), out var pr) && pr > 0)
             carried.Add($"pr={pr}");
+
+        // Which config was asked for. A name, not a config: "the one QuickRun keeps for this
+        // repository", which QuickRun then fetches itself. Without carrying it, a link that says
+        // "run it with our config" would open the window on the repository's own.
+        if (string.Equals(query("config"), "collection", StringComparison.OrdinalIgnoreCase))
+            carried.Add("config=collection");
 
         return string.Join('&', carried);
     }

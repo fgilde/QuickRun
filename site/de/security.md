@@ -39,6 +39,32 @@ funktionieren weiter, geänderte Befehle nicht.
 - Es gibt keinen Pairing-Token mehr. Er schützte vor genau dem, wovor die Origin-Prüfung schützt,
   kostete aber jeden Nutzer einen Einrichtungsschritt.
 
+## Seiten, die das Fenster öffnen dürfen
+
+Eine Webseite kann weiterhin nichts starten. Was eine Seite auf einer vertrauten Domain darf: die
+lokale QuickRun bitten, **ihr eigenes Fenster** mit einem Plan zu öffnen — statt dich über einen
+`quickrun://`-Link oder einen neuen Tab an dieselbe Stelle zu schicken.
+
+- `POST /api/show` ist der einzige Endpunkt, den eine Webseite überhaupt erreicht, und er tut genau
+  eines: das Fenster öffnen. Alles, was einen Run starten, stoppen oder lesen könnte, bleibt hinter
+  der Extension-Prüfung oben, die eine Seite nicht passiert. Das Schlimmste, was eine vertraute
+  Seite anrichten kann, ist ein Fenster, das aufgeht.
+- Der Plan darin wartet auf dich — genauso wie wenn die Extension ihn dorthin gelegt hat.
+- `*.quickrun.org` steht von Anfang an drin, weil QuickRun von dort kommt: wer es dort
+  heruntergeladen hat, hat dieser Seite schon deutlich mehr vertraut als ein Fenster.
+- Nur `https` zählt. Bei einfachem `http` kann jede Zwischenstation die Seite umschreiben, während
+  der `Origin`-Header weiter den vertrauten Namen nennt — der Name wäre also kein Beleg.
+  `http://localhost` ist die Ausnahme, dort ist nichts dazwischen.
+- Die Subdomain-Form vergleicht ganze Labels. `*.example.com` deckt `example.com` und
+  `app.example.com` ab, niemals `notexample.com` oder `example.com.angreifer.net`.
+- Eine vertraute Seite darf ein Repository und die gewünschte Config nennen. Sie darf **keine Datei
+  auf deinem Rechner** nennen: das wird hier unabhängig von der Seite abgelehnt und bleibt etwas,
+  auf das du selbst zeigst.
+- Eine Seite kann sich nicht selbst eintragen. Die Liste wird in QuickRuns Fenster unter
+  **Settings** gepflegt — hinter dessen eigenem Token — oder in der Datei, die das Fenster nennt.
+- Eine leere Liste schaltet das Ganze ab, auch die Voreinstellung. Jede Seite nimmt dann wieder den
+  Link, so wie vorher.
+
 ## Was ein Link mitbringen darf
 
 Ein `quickrun://`-Link — dem ein [README-Badge](/de/badge) am Ende folgt — ist eine Zeichenkette,

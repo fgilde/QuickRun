@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
+using QuickRun.App.Commands;
 using QuickRun.App.Daemon;
+using QuickRun.Core.Config;
 
 namespace QuickRun.App.Tests;
 
@@ -19,6 +22,103 @@ public class DaemonAuthorizationTests
         var context = new DefaultHttpContext();
         if (origin is not null) context.Request.Headers.Origin = origin;
         return context;
+    }
+
+    /// <summary>
+    /// A trusted web site may ask for the window, and gets nothing else with it.
+    /// <para>
+    /// This is the one place a page reaches at all, and what it reaches does exactly one thing: open
+    /// QuickRun's own window on a plan that then waits for a person. Everything that could start,
+    /// stop or read a run stays behind Authorized(), which the same page still cannot pass - so the
+    /// worst a trusted site can do is make a window appear.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ATrustedSiteMayAskForTheWindowAndNothingElse()
+    {
+        var root = Directory.CreateTempSubdirectory("quickrun-trust-daemon").FullName;
+        try
+        {
+            var trusted = new TrustedSites(root);
+            var page = From("https://quickrun.org");
+
+            Assert.True(DaemonHost.FromTrustedSite(page, trusted));
+
+            // And it is still a web page as far as every other endpoint is concerned.
+            Assert.False(DaemonHost.Authorized(page));
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Theory]
+    [InlineData("https://github.com")]
+    [InlineData("https://notquickrun.org")]
+    [InlineData("https://quickrun.org.attacker.example")]
+    [InlineData("http://quickrun.org")]
+    public void AnUntrustedSiteMayNotEvenAskForTheWindow(string origin)
+    {
+        var root = Directory.CreateTempSubdirectory("quickrun-trust-deny").FullName;
+        try
+        {
+            Assert.False(DaemonHost.FromTrustedSite(From(origin), new TrustedSites(root)));
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>
+    /// What the extension may name and a web page may not: a file on this machine.
+    /// <para>
+    /// A quickrun:// link carrying a config path is somebody clicking a link they were given, and it
+    /// is labelled as such in the window. A page reaching the daemon over HTTP and naming a path on
+    /// the reader's disk is the thing the origin rules exist to prevent, and trusting a site with a
+    /// window is not trusting it with that.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AWebPageMayNotNameAFileOnThisMachine()
+    {
+        var query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            ["file"] = "C:/dev/secrets/quickrun.yml",
+        });
+
+        Assert.NotNull(RunTarget.FromQuery(query, allowFile: true));
+        Assert.Null(RunTarget.FromQuery(query, allowFile: false));
+    }
+
+    /// <summary>
+    /// Which config was asked for travels with the target, because it changes what runs.
+    /// <para>
+    /// A name, never a config: "the one QuickRun keeps for this repository", which QuickRun fetches
+    /// itself. Dropped on the way, a press of "run it with our config" would quietly open the window
+    /// on the repository's own - a button saying one thing and doing another.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheCollectionChoiceSurvivesTheHandover()
+    {
+        var query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            ["repo"] = "acme/app",
+            ["config"] = "collection",
+        });
+
+        Assert.Contains("config=collection", RunTarget.FromQuery(query));
+
+        // And nothing else is taken from that field - it is a name, not a path or a config.
+        var other = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            ["repo"] = "acme/app",
+            ["config"] = "../../etc/passwd",
+        });
+
+        Assert.DoesNotContain("config", RunTarget.FromQuery(other));
     }
 
     [Theory]

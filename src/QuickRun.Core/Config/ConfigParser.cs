@@ -16,7 +16,10 @@ public static partial class ConfigParser
     private static readonly string[] PlatformKeys = { "windows", "linux", "macos" };
 
     internal static readonly string[] TopLevelKeys =
-        { "version", "name", "description", "icon", "docs", "requires", "inputs", "env", "setup", "run", "tasks", "stop" };
+    {
+        "version", "name", "description", "icon", "docs", "repository", "ref",
+        "requires", "inputs", "env", "setup", "run", "tasks", "stop",
+    };
 
     internal static readonly string[] StepKeys = { "run", "cwd", "when", "continueOnError" };
 
@@ -57,7 +60,11 @@ public static partial class ConfigParser
             Env: ParseStringMap(root.GetValueOrDefault("env"), "env"),
             Setup: ParseSteps(root.GetValueOrDefault("setup"), os, "setup"),
             Tasks: ParseTasks(root, os),
-            Stop: ParseSteps(root.GetValueOrDefault("stop"), os, "stop"));
+            Stop: ParseSteps(root.GetValueOrDefault("stop"), os, "stop"),
+            // A config that travels on its own says which repository it is for. One committed next
+            // to the code says nothing, and is read as being for the repository it sits in.
+            Repository: Str(root.GetValueOrDefault("repository")),
+            Ref: Str(root.GetValueOrDefault("ref")));
     }
 
     public static string? FindConfigFile(string repoDir) =>

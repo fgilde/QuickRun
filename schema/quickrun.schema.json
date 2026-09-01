@@ -6,26 +6,67 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "version": { "type": "integer", "const": 1, "default": 1 },
-    "name": { "type": "string", "description": "Shown in the UI. Defaults to the repository name." },
-    "description": { "type": "string" },
-    "icon": { "type": "string", "description": "Repository-relative path or URL." },
-    "docs": { "type": "string", "description": "Link shown in the UI." },
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "default": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Shown in the UI. Defaults to the repository name."
+    },
+    "description": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Repository-relative path or URL."
+    },
+    "docs": {
+      "type": "string",
+      "description": "Link shown in the UI."
+    },
+    "repository": {
+      "type": "string",
+      "description": "The repository this config is for, when the config does not travel inside it. A config committed next to the code needs none of this. It matters for a config that arrives on its own - a file you open, or one from the QuickRun collection - where otherwise there is nothing to check out. owner/repo, a GitHub URL, or any git URL.",
+      "examples": [
+        "acme/app",
+        "https://github.com/acme/app",
+        "git@example.com:acme/app.git"
+      ]
+    },
+    "ref": {
+      "type": "string",
+      "description": "The branch, tag or commit to check that repository out at. Its default branch when absent. Only meaningful together with repository.",
+      "examples": [
+        "main",
+        "v1.2.0"
+      ]
+    },
     "requires": {
       "type": "array",
       "description": "Prerequisites checked before anything runs.",
-      "items": { "$ref": "#/$defs/requirement" }
+      "items": {
+        "$ref": "#/$defs/requirement"
+      }
     },
     "inputs": {
       "type": "array",
       "description": "Values QuickRun asks for, rendered as a form.",
-      "items": { "$ref": "#/$defs/input" }
+      "items": {
+        "$ref": "#/$defs/input"
+      }
     },
-    "env": { "$ref": "#/$defs/stringMap", "description": "Environment for every command." },
+    "env": {
+      "$ref": "#/$defs/stringMap",
+      "description": "Environment for every command."
+    },
     "setup": {
       "type": "array",
       "description": "Sequential commands, run before the tasks.",
-      "items": { "$ref": "#/$defs/step" }
+      "items": {
+        "$ref": "#/$defs/step"
+      }
     },
     "run": {
       "$ref": "#/$defs/command",
@@ -34,33 +75,62 @@
     "tasks": {
       "type": "array",
       "description": "Long-running processes, started in parallel unless dependsOn says otherwise.",
-      "items": { "$ref": "#/$defs/task" }
+      "items": {
+        "$ref": "#/$defs/task"
+      }
     },
     "stop": {
       "type": "array",
       "description": "Commands run when the user stops the app.",
-      "items": { "$ref": "#/$defs/step" }
+      "items": {
+        "$ref": "#/$defs/step"
+      }
     }
   },
-  "not": { "required": ["run", "tasks"] },
+  "not": {
+    "required": [
+      "run",
+      "tasks"
+    ]
+  },
   "$defs": {
-    "platform": { "enum": ["windows", "linux", "macos"] },
+    "platform": {
+      "enum": [
+        "windows",
+        "linux",
+        "macos"
+      ]
+    },
     "stringMap": {
       "type": "object",
-      "additionalProperties": { "type": ["string", "number", "boolean"] }
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ]
+      }
     },
     "command": {
       "description": "A command line, or one per platform.",
       "oneOf": [
-        { "type": "string" },
+        {
+          "type": "string"
+        },
         {
           "type": "object",
           "additionalProperties": false,
           "minProperties": 1,
           "properties": {
-            "windows": { "type": "string" },
-            "linux": { "type": "string" },
-            "macos": { "type": "string" }
+            "windows": {
+              "type": "string"
+            },
+            "linux": {
+              "type": "string"
+            },
+            "macos": {
+              "type": "string"
+            }
           }
         }
       ]
@@ -68,22 +138,43 @@
     "when": {
       "description": "Platforms this step applies to. Omit for all of them.",
       "oneOf": [
-        { "$ref": "#/$defs/platform" },
-        { "type": "array", "items": { "$ref": "#/$defs/platform" } }
+        {
+          "$ref": "#/$defs/platform"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/platform"
+          }
+        }
       ]
     },
     "step": {
       "oneOf": [
-        { "type": "string" },
+        {
+          "type": "string"
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["run"],
+          "required": [
+            "run"
+          ],
           "properties": {
-            "run": { "$ref": "#/$defs/command" },
-            "cwd": { "type": "string", "description": "Relative to the repository root." },
-            "when": { "$ref": "#/$defs/when" },
-            "continueOnError": { "type": "boolean", "default": false }
+            "run": {
+              "$ref": "#/$defs/command"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Relative to the repository root."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            },
+            "continueOnError": {
+              "type": "boolean",
+              "default": false
+            }
           }
         }
       ]
@@ -95,9 +186,18 @@
       "minProperties": 1,
       "maxProperties": 1,
       "properties": {
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "http": { "type": "string" },
-        "log": { "type": "string", "description": "Regular expression matched against the task's output." },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "http": {
+          "type": "string"
+        },
+        "log": {
+          "type": "string",
+          "description": "Regular expression matched against the task's output."
+        },
         "window": {
           "type": "boolean",
           "description": "Ready when the process, or something it started, has a window. For desktop applications; Windows only."
@@ -105,57 +205,110 @@
         "delay": {
           "description": "500ms, 5s, 2m, or a number of seconds.",
           "oneOf": [
-            { "type": "string", "pattern": "^\\d+(\\.\\d+)?(ms|s|m)?$" },
-            { "type": "number" }
+            {
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+)?(ms|s|m)?$"
+            },
+            {
+              "type": "number"
+            }
           ]
         }
       }
     },
     "task": {
       "oneOf": [
-        { "type": "string" },
+        {
+          "type": "string"
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["run"],
+          "required": [
+            "run"
+          ],
           "properties": {
-            "name": { "type": "string" },
-            "run": { "$ref": "#/$defs/command" },
-            "cwd": { "type": "string", "description": "Relative to the repository root." },
-            "env": { "$ref": "#/$defs/stringMap" },
+            "name": {
+              "type": "string"
+            },
+            "run": {
+              "$ref": "#/$defs/command"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Relative to the repository root."
+            },
+            "env": {
+              "$ref": "#/$defs/stringMap"
+            },
             "dependsOn": {
               "description": "Task names to wait for. Cycles are rejected at validation time.",
               "oneOf": [
-                { "type": "string" },
-                { "type": "array", "items": { "type": "string" } }
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               ]
             },
-            "readyWhen": { "$ref": "#/$defs/readyWhen" },
+            "readyWhen": {
+              "$ref": "#/$defs/readyWhen"
+            },
             "open": {
               "description": "true opens the readyWhen URL; a string opens that URL.",
-              "oneOf": [{ "type": "boolean" }, { "type": "string" }]
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             },
-            "restart": { "enum": ["never", "onFailure"], "default": "never" }
+            "restart": {
+              "enum": [
+                "never",
+                "onFailure"
+              ],
+              "default": "never"
+            }
           }
         }
       ]
     },
     "requirement": {
       "oneOf": [
-        { "type": "string", "description": "Just the tool name." },
+        {
+          "type": "string",
+          "description": "Just the tool name."
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["tool"],
+          "required": [
+            "tool"
+          ],
           "properties": {
-            "tool": { "type": "string" },
+            "tool": {
+              "type": "string"
+            },
             "version": {
               "type": "string",
               "description": "A single comparison: >=9.0, >20, <=3.12, =1.2.3, or a bare version.",
               "pattern": "^(>=|<=|>|<|=)?\\s*\\d+(\\.\\d+)*$"
             },
-            "install": { "type": "string", "description": "Shown when the tool is missing." },
-            "optional": { "type": "boolean", "default": false }
+            "install": {
+              "type": "string",
+              "description": "Shown when the tool is missing."
+            },
+            "optional": {
+              "type": "boolean",
+              "default": false
+            }
           }
         }
       ]
@@ -163,39 +316,94 @@
     "input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "label": { "type": "string" },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "label": {
+          "type": "string"
+        },
         "type": {
-          "enum": ["text", "password", "number", "bool", "select", "path", "dir", "file"],
+          "enum": [
+            "text",
+            "password",
+            "number",
+            "bool",
+            "select",
+            "path",
+            "dir",
+            "file"
+          ],
           "default": "text"
         },
-        "description": { "type": "string" },
-        "default": { "type": ["string", "number", "boolean", "null"] },
-        "required": { "type": "boolean", "default": false },
-        "pattern": { "type": "string", "description": "Regular expression, for text-like types." },
-        "min": { "type": "number" },
-        "max": { "type": "number" },
+        "description": {
+          "type": "string"
+        },
+        "default": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regular expression, for text-like types."
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
         "options": {
           "type": "array",
           "items": {
             "oneOf": [
-              { "type": ["string", "number"] },
+              {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              },
               {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["value"],
+                "required": [
+                  "value"
+                ],
                 "properties": {
-                  "value": { "type": ["string", "number"] },
-                  "label": { "type": "string" }
+                  "value": {
+                    "type": [
+                      "string",
+                      "number"
+                    ]
+                  },
+                  "label": {
+                    "type": "string"
+                  }
                 }
               }
             ]
           }
         },
-        "env": { "type": "string", "description": "Environment variable this value is exported as." },
-        "persist": { "type": "boolean", "default": false }
+        "env": {
+          "type": "string",
+          "description": "Environment variable this value is exported as."
+        },
+        "persist": {
+          "type": "boolean",
+          "default": false
+        }
       }
     }
   }

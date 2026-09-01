@@ -139,13 +139,20 @@ public static class RunPipeline
             catch (ArgumentException e) { return Usage(e.Message); }
 
             reference = args.Ref ?? DefaultRef(git, repo);
-            workspace = store.PathFor(repo, reference);
+
+            // A config handed in from outside gets a checkout of its own. Two configs for the same
+            // repository are two different things - a curated one, a file somebody opened, a draft
+            // being tested in the builder - and sharing one directory means sharing a node_modules,
+            // a .env and a build output between them.
+            var variant = ConfigVariant(args.ConfigText);
+
+            workspace = store.PathFor(repo, reference, variant);
 
             var checkout = git.CheckoutOrUpdate(repo, reference, args.PullRequest, workspace, args.Fresh);
             if (!checkout.Ok) return Failed(checkout.Error ?? "checkout failed");
 
             commit = checkout.Commit;
-            workspaceId = WorkspaceStore.IdFor(repo, reference);
+            workspaceId = WorkspaceStore.IdFor(repo, reference, variant);
             store.Touch(workspaceId, repo, reference, commit, null);
         }
 
@@ -197,6 +204,24 @@ public static class RunPipeline
 
     /// <summary>Marks the workspace of a copied folder, so it is not the one for running in place.</summary>
     private const string CopyVariant = "copy";
+
+    /// <summary>
+    /// The workspace variant a supplied config belongs in, or null for the repository's own.
+    /// <para>
+    /// Short and stable: the same config always lands in the same directory, so a second run of it
+    /// reuses the checkout - which is the whole reason workspaces exist. A different config gets a
+    /// different one, and neither can overwrite what the repository's own quickrun.yml built.
+    /// </para>
+    /// </summary>
+    internal static string? ConfigVariant(string? configText)
+    {
+        if (string.IsNullOrWhiteSpace(configText)) return null;
+
+        var hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(configText));
+
+        return "cfg" + Convert.ToHexString(hash)[..8].ToLowerInvariant();
+    }
 
     /// <summary>Directories a copy leaves behind, because the setup steps put them back.</summary>
     private static readonly string[] Regenerated =

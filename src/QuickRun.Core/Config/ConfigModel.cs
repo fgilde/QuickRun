@@ -75,7 +75,23 @@ public sealed record RunConfig(
     IReadOnlyDictionary<string, string> Env,
     IReadOnlyList<Step> Setup,
     IReadOnlyList<TaskDef> Tasks,
-    IReadOnlyList<Step> Stop);
+    IReadOnlyList<Step> Stop,
+    /// <summary>
+    /// The repository this config is for, when the config does not travel inside it.
+    /// <para>
+    /// A config committed next to the code needs none of this: the repository is the one it sits in.
+    /// It matters for a config that arrives on its own - a file somebody opens, or one out of the
+    /// curated collection - where otherwise there is nothing to check out. owner/repo, a GitHub URL
+    /// or any git URL: the same three shapes the window's one field takes.
+    /// </para>
+    /// <para>
+    /// Last in this record and optional, so every existing construction of it still compiles. In the
+    /// file it belongs at the top, beside version and name, which is where the schema puts it.
+    /// </para>
+    /// </summary>
+    string? Repository = null,
+    /// <summary>The ref to check that repository out at. Its default branch when absent.</summary>
+    string? Ref = null);
 
 public static class RunConfigDefaults
 {

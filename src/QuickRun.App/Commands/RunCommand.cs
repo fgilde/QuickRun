@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using QuickRun.Core;
 using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.Core.Inputs;
@@ -51,6 +52,11 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         [Description("Config file to use instead of quickrun.yml, relative to the project root.")]
         public string? ConfigPath { get; init; }
 
+        [CommandOption("-f|--file")]
+        [Description("Run this quickrun.yml on its own. It decides what runs; if it names a "
+                     + "repository that is checked out, otherwise the file's own folder runs.")]
+        public string? ConfigFile { get; init; }
+
         [CommandOption("--fresh")]
         [Description("Delete the existing workspace and clone again.")]
         public bool Fresh { get; init; }
@@ -78,6 +84,34 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         public RunArgs ToArgs() =>
             new(Repo, Ref, PullRequest, Subdir, Inputs, Token, Fresh, Yes, NoOpen, ConfigPath,
                 LocalPath: Folder, Copy: Copy);
+
+        /// <summary>
+        /// The same run, described by a config file instead of by a repository.
+        /// <para>
+        /// The file is read here and handed on as text, so everything downstream - preparing,
+        /// planning, confirming - is the path it always was. A folder is allowed: this is a command
+        /// line, so the file was named by whoever owns the machine.
+        /// </para>
+        /// </summary>
+        public (RunArgs? Args, string? Error) FromFile()
+        {
+            var target = ConfigFileRun.Read(ConfigFile, OSKinds.Current, allowFolder: true);
+
+            if (target.Error is { } why) return (null, why);
+
+            // A repository on the command line wins over the one in the file: somebody who names
+            // both means the one they just typed.
+            var repo = Repo.Length > 0 ? Repo : target.Repo ?? "";
+
+            if (repo.Length == 0 && target.LocalFolder is null)
+                return (null, "this config does not say which repository it is for - name one after --file");
+
+            return (new RunArgs(repo, Ref ?? target.Ref, PullRequest, Subdir, Inputs, Token,
+                Fresh, Yes, NoOpen, ConfigPath: null,
+                ConfigText: target.Text,
+                LocalPath: repo.Length > 0 ? null : target.LocalFolder,
+                Copy: Copy), null);
+        }
     }
 
     protected override async Task<int> ExecuteAsync(
@@ -89,7 +123,24 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             new CredentialResolver(settings.Token),
             onCheckoutProgress: (percent, detail) =>
                 reporter.Report(new RunProgress(RunPhase.Checkout, ProgressModel.Total(RunPhase.Checkout, percent), detail)));
-        var args = settings.ToArgs();
+        RunArgs args;
+
+        if (settings.ConfigFile is { Length: > 0 })
+        {
+            var (fromFile, why) = settings.FromFile();
+
+            if (fromFile is null)
+            {
+                Output.Error(why ?? "that config cannot be run");
+                return 2;
+            }
+
+            args = fromFile;
+        }
+        else
+        {
+            args = settings.ToArgs();
+        }
 
         var preparation = RunPipeline.Prepare(args, store, git,
             settings.Yes

@@ -94,6 +94,9 @@ const query = ref('');
 /** Whether a QuickRun on this machine is listening. Null while nobody has asked yet. */
 const running = ref(null);
 
+/** The card whose Run menu is open, by repository. Only ever one. */
+const menuFor = ref(null);
+
 /** The config being read, its text, and what went wrong if anything did. */
 const viewing = ref(null);
 const text = ref('');
@@ -113,12 +116,45 @@ onMounted(async () => {
   running.value = await answering();
 
   window.addEventListener('keydown', onKey);
+  window.addEventListener('click', onClickAway, true);
 });
 
-onUnmounted(() => window.removeEventListener('keydown', onKey));
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey);
+  window.removeEventListener('click', onClickAway, true);
+});
+
+/** A press anywhere that is not this menu closes it. */
+function onClickAway(event) {
+  if (!menuFor.value) return;
+  if (event.target.closest?.('.qr-collection-run')) return;
+
+  menuFor.value = null;
+}
 
 function onKey(event) {
-  if (event.key === 'Escape') close();
+  if (event.key !== 'Escape') return;
+
+  // The menu first: with a config open over the page, Escape means "close the thing on top".
+  if (menuFor.value) { menuFor.value = null; return; }
+  close();
+}
+
+/**
+ * Run, or ask which config first.
+ *
+ * With only one config there is nothing to ask, so the press starts it. With two, a menu - rather
+ * than two buttons of equal weight, which made the card look like a form to fill in.
+ */
+function pressRun(entry) {
+  if (!entry.shipsOwn) { run(entry); return; }
+
+  menuFor.value = menuFor.value === entry.repo ? null : entry.repo;
+}
+
+function choose(entry, fromCollection) {
+  menuFor.value = null;
+  run(entry, { fromCollection });
 }
 
 async function view(entry) {
@@ -221,18 +257,26 @@ const configLink = (entry) => withBase('/' + entry.config);
         <p v-if="entry.shipsOwn" class="qr-collection-both">{{ t.shipsOwn }}</p>
 
         <div class="qr-collection-actions">
-          <!-- Buttons rather than links: with QuickRun running these hand the repository straight to
-               its window, and only otherwise fall back to the page that explains it. -->
-          <template v-if="entry.shipsOwn">
-            <button class="m3-button" type="button" @click="run(entry, { fromCollection: true })">
-              {{ t.runOurs }}
+          <!-- One Run, and where there are two configs it asks which. A button rather than a link:
+               with QuickRun running this hands the repository straight to its window, and only
+               otherwise falls back to the page that explains it. -->
+          <div class="qr-collection-run">
+            <button class="m3-button" type="button"
+                    :aria-expanded="menuFor === entry.repo ? 'true' : 'false'"
+                    :aria-haspopup="entry.shipsOwn ? 'menu' : undefined"
+                    @click="pressRun(entry)">
+              {{ t.run }}<span v-if="entry.shipsOwn" class="qr-collection-caret" aria-hidden="true">▾</span>
             </button>
-            <button class="m3-button m3-button--outlined" type="button" @click="run(entry)">
-              {{ t.runTheirs }}
-            </button>
-          </template>
 
-          <button v-else class="m3-button" type="button" @click="run(entry)">{{ t.run }}</button>
+            <div v-if="menuFor === entry.repo" class="qr-collection-menu" role="menu">
+              <button type="button" role="menuitem" @click="choose(entry, true)">
+                {{ t.runOurs }}
+              </button>
+              <button type="button" role="menuitem" @click="choose(entry, false)">
+                {{ t.runTheirs }}
+              </button>
+            </div>
+          </div>
 
           <button class="m3-button m3-button--text" type="button" @click="view(entry)">
             {{ t.config }}
@@ -329,6 +373,26 @@ const configLink = (entry) => withBase('/' + entry.config);
   border-left: 3px solid var(--vp-c-warning-1, #d29922);
   background: rgba(210, 153, 34, 0.09);
 }
+
+/* Run, with the choice of config hanging under it where there is a choice to make. */
+.qr-collection-run { position: relative; display: inline-flex; }
+.qr-collection-caret { margin-left: 7px; font-size: 13px; line-height: 1; opacity: 0.85; }
+
+.qr-collection-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
+  display: grid; min-width: 230px; padding: 6px;
+  border-radius: 10px;
+  /* Lifted off the page rather than blending into it: on the dark theme the panel colour and the
+     page colour are close enough that a menu looked like text floating over the cards. */
+  border: 1px solid var(--vp-c-brand-soft, var(--vp-c-divider));
+  background: var(--vp-c-bg-soft, var(--vp-c-bg));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+.qr-collection-menu button {
+  padding: 8px 10px; border: 0; border-radius: 7px;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.qr-collection-menu button:hover { background: rgba(127, 127, 127, 0.14); }
 
 .qr-collection-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .qr-collection-port { opacity: 0.6; margin-left: auto; }

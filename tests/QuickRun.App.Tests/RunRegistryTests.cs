@@ -37,6 +37,70 @@ public class RunRegistryTests
         Assert.False(File.Exists(Path.Combine(summary.Commands[0].Cwd ?? home.Path, "must-not-exist.txt")));
     }
 
+    /// <summary>
+    /// Declining a plan releases it, and a second decline is not an error.
+    /// <para>
+    /// Reported as "no dialog opens any more, and the button says Running for ever". Stopping a run
+    /// that had never started left its state at awaiting confirmation, so the plan stayed on the
+    /// list; the extension treats an unanswered plan as a run in progress, so from then on the
+    /// button offered a menu about something that had never started rather than preparing a plan.
+    /// The second press answered 404: cancellation had already been requested, and there were no
+    /// processes to kill.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Stopping_a_plan_nobody_approved_releases_it()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "run: echo hi\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, error) = await registry.PrepareAsync(Args(repo.Url));
+
+        Assert.Null(error);
+        Assert.Equal(RunState.AwaitingConfirmation, summary!.State);
+
+        // This is what the extension does when the window is closed or Cancel is pressed.
+        Assert.True(registry.Stop(summary.Id), "declining a plan was refused");
+
+        // The state is the whole point: anything else and the plan keeps counting as a live run.
+        Assert.Equal(RunState.Cancelled, registry.Get(summary.Id)!.State);
+
+        // And it stays answerable - a second answer for the same plan changes nothing, but it is
+        // not a 404 either, which is what the window would show as an error.
+        Assert.True(registry.Stop(summary.Id));
+        Assert.Equal(RunState.Cancelled, registry.Get(summary.Id)!.State);
+    }
+
+    /// <summary>
+    /// The same for a plan that was waiting for values: nothing started there either.
+    /// </summary>
+    [Fact]
+    public async Task Stopping_a_plan_that_was_waiting_for_values_releases_it()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+
+        repo.Write("quickrun.yml", """
+            inputs:
+              - id: token
+                required: true
+            tasks:
+              - run: echo ${inputs.token}
+            """);
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var (summary, _) = await registry.PrepareAsync(Args(repo.Url));
+
+        Assert.Equal(RunState.AwaitingInput, summary!.State);
+
+        Assert.True(registry.Stop(summary.Id));
+        Assert.Equal(RunState.Cancelled, registry.Get(summary.Id)!.State);
+    }
+
     [Fact]
     public async Task The_summary_carries_the_fingerprint_the_trust_store_will_hash()
     {

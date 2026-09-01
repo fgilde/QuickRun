@@ -71,6 +71,15 @@ function makeButton(target) {
     event.preventDefault();
     event.stopPropagation();
 
+    // A plan of this branch is waiting to be read: the press goes back to it. Offering the menu
+    // here was the bug behind "no dialog opens any more" - a plan nobody had answered made the
+    // button read Running for ever, and every press offered to stop something that had never
+    // started instead of showing the plan again.
+    if (button.dataset.runId && WAITING_STATES.includes(button.dataset.runState ?? '')) {
+      reopenPlan(button, target);
+      return;
+    }
+
     // A run of this branch is already going: clicking again must not start a second one. The button
     // becomes the way into what can be done with the run instead.
     if (button.dataset.runId && ACTIVE_STATES.includes(button.dataset.state)) {
@@ -85,6 +94,28 @@ function makeButton(target) {
 }
 
 const ACTIVE_STATES = ['running', 'working', 'starting'];
+
+/** A run that has not started: it is waiting to be read, and pressing goes back to it. */
+const WAITING_STATES = ['awaitingConfirmation', 'awaitingInput'];
+
+/**
+ * Shows the plan again, and starts a fresh one if that plan has since gone.
+ *
+ * The fallback is the important half: a daemon that has been restarted has forgotten the run, and
+ * without this the button would be permanently stuck on a plan that no longer exists.
+ */
+async function reopenPlan(button, target) {
+  const answer = await send({ type: 'showLog', runId: button.dataset.runId });
+
+  if (!answer?.error) return;
+
+  delete button.dataset.runId;
+  delete button.dataset.runState;
+  setState(button, 'ready');
+  setLabel(button, button.dataset.idleLabel ?? target.label);
+
+  onClick(button, target);
+}
 
 /* ---- the menu on a running button ------------------------------------------------------------ */
 
@@ -281,6 +312,10 @@ chrome.runtime.onMessage.addListener((message) => {
 
   const { kind, progress, text } = message.event;
 
+  // An event means the plan is behind us: the run is doing something, so a press belongs to the
+  // menu again rather than reopening a plan that has already been approved.
+  delete button.dataset.runState;
+
   if (kind === 'taskReady') {
     // Something answered. Starting is over, whatever the percentage says.
     setState(button, 'running');
@@ -313,6 +348,7 @@ chrome.runtime.onMessage.addListener((message) => {
   // Over, so the next click starts a run again rather than opening a menu about a dead one.
   if (kind === 'finished' || kind === 'failed' || kind === 'cancelled') {
     delete button.dataset.runId;
+    delete button.dataset.runState;
     goIdleLater(button);
   }
 });
@@ -383,10 +419,16 @@ async function adopt(button, target) {
   if (!run) return;
 
   button.dataset.runId = run.id;
+  button.dataset.runState = run.state ?? '';
   setState(button, 'running');
-  setLabel(button, run.state === 'stopping' ? 'Stopping...'
+
+  // "Running" for a plan nobody has approved was a lie the button told about itself, and the reason
+  // a stuck plan was impossible to diagnose from the page: nothing was running at all.
+  setLabel(button, WAITING_STATES.includes(run.state) ? 'Waiting for you'
+    : run.state === 'stopping' ? 'Stopping...'
     : run.progress ? describe(run.progress)
     : run.leftovers > 0 ? 'Still running' : 'Running');
+
   if (run.progress) button.style.setProperty('--quickrun-progress', `${run.progress.percent}%`);
 }
 

@@ -443,16 +443,31 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
         {
             lock (_gate)
             {
-                if (Summary.State != RunState.AwaitingConfirmation) return false;
+                // Waiting for values counts too: a plan whose form was never filled in has started
+                // nothing either, and it was just as unreleasable.
+                if (Summary.State is not (RunState.AwaitingConfirmation or RunState.AwaitingInput))
+                    return false;
+
                 Summary = Summary with { State = RunState.Cancelled };
             }
 
+            Publish(new RunEvent(RunEventKind.Cancelled, null, "not confirmed"));
             CloseSubscribers();
             return true;
         }
 
         public bool RequestStop()
         {
+            // Nothing has started yet: this is a plan being declined, and declining it has to
+            // release it. It did not - the state stayed "awaiting confirmation", because only a
+            // running run was moved on - and that is what made a repository unrunnable from the
+            // browser. The extension treats an unanswered plan as a run in progress, so its button
+            // read "Running" for ever and every press offered a menu about something that had never
+            // started, instead of preparing a plan. The second press did not even get that far:
+            // cancellation had already been requested, so this returned false and the daemon
+            // answered 404.
+            if (CancelBeforeStart()) return true;
+
             // Already asked once. The run is winding down, but a task may have left something behind
             // - and that is what a second Stop is for: killing what is still alive.
             if (_stop.IsCancellationRequested) return KillLeftovers();

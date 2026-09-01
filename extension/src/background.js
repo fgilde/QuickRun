@@ -6,6 +6,9 @@ import { matchesTarget, stillWorthActing } from './match.js';
 
 const DOWNLOAD_PAGE = 'https://quickrun.org/download';
 
+/** A run that has not started: it is waiting for somebody to read it, not doing anything. */
+const WAITING_STATES = ['awaitingConfirmation', 'awaitingInput'];
+
 /** Live runs, keyed by run id, so the content script can be told where a run has got to. */
 const active = new Map();
 
@@ -257,12 +260,45 @@ async function showLog(runId, tabId) {
   const run = await api.state(runId, { port });
   if (!run) return { error: 'that run is gone' };
 
-  // The window opens attached to a run that is already going: no plan to approve, straight to the
-  // log and a Stop.
-  await openWindow(run, 'confirm.html?attach=1');
+  // Which window this run needs. A plan nobody has answered yet needs the plan - with its commands
+  // and its Run button - and got the log view instead, which has neither. That is how a repository
+  // whose plan was never answered ended up with a button that could no longer be used for anything:
+  // every press reopened a window with nothing to press, and the plan sat there for ever.
+  const waiting = WAITING_STATES.includes(run.state);
+
+  const windowId = await openWindow(run, waiting ? 'confirm.html' : 'confirm.html?attach=1');
+
+  // A plan reopened this way is answered from this window, so the answer has to find its way back
+  // to the tab that asked - exactly as it does when the plan is opened by a click.
+  if (waiting) await remember(PENDING, (all) => { all[run.id] = { tabId: tabId ?? null, windowId }; });
+
   if (!active.has(runId)) follow(runId, tabId, { port });
 
-  return { ok: true, reopened: true };
+  return { ok: true, reopened: true, waiting };
+}
+
+/**
+ * Whether this repository gets a button at all.
+ * <para>
+ * The setting behind it: every repository, only the ones carrying instructions, or only the ones
+ * with a quickrun.yml of their own. The case for this message has been here since the setting was
+ * added and the function never was, so every reply was a ReferenceError - which the content script
+ * reads as "show it", and the setting has therefore never done anything.
+ * </para>
+ */
+async function shouldShow(target) {
+  const { port, showOn } = await api.settings();
+
+  if (showOn !== 'known' && showOn !== 'quickrun') return { show: true };
+  if (!target?.repo) return { show: true };
+
+  const probe = await api.probe(target, { port });
+
+  // Nothing could be looked up - offline, or an older daemon. A button that might work beats no
+  // button at all, which is what a repository would silently lose here.
+  if (!probe) return { show: true };
+
+  return { show: showOn === 'quickrun' ? Boolean(probe.quickrun) : Boolean(probe.known) };
 }
 
 /** The browser cannot open a local folder itself, so the daemon does it. */

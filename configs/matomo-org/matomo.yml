@@ -22,7 +22,8 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-matomo-db --network quickrun-matomo-net lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-matomo-db --network quickrun-matomo-net -e MYSQL_ROOT_PASSWORD="matomo" -e MYSQL_DATABASE="matomo" -e MYSQL_USER="matomo" -e MYSQL_PASSWORD="matomo" lscr.io/linuxserver/mariadb:latest
+    readyWhen: {log: ready for connections}
   - name: matomo
     run: docker run --rm --name quickrun-matomo --network quickrun-matomo-net -p 80:80 -e MATOMO_DATABASE_HOST="quickrun-matomo-db" -e MATOMO_DATABASE_ADAPTER="mysql" -e MATOMO_DATABASE_DBNAME="matomo" -e MATOMO_DATABASE_USERNAME="matomo" -e MATOMO_DATABASE_PASSWORD="matomo" matomo:apache
     dependsOn: [db]

@@ -25,7 +25,8 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-linkwarden-db --network quickrun-linkwarden-net postgres:16
+    run: docker run --rm --name quickrun-linkwarden-db --network quickrun-linkwarden-net -e POSTGRES_PASSWORD="linkwarden" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: linkwarden
     run: docker run --rm --name quickrun-linkwarden --network quickrun-linkwarden-net -p 3000:3000 -e DATABASE_URL="postgresql://postgres:linkwarden@quickrun-linkwarden-db:5432/postgres" ghcr.io/linkwarden/linkwarden:latest
     dependsOn: [db]

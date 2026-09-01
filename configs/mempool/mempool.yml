@@ -22,11 +22,11 @@ setup:
 
 tasks:
   - name: backend
-    run: docker run --rm --name quickrun-mempool-backend --network quickrun-mempool-net -p 8999:8999 mempool/backend:latest
+    run: docker run --rm --name quickrun-mempool-backend --network quickrun-mempool-net -p 8999:8999 -e MEMPOOL_BACKEND="electrum" -e ELECTRUM_HOST="electrs" -e ELECTRUM_PORT="50001" -e CORE_RPC_HOST="bitcoind" -e CORE_RPC_PORT="8332" -e CORE_RPC_USERNAME="bitcoin" -e CORE_RPC_PASSWORD="changeme" -e DATABASE_ENABLED="true" -e DATABASE_HOST="quickrun-mempool-db" -e DATABASE_DATABASE="mempool" -e DATABASE_USERNAME="mempool" -e DATABASE_PASSWORD="mempool" mempool/backend:latest
     readyWhen: {port: 8999}
   - name: db
-    run: docker run --rm --name quickrun-mempool-db --network quickrun-mempool-net -p 3306:3306 mariadb:10.11
-    readyWhen: {port: 3306}
+    run: docker run --rm --name quickrun-mempool-db --network quickrun-mempool-net -p 3306:3306 -e MYSQL_DATABASE="mempool" -e MYSQL_USER="mempool" -e MYSQL_PASSWORD="mempool" -e MYSQL_ROOT_PASSWORD="admin" mariadb:10.11
+    readyWhen: {log: ready for connections}
   - name: mempool
     run: docker run --rm --name quickrun-mempool --network quickrun-mempool-net -p 8080:8080 -e FRONTEND_HTTP_PORT="8080" -e BACKEND_MAINNET_HTTP_HOST="quickrun-mempool-backend" mempool/frontend:latest
     dependsOn: [backend, db]

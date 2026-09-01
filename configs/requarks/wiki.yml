@@ -20,7 +20,8 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-wikijs-db --network quickrun-wikijs-net postgres:16
+    run: docker run --rm --name quickrun-wikijs-db --network quickrun-wikijs-net -e POSTGRES_DB="wiki" -e POSTGRES_USER="wikijs" -e POSTGRES_PASSWORD="wikijs" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: wikijs
     run: docker run --rm --name quickrun-wikijs --network quickrun-wikijs-net -p 3000:3000 -e DB_TYPE="postgres" -e DB_HOST="quickrun-wikijs-db" -e DB_PORT="5432" -e DB_USER="wikijs" -e DB_PASS="wikijs" -e DB_NAME="wiki" ghcr.io/requarks/wiki:2
     dependsOn: [db]

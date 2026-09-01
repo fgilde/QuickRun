@@ -98,13 +98,47 @@ function dockerRun(app, { name, image, port, env }) {
 }
 
 /** Companion hostnames: the catalogue writes ${key}, and the container is named after it. */
-function resolveEnv(app) {
+function resolveNames(app, env) {
   const names = new Map((app.companions ?? []).map((c) => [c.key, containerName(app, c.key)]));
 
-  return (app.env ?? []).map(([key, value]) => [
+  return (env ?? []).map(([key, value]) => [
     key,
     String(value).replace(/\$\{([^}]+)\}/g, (whole, ref) => names.get(ref) ?? whole),
   ]);
+}
+
+const resolveEnv = (app) => resolveNames(app, app.env);
+
+/**
+ * When a companion counts as ready.
+ *
+ * Not by port: a companion has no published port - the application reaches it inside the container
+ * network - so a port check would be looking at this machine's own 5432 and would either never
+ * answer or, worse, answer from somebody else's database. What it says in its log is the real
+ * signal, and every one of these images says it.
+ */
+function readyFor(companion) {
+  const marks = {
+    postgres: 'database system is ready to accept connections',
+    mysql: 'ready for connections',
+    mariadb: 'ready for connections',
+    mongo: 'Waiting for connections',
+    redis: 'Ready to accept connections',
+  };
+
+  const role = String(companion.role ?? '').toLowerCase();
+  const image = String(companion.image ?? '').toLowerCase();
+
+  for (const [name, mark] of Object.entries(marks))
+    if (role.includes(name) || image.includes(name))
+      return `{log: ${scalar(mark)}}`;
+
+  if (companion.port) return `{port: ${companion.port}}`;
+
+  // Nothing known to wait for. A moment is still better than nothing: with no readyWhen the task
+  // counts as ready the instant docker was asked to start it, and the application then opens its
+  // connection to something that is not listening yet.
+  return '{delay: 5s}';
 }
 
 function configFor(app, target) {
@@ -142,13 +176,19 @@ function configFor(app, target) {
 
   for (const companion of companions) {
     lines.push(`  - name: ${scalar(companion.key ?? companion.role ?? 'companion')}`);
+
+    // The companion's own environment, which is where a database gets its user, password and
+    // database name. Dropping it - which this did - starts a postgres that refuses to initialise
+    // and an application that cannot connect to it, which is 29 of these configs.
     lines.push(`    run: ${dockerRun(app, {
       name: containerName(app, companion.key),
       image: companion.image,
       port: companion.port,
-      env: [],
+      env: resolveNames(app, companion.env),
     })}`);
-    if (companion.port) lines.push(`    readyWhen: {port: ${companion.port}}`);
+
+    const ready = readyFor(companion);
+    if (ready) lines.push(`    readyWhen: ${ready}`);
   }
 
   lines.push(`  - name: ${scalar(app.id)}`);

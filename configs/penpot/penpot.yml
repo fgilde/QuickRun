@@ -22,16 +22,17 @@ setup:
 
 tasks:
   - name: backend
-    run: docker run --rm --name quickrun-penpot-backend --network quickrun-penpot-net -p 6060:6060 penpotapp/backend:latest
+    run: docker run --rm --name quickrun-penpot-backend --network quickrun-penpot-net -p 6060:6060 -e PENPOT_FLAGS="enable-registration enable-login-with-password disable-email-verification disable-secure-session-cookies" -e PENPOT_PUBLIC_URI="http://localhost:8080" -e PENPOT_DATABASE_URI="postgresql://quickrun-penpot-db:5432/penpot" -e PENPOT_DATABASE_USERNAME="penpot" -e PENPOT_DATABASE_PASSWORD="penpot" -e PENPOT_REDIS_URI="redis://quickrun-penpot-redis:6379/0" -e PENPOT_SECRET_KEY="aspireui-penpot-secret-change-me-0123456789" -e PENPOT_OBJECTS_STORAGE_BACKEND="fs" penpotapp/backend:latest
     readyWhen: {port: 6060}
   - name: exporter
-    run: docker run --rm --name quickrun-penpot-exporter --network quickrun-penpot-net -p 6061:6061 penpotapp/exporter:latest
+    run: docker run --rm --name quickrun-penpot-exporter --network quickrun-penpot-net -p 6061:6061 -e PENPOT_PUBLIC_URI="http://localhost:8080" -e PENPOT_REDIS_URI="redis://quickrun-penpot-redis:6379/0" -e PENPOT_SECRET_KEY="aspireui-penpot-secret-change-me-0123456789" penpotapp/exporter:latest
     readyWhen: {port: 6061}
   - name: db
-    run: docker run --rm --name quickrun-penpot-db --network quickrun-penpot-net postgres:16
+    run: docker run --rm --name quickrun-penpot-db --network quickrun-penpot-net -e POSTGRES_DB="penpot" -e POSTGRES_USER="penpot" -e POSTGRES_PASSWORD="penpot" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: redis
     run: docker run --rm --name quickrun-penpot-redis --network quickrun-penpot-net -p 6379:6379 redis:7
-    readyWhen: {port: 6379}
+    readyWhen: {log: Ready to accept connections}
   - name: penpot
     run: docker run --rm --name quickrun-penpot --network quickrun-penpot-net -p 8080:8080 -e PENPOT_FLAGS="enable-registration enable-login-with-password disable-email-verification disable-secure-session-cookies" -e PENPOT_BACKEND_URI="http://quickrun-penpot-backend:6060" -e PENPOT_EXPORTER_URI="http://quickrun-penpot-exporter:6061" penpotapp/frontend:latest
     dependsOn: [backend, exporter, db, redis]

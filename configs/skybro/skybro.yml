@@ -24,6 +24,7 @@ setup:
 tasks:
   - name: tracker
     run: docker run --rm --name quickrun-skybro-tracker --network quickrun-skybro-net xdeekay/skybro-tracker:1.5.7
+    readyWhen: {delay: 5s}
   - name: skybro
     run: docker run --rm --name quickrun-skybro --network quickrun-skybro-net -p 5000:5000 xdeekay/skybro-dashboard:1.5.7
     dependsOn: [tracker]

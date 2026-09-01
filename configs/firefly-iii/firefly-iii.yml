@@ -21,7 +21,8 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-firefly-iii-db --network quickrun-firefly-iii-net postgres:16
+    run: docker run --rm --name quickrun-firefly-iii-db --network quickrun-firefly-iii-net -e POSTGRES_DB="firefly" -e POSTGRES_USER="firefly" -e POSTGRES_PASSWORD="firefly" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: firefly-iii
     run: docker run --rm --name quickrun-firefly-iii --network quickrun-firefly-iii-net -p 8080:8080 -e DB_CONNECTION="pgsql" -e DB_HOST="quickrun-firefly-iii-db" -e DB_PORT="5432" -e DB_DATABASE="firefly" -e DB_USERNAME="firefly" -e DB_PASSWORD="firefly" fireflyiii/core:latest
     dependsOn: [db]

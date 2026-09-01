@@ -22,7 +22,8 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-drupal-db --network quickrun-drupal-net postgres:16
+    run: docker run --rm --name quickrun-drupal-db --network quickrun-drupal-net -e POSTGRES_DB="drupal" -e POSTGRES_USER="drupal" -e POSTGRES_PASSWORD="drupal" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: drupal
     run: docker run --rm --name quickrun-drupal --network quickrun-drupal-net -p 80:80 drupal:latest
     dependsOn: [db]

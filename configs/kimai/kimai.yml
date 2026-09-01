@@ -21,7 +21,8 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-kimai-db --network quickrun-kimai-net lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-kimai-db --network quickrun-kimai-net -e MYSQL_ROOT_PASSWORD="kimai" -e MYSQL_DATABASE="kimai" -e MYSQL_USER="kimai" -e MYSQL_PASSWORD="kimai" lscr.io/linuxserver/mariadb:latest
+    readyWhen: {log: ready for connections}
   - name: kimai
     run: docker run --rm --name quickrun-kimai --network quickrun-kimai-net -p 8001:8001 -e DATABASE_URL="mysql://kimai:kimai@quickrun-kimai-db:3306/kimai?charset=utf8mb4&serverVersion=10.11.0-MariaDB" -e ADMINMAIL="admin@example.com" -e TRUSTED_HOSTS="localhost" kimai/kimai2:apache
     dependsOn: [db]

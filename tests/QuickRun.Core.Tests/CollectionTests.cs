@@ -101,6 +101,82 @@ public class CollectionTests
         }
     }
 
+    /// <summary>
+    /// A database container is given the credentials the application connects with.
+    /// <para>
+    /// This is the defect that broke twenty-nine of these configs: the catalogue supplies the user,
+    /// the password and the database name, the generator dropped them, and a postgres started with
+    /// none of the three refuses to initialise. The application then comes up against a database
+    /// that will not have it, which looks like the application being broken.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EveryConfig))]
+    public void A_database_gets_its_credentials(string relative)
+    {
+        var path = Path.Combine(CollectionDir(), relative);
+        var config = ConfigParser.Parse(File.ReadAllText(path), OSKinds.Current);
+
+        // What each image will not start without. Redis and mongo take none, so they are not here.
+        var required = new (string Image, string[] Any)[]
+        {
+            ("postgres", ["POSTGRES_PASSWORD", "POSTGRES_HOST_AUTH_METHOD"]),
+            ("mysql", ["MYSQL_ROOT_PASSWORD", "MYSQL_ALLOW_EMPTY_PASSWORD", "MYSQL_RANDOM_ROOT_PASSWORD"]),
+            ("mariadb", ["MARIADB_ROOT_PASSWORD", "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD",
+                "MARIADB_RANDOM_ROOT_PASSWORD", "MYSQL_ROOT_PASSWORD", "MYSQL_RANDOM_ROOT_PASSWORD"]),
+        };
+
+        foreach (var task in config.Tasks)
+        foreach (var (image, any) in required)
+        {
+            // The image, not the environment: DATABASE_URL says "postgresql" in half of these, and
+            // the application container is not the one that needs the credentials.
+            if (!Runs(task.Run, image)) continue;
+
+            Assert.True(any.Any(key => task.Run.Contains(key, StringComparison.Ordinal)),
+                $"{relative}: task '{task.Name}' starts {image} without any of {string.Join(", ", any)}");
+        }
+    }
+
+    /// <summary>
+    /// Whether the command starts this image, told apart from merely mentioning its name.
+    /// <para>
+    /// The image is the last word of a docker run, and everything before it is flags and values -
+    /// including a connection string that says postgresql and belongs to something else.
+    /// </para>
+    /// </summary>
+    private static bool Runs(string command, string image)
+    {
+        if (!command.Contains("docker run", StringComparison.Ordinal)) return false;
+
+        var last = command.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "";
+        return last.StartsWith(image + ":", StringComparison.OrdinalIgnoreCase)
+            || last.Equals(image, StringComparison.OrdinalIgnoreCase)
+            || last.Contains("/" + image + ":", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// A task something else waits for says when it is ready.
+    /// <para>
+    /// Without it a task counts as ready the moment docker was asked to start it, and the
+    /// application opens its connection to a database that is not listening yet. dependsOn then
+    /// buys the order and none of the waiting it was written for.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EveryConfig))]
+    public void A_task_others_wait_for_says_when_it_is_ready(string relative)
+    {
+        var path = Path.Combine(CollectionDir(), relative);
+        var config = ConfigParser.Parse(File.ReadAllText(path), OSKinds.Current);
+
+        var awaited = config.Tasks.SelectMany(t => t.DependsOn).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var task in config.Tasks.Where(t => awaited.Contains(t.Name)))
+            Assert.True(task.ReadyWhen is not null,
+                $"{relative}: task '{task.Name}' is waited for but never says when it is ready");
+    }
+
     private static string? Name(string command)
     {
         const string marker = "--name ";

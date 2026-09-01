@@ -22,10 +22,11 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-paperless-ngx-db --network quickrun-paperless-ngx-net postgres:16
+    run: docker run --rm --name quickrun-paperless-ngx-db --network quickrun-paperless-ngx-net -e POSTGRES_DB="paperless" -e POSTGRES_USER="paperless" -e POSTGRES_PASSWORD="paperless" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: redis
     run: docker run --rm --name quickrun-paperless-ngx-redis --network quickrun-paperless-ngx-net -p 6379:6379 redis:7
-    readyWhen: {port: 6379}
+    readyWhen: {log: Ready to accept connections}
   - name: paperless-ngx
     run: docker run --rm --name quickrun-paperless-ngx --network quickrun-paperless-ngx-net -p 8000:8000 -e PAPERLESS_DBHOST="quickrun-paperless-ngx-db" -e PAPERLESS_DBUSER="paperless" -e PAPERLESS_DBPASS="paperless" -e PAPERLESS_REDIS="redis://quickrun-paperless-ngx-redis:6379" ghcr.io/paperless-ngx/paperless-ngx:latest
     dependsOn: [db, redis]

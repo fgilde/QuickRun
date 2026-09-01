@@ -22,10 +22,11 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-ghostfolio-db --network quickrun-ghostfolio-net postgres:16
+    run: docker run --rm --name quickrun-ghostfolio-db --network quickrun-ghostfolio-net -e POSTGRES_DB="ghostfolio" -e POSTGRES_USER="ghostfolio" -e POSTGRES_PASSWORD="ghostfolio" postgres:16
+    readyWhen: {log: database system is ready to accept connections}
   - name: redis
     run: docker run --rm --name quickrun-ghostfolio-redis --network quickrun-ghostfolio-net -p 6379:6379 redis:7
-    readyWhen: {port: 6379}
+    readyWhen: {log: Ready to accept connections}
   - name: ghostfolio
     run: docker run --rm --name quickrun-ghostfolio --network quickrun-ghostfolio-net -p 3333:3333 -e DATABASE_URL="postgresql://ghostfolio:ghostfolio@quickrun-ghostfolio-db:5432/ghostfolio?sslmode=disable" -e REDIS_HOST="quickrun-ghostfolio-redis" -e REDIS_PORT="6379" -e NODE_ENV="production" ghostfolio/ghostfolio:latest
     dependsOn: [db, redis]

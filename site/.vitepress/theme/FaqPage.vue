@@ -45,6 +45,17 @@ const t = computed(() => (de.value
           more: { text: 'Läufe steuern', href: 'install' },
         },
         {
+          q: 'Der Lauf bricht mit Datei- oder Port-Fehlern ab — warum?',
+          a: 'Meist hält ein früherer Lauf noch etwas fest. Er wurde nicht gestoppt, sondern hart '
+            + 'beendet — Task-Manager, Absturz, Abmelden —, denn ein Absturz von QuickRun nimmt '
+            + 'absichtlich keine laufende Anwendung mit. Die alten Prozesse sperren dann ihre DLLs, '
+            + 'sodass der Build scheitert, und halten weiter ihren Port. Antwortet dieser Port schon '
+            + 'bevor der Task startet, sagt QuickRun das und nennt den Prozess samt PID — und wartet '
+            + 'nicht auf diese Adresse: was ein Fremder antwortet, ist kein Beleg über diesen Lauf. '
+            + 'Den genannten Prozess beenden, dann neu starten.',
+          more: { text: 'Läufe steuern', href: 'install' },
+        },
+        {
           q: 'Braucht es Administratorrechte?',
           a: 'Nein. Autostart, der quickrun://-Handler und quickrun im PATH sind alle pro Benutzer: '
             + 'ein Registry-Wert unter HKCU, eine .desktop-Datei im Home, ein Launch Agent, ein '
@@ -112,6 +123,17 @@ const t = computed(() => (de.value
             + 'whose parent process is long gone, and a server that an already-finished task launched '
             + 'in the background. If anything is left, the run reads "still running" and keeps a Stop '
             + 'that ends it.',
+          more: { text: 'Controlling runs', href: 'install' },
+        },
+        {
+          q: 'The run fails on locked files or a busy port - why?',
+          a: 'Usually an earlier run is still holding something. It was not stopped but killed - task '
+            + 'manager, a crash, signing out - because a crash of QuickRun deliberately does not take '
+            + 'a running application with it. Those processes then keep their DLLs locked, so the '
+            + 'build fails, and keep their port. When that port already answers before the task '
+            + 'starts, QuickRun says so and names the process and its pid - and does not wait on that '
+            + 'address: what a stranger answers is no evidence about this run. End the process it '
+            + 'names, then start again.',
           more: { text: 'Controlling runs', href: 'install' },
         },
         {

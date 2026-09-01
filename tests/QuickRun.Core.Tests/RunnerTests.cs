@@ -455,46 +455,49 @@ public class RunnerTests
         var port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
         probe.Stop();
 
-        using var listener = new System.Net.HttpListener();
-        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
-        listener.Start();
+        // Served by the task the run starts, which is the only way this happens in life: a front
+        // end that was not built, answering 404 from the dev server this run just brought up.
+        // Holding the port open here instead would be a different situation entirely - an address
+        // answered by something the run did not start - and readiness is deliberately not earned
+        // that way, which is what ReadinessOwnershipTests is about.
+        // In a file rather than behind node -e: the command goes through a shell, and a one-liner
+        // full of quotes, braces and arrows comes out the other side as several arguments - which
+        // showed up here as a server that never listened and exited cleanly.
+        File.WriteAllText(Path.Combine(repo.Path, "serve404.js"),
+            "require('http').createServer((_, r) => { r.statusCode = 404; r.end(); })"
+            + $".listen({port}, '127.0.0.1');\n");
 
-        // Up, and with nothing at that address - which is exactly what a Release-only front end
-        // looks like from the outside.
-        var serving = Task.Run(async () =>
-        {
-            while (listener.IsListening)
-            {
-                try
-                {
-                    var context = await listener.GetContextAsync();
-                    context.Response.StatusCode = 404;
-                    context.Response.Close();
-                }
-                catch (Exception) { return; }
-            }
-        });
+        var serve = "node serve404.js";
+
+        await using var runner = new Runner(log.Sink);
+
+        // Not awaited: a server that stays up is the point, so the run only ends when it is stopped.
+        var run = runner.ExecuteAsync(
+            Config($"tasks:\n  - name: web\n    run: {serve}\n    readyWhen:\n      http: http://127.0.0.1:{port}/"),
+            Options(repo.Path), CancellationToken.None);
+
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (DateTime.UtcNow < deadline
+               && !log.Events.Any(e => e.Kind is RunEventKind.TaskReady or RunEventKind.TaskExited))
+            await Task.Delay(200);
+
+        var exited = log.Events.Any(e => e.Kind == RunEventKind.TaskExited);
 
         try
         {
-            await using var runner = new Runner(log.Sink);
-
-            var wait = Windows ? "ping -n 3 127.0.0.1 >nul" : "sleep 2";
-            var outcome = await runner.ExecuteAsync(
-                Config($"tasks:\n  - name: web\n    run: {wait}\n    readyWhen:\n      http: http://127.0.0.1:{port}/"),
-                Options(repo.Path), CancellationToken.None);
-
-            Assert.True(outcome.Ok, outcome.Error);
-
-            // Still ready - the rule does not change, only what the log says about it.
-            Assert.Contains(log.Events, e => e.Kind == RunEventKind.TaskReady);
-            Assert.Contains("answers 404", log.Text);
-            Assert.Contains("is not a running application", log.Text);
+            // No node on this machine: nothing served the port, so there is nothing to conclude.
+            if (!exited)
+            {
+                // Still ready - the rule does not change, only what the log says about it.
+                Assert.Contains(log.Events, e => e.Kind == RunEventKind.TaskReady);
+                Assert.Contains("answers 404", log.Text);
+                Assert.Contains("is not a running application", log.Text);
+            }
         }
         finally
         {
-            listener.Stop();
-            await serving;
+            await runner.StopAsync();
+            await run;
         }
     }
 

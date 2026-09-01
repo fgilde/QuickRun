@@ -301,6 +301,11 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
         var log = _logs.GetOrAdd(task.Name, _ => new StringBuilder());
 
+        // Outside the restart loop: the address was somebody else's before this task ever ran, and a
+        // second attempt does not change who answers it. Inside, a restarting task would earn a
+        // "ready" on the stranger from attempt two onwards, which is the bug with extra steps.
+        var strangerAnswers = false;
+
         for (var attempt = 1; attempt <= MaxRestarts; attempt++)
         {
             var command = Interpolator.Expand(task.Run, options.Context);
@@ -316,12 +321,17 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
             // and the task itself is then about to fail to bind.
             if (attempt == 1)
             {
-                await WarnIfTakenAsync(task, options, ct);
+                strangerAnswers = await TakenBeforeStartAsync(task, options, ct);
                 await ClaimPortAsync(task, options, ct);
             }
 
             using var watcher = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var watching = WatchReadinessAsync(task, log, options, watcher.Token);
+
+            // Not waiting at all where the answer would come from somebody else: a "ready" earned
+            // that way is worse than no readiness, because it is believed.
+            var watching = strangerAnswers
+                ? Task.CompletedTask
+                : WatchReadinessAsync(task, log, options, watcher.Token);
 
             // A desktop application's window is the only thing the user is waiting for, and it
             // opens behind whatever they were looking at. Web tasks announce a URL instead, and
@@ -463,10 +473,19 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
         }
     }
 
-    private async Task WarnIfTakenAsync(TaskDef task, RunOptions options, CancellationToken ct)
+    /// <summary>
+    /// Whether the address this task waits for is already answered by something else.
+    /// <para>
+    /// It matters beyond a warning: if the address answers before the task starts, then it answering
+    /// afterwards is no evidence about this task, and treating it as readiness reports a healthy run
+    /// on top of a task that never bound - seen in the wild as "apphost ready" printed over a build
+    /// that had failed because the earlier run still held its files.
+    /// </para>
+    /// </summary>
+    private async Task<bool> TakenBeforeStartAsync(TaskDef task, RunOptions options, CancellationToken ct)
     {
         var readyWhen = task.ReadyWhen;
-        if (readyWhen is null) return;
+        if (readyWhen is null) return false;
 
         try
         {
@@ -482,17 +501,46 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
             var taken = await probe.WaitAsync(PreflightBudget, ct);
 
-            if (!taken) return;
+            if (!taken) return false;
 
             var what = readyWhen.Port is { } number ? $"port {number}" : readyWhen.Http;
+
             Emit(RunEventKind.Error, task.Name,
-                $"something is already listening on {what} before this task started - readiness cannot "
-                + "tell it apart from this run, and this task will probably fail to bind. An earlier "
-                + "run that is still going is the usual reason.");
+                $"something is already listening on {what} before this task started{Holder(task, options)}"
+                + " - so this task will probably fail to bind, and its address answering proves "
+                + "nothing about it. Waiting for it is skipped: whatever this task does is judged by "
+                + "the task itself. Stop the earlier run first.");
+
+            return true;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            // A pre-flight courtesy, never a reason to fail a run.
+            // The pre-flight failing is not evidence either way, and never a reason to fail a run.
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Who is holding the address, when that can be found out: " (held by Cargonerds.AppHost, pid
+    /// 34488)". The difference between a warning somebody can act on and one they cannot.
+    /// </summary>
+    private static string Holder(TaskDef task, RunOptions options)
+    {
+        if (PortOf(task, options) is not { } port) return "";
+
+        try
+        {
+            if (PortOwner.ListeningPid(port) is not { } pid) return "";
+
+            var name = "";
+            try { name = System.Diagnostics.Process.GetProcessById(pid).ProcessName; }
+            catch (ArgumentException) { /* gone between finding it and asking */ }
+
+            return name.Length > 0 ? $" (held by {name}, pid {pid})" : $" (held by pid {pid})";
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return "";
         }
     }
 

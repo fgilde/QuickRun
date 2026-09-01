@@ -19,12 +19,20 @@ public class CommandRunnerDrainTests
     /// A command that leaves a background child holding the output handle - and whose child writes a
     /// file when it finally goes, so its presence is a fact rather than a duration.
     /// </summary>
+    /// <remarks>
+    /// The parent says its line before it starts the child, not after. Said afterwards it is written
+    /// moments before the parent exits, and collecting output stops when the process is gone plus a
+    /// short grace - so on a loaded agent the line could be flushed too late to be seen, and this
+    /// test failed in CI with no output at all while passing everywhere else. What is under test is
+    /// that the command returns before the child finishes, which the marker file below decides; when
+    /// the line is printed does not matter to it.
+    /// </remarks>
     private static string CommandWithLingeringChild(string marker) =>
         OSKinds.Current == OSKind.Windows
-            ? "powershell -NoProfile -Command \"Start-Process -NoNewWindow powershell -ArgumentList "
-              + $"'-NoProfile','-Command','Start-Sleep -Seconds {ChildSeconds}; "
-              + $"Set-Content -LiteralPath \"\"{marker}\"\" -Value done'; 'parent done'\""
-            : $"( sleep {ChildSeconds}; touch '{marker}' ) & echo parent done";
+            ? "powershell -NoProfile -Command \"'parent done'; Start-Process -NoNewWindow powershell "
+              + $"-ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds {ChildSeconds}; "
+              + $"Set-Content -LiteralPath \"\"{marker}\"\" -Value done'\""
+            : $"echo parent done; ( sleep {ChildSeconds}; touch '{marker}' ) &";
 
     /// <summary>
     /// Returns when its own process is gone, rather than when the pipes close.

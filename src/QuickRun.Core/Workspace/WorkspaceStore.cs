@@ -89,7 +89,13 @@ public sealed class WorkspaceStore
     /// about it, because a directory that cannot be seen cannot be deleted either.
     /// </para>
     /// </summary>
-    public IReadOnlyList<WorkspaceInfo> List()
+    /// <param name="withSizes">
+    /// Whether to measure what each workspace occupies. Measuring means walking every file in it,
+    /// and a checkout with a node_modules in it has tens of thousands - so a list of fifteen took
+    /// minutes and the window showed nothing at all until it finished. A caller that only wants to
+    /// name them asks for no sizes and gets an answer at once.
+    /// </param>
+    public IReadOnlyList<WorkspaceInfo> List(bool withSizes = true)
     {
         if (!Directory.Exists(RunsDir)) return Array.Empty<WorkspaceInfo>();
 
@@ -97,7 +103,7 @@ public sealed class WorkspaceStore
 
         foreach (var dir in Directory.EnumerateDirectories(RunsDir))
         {
-            if (Read(dir) is { } described)
+            if (Read(dir, withSizes) is { } described)
             {
                 found.Add(described);
                 continue;
@@ -230,7 +236,7 @@ public sealed class WorkspaceStore
         return Path.Combine(RunsDir, id);
     }
 
-    private WorkspaceInfo? Read(string dir)
+    private WorkspaceInfo? Read(string dir, bool withSizes = true)
     {
         var metaPath = Path.Combine(dir, MetaFileName);
         if (!File.Exists(metaPath)) return null;
@@ -246,11 +252,17 @@ public sealed class WorkspaceStore
             ? new WorkspaceInfo(Path.GetFileName(dir), local, meta.Repo, meta.Ref,
                 0, meta.LastUsed, meta.LastCommit, meta.LastOk, Local: true)
             : new WorkspaceInfo(Path.GetFileName(dir), dir, meta.Repo, meta.Ref,
-                SizeOf(dir), meta.LastUsed, meta.LastCommit, meta.LastOk);
+                withSizes ? SizeOf(dir) : -1, meta.LastUsed, meta.LastCommit, meta.LastOk);
     }
 
-    // ponytail: full tree walk per List() call; cache the size in the metadata if listing feels slow
-    private static long SizeOf(string dir)
+    /// <summary>
+    /// What a workspace occupies, by walking it.
+    /// <para>
+    /// Expensive by nature, which is why listing does not do it unless asked: the window loads the
+    /// names first and fills the sizes in afterwards.
+    /// </para>
+    /// </summary>
+    public static long SizeOf(string dir)
     {
         try
         {

@@ -25,6 +25,9 @@ public sealed record RunRequest(
     string? Config,
     Dictionary<string, string?>? Inputs);
 
+/// <summary>Which workspace to show in the file manager - none means the directory they live in.</summary>
+public sealed record RevealRequest(string? Id);
+
 /// <summary>Values for the inputs a config declares.</summary>
 public sealed record InputsRequest(Dictionary<string, string?>? Inputs);
 
@@ -185,23 +188,61 @@ public static class DaemonHost
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
 
+            // Without sizes, so this answers at once. Measuring a workspace means walking every
+            // file in it, and with a node_modules that is tens of thousands - which is why a list
+            // of fifteen took minutes and the window sat empty meanwhile. The sizes are a second
+            // request the page makes afterwards.
             return Results.Json(new
             {
                 workspaceRoot = store.Root,
-                workspaces = store.List().Select(w => new
+                workspaces = store.List(withSizes: false).Select(w => new
                 {
                     w.Id,
                     w.Repo,
                     w.Ref,
                     // A folder run in place occupies nothing of QuickRun's, and removing it removes
-                    // a note rather than a checkout. Both worth saying in a list of disk usage.
-                    size = w.Local ? "in place" : Output.Size(w.Bytes),
+                    // a note rather than a checkout.
+                    size = w.Local ? "in place" : null,
                     w.LastUsed,
                     w.LastCommit,
-                    w.LastOk,
                     w.Local,
                 }),
             }, Json);
+        });
+
+        // What each one occupies, which takes as long as it takes. Asked for separately so the list
+        // itself is never waiting on it.
+        app.MapGet("/api/dashboard/workspaces/sizes", async (HttpContext context, Dashboard dashboard,
+            WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            // On a worker: this walks directories, and doing that on the request thread blocks
+            // everything else the window is asking for at the same time.
+            var sizes = await Task.Run(() => store.List(withSizes: false)
+                .ToDictionary(w => w.Id, w => w.Local
+                    ? "in place"
+                    : Output.Size(WorkspaceStore.SizeOf(w.Path))));
+
+            return Results.Json(new { sizes }, Json);
+        });
+
+        // Opens a workspace - or the directory they all live in - in the system's file manager.
+        app.MapPost("/api/dashboard/workspaces/reveal", (RevealRequest request, HttpContext context,
+            Dashboard dashboard, WorkspaceStore store) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            // An id names one of QuickRun's own; without one it is the root. Either way the path
+            // comes from the store and never from the request, so there is nothing to traverse.
+            var path = string.IsNullOrWhiteSpace(request.Id)
+                ? store.Root
+                : store.Get(request.Id!)?.Path;
+
+            if (path is null || !Directory.Exists(path)) return Results.NotFound();
+
+            UiCommand.Launch(path);
+            return Results.Ok();
         });
 
 

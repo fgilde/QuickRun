@@ -88,6 +88,17 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.danger { color: var(--danger); }
 .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; min-width: 140px; }
 .bar > div { height: 100%; background: var(--accent); transition: width .25s; }
+
+/* For a wait with no percentage to report - reading the workspaces takes as long as the disk takes. */
+.bar.indeterminate { overflow: hidden; }
+.bar.indeterminate > div {
+  width: 35%; transition: none;
+  animation: sweep 1.1s ease-in-out infinite;
+}
+@keyframes sweep {
+  0% { margin-left: -35%; }
+  100% { margin-left: 100%; }
+}
 .pill {
   font-size: 11px; padding: 2px 8px; border-radius: 11px;
   border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
@@ -290,6 +301,7 @@ ol.plan .phase {
     <div class="card">
       <div class="row">
         <span class="grow mono" id="workspaceRoot"></span>
+        <button class="action" id="openRoot">Open folder</button>
         <button class="action danger" id="cleanAll">Remove all</button>
       </div>
     </div>
@@ -1552,31 +1564,96 @@ settings.autostart.addEventListener('change', (event) =>
 settings.path.addEventListener('change', (event) =>
   setSetting('path', event.currentTarget.checked, settings.path));
 
-/** Reads the workspaces when that tab is opened, not on every poll. */
+/**
+ * Reads the workspaces when that tab is opened, not on every poll.
+ *
+ * In two parts, because they take different amounts of time: the names arrive at once, the sizes
+ * take as long as walking every file in every checkout takes. Waiting for the second meant the tab
+ * stood empty for minutes and looked broken - so the list appears first and fills in afterwards.
+ */
 async function loadWorkspaces() {
+  const list = document.getElementById('workspaceList');
+  if (list && !list.dataset.loaded) list.innerHTML = loading('Reading the workspaces…');
+
   const state = await api('/api/dashboard/workspaces').catch(() => null);
-  if (state) renderWorkspaces(state);
+  if (!state) return;
+
+  renderWorkspaces(state);
+  loadWorkspaceSizes();
+}
+
+/** What the file manager is called here, so the button says something a local user recognises. */
+function revealLabel() {
+  const platform = navigator.userAgent;
+  if (/Macintosh|Mac OS X/.test(platform)) return 'Finder';
+  if (/Windows/.test(platform)) return 'Explorer';
+  return 'Open folder';
+}
+
+/** Opens a workspace, or the directory they all live in, in the system's file manager. */
+async function reveal(id) {
+  try {
+    sayWorkspace(null);
+    await api('/api/dashboard/workspaces/reveal', {
+      method: 'POST',
+      body: JSON.stringify({ id: id ?? null }),
+    });
+  } catch (failure) {
+    sayWorkspace(failure.message);
+  }
+}
+
+/** A bar that says something is happening, for the waits that are not instant. */
+function loading(what) {
+  return `<div class="card">
+    <div class="row"><span class="muted grow">${escapeHtml(what)}</span></div>
+    <div class="row"><div class="bar grow indeterminate"><div></div></div></div>
+  </div>`;
+}
+
+/** The sizes, once they are known. Slow by nature: it walks every file in every workspace. */
+async function loadWorkspaceSizes() {
+  const cells = [...document.querySelectorAll('[data-size]')];
+  if (cells.length === 0) return;
+
+  const answer = await api('/api/dashboard/workspaces/sizes').catch(() => null);
+
+  for (const cell of cells) {
+    const known = answer?.sizes?.[cell.dataset.size];
+    cell.textContent = known ?? '?';
+    cell.classList.remove('muted');
+  }
 }
 
 function renderWorkspaces(state) {
   document.getElementById('workspaceRoot').textContent = state.workspaceRoot;
   const target = document.getElementById('workspaceList');
+  target.dataset.loaded = '1';
 
   if (!state.workspaces.length) {
     target.innerHTML = '<p class="muted">No workspaces yet.</p>';
     return;
   }
 
+  // No "last run" column: it reported the outcome of whatever last wrote the metadata, which after
+  // a stop or a crash is not the run anybody remembers - so it was wrong more often than right, and
+  // a wrong answer is worse than none.
   target.innerHTML = `<div class="card"><table>
-    <thead><tr><th>Repository</th><th>Ref</th><th>Size</th><th>Last used</th><th>Last run</th><th></th></tr></thead>
+    <thead><tr><th>Repository</th><th>Ref</th><th>Size</th><th>Last used</th><th></th></tr></thead>
     <tbody>${state.workspaces.map((w) => `<tr>
       <td class="mono">${escapeHtml(w.repo)}</td>
       <td class="mono">${escapeHtml(w.ref)}</td>
-      <td>${w.size}</td>
+      <td class="muted" data-size="${escapeHtml(w.id)}">${w.size ?? 'measuring…'}</td>
       <td class="muted">${new Date(w.lastUsed).toLocaleString()}</td>
-      <td>${w.lastOk === true ? pill('ok', 'ok') : w.lastOk === false ? pill('failed', 'bad') : '<span class="muted">-</span>'}</td>
-      <td><button class="action danger" data-remove="${escapeHtml(w.id)}">Remove</button></td>
+      <td>
+        <button class="action" data-open="${escapeHtml(w.id)}">${revealLabel()}</button>
+        <button class="action danger" data-remove="${escapeHtml(w.id)}">Remove</button>
+      </td>
     </tr>`).join('')}</tbody></table></div>`;
+
+  target.querySelectorAll('[data-open]').forEach((button) => {
+    button.addEventListener('click', () => reveal(button.dataset.open));
+  });
 
   target.querySelectorAll('[data-remove]').forEach((button) => {
     button.addEventListener('click', async () => {
@@ -1597,6 +1674,15 @@ function renderWorkspaces(state) {
 function renderAbout(state) {
   document.getElementById('aboutVersion').textContent = state.version;
   document.getElementById('aboutSource').textContent = state.installSource;
+
+  // The directory, from the poll that runs anyway - so where the workspaces live, the button that
+  // opens it and the one that empties it are all there the moment the tab is opened, whatever the
+  // list is still doing.
+  const root = document.getElementById('workspaceRoot');
+  if (root && state.workspaceRoot) root.textContent = state.workspaceRoot;
+
+  const open = document.getElementById('openRoot');
+  if (open) open.textContent = revealLabel();
 }
 
 /** Whether quickrun:// reaches this build, said plainly enough to act on. */
@@ -1764,6 +1850,8 @@ document.getElementById('schemeButton').addEventListener('click', async (event) 
     button.disabled = false;
   }
 });
+
+document.getElementById('openRoot').addEventListener('click', () => reveal(null));
 
 document.getElementById('cleanAll').addEventListener('click', async () => {
   if (!confirm('Remove every workspace? Repositories are checked out again on the next run.')) return;

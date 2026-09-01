@@ -304,6 +304,45 @@ else {
 if (attention.busy !== '1' || !/·\s*\d/.test(attention.tab ?? ''))
   problems.push(`the Runs tab does not say anything is going on: ${JSON.stringify(attention)}`);
 
+// The workspaces tab: the directory, the buttons that act on it, and a list that does not hold
+// everything else up.
+//
+// Listing used to sum the size of every file in every checkout before answering, so a machine with
+// a few node_modules in there showed an empty tab for minutes. The names come first now, and the
+// sizes are a separate request - which is what the timing below is checking.
+await evaluate(`document.querySelector('nav button[data-tab="workspaces"]').click()`);
+await new Promise((done) => setTimeout(done, 800));
+
+const workspaces = JSON.parse(await evaluate(`(async () => {
+  const started = performance.now();
+  const answer = await fetch('/api/dashboard/workspaces', { headers: { 'X-QuickRun-Dashboard': TOKEN } });
+  const ms = Math.round(performance.now() - started);
+  const body = await answer.json();
+
+  return JSON.stringify({
+    ms,
+    ok: answer.ok,
+    count: body.workspaces?.length ?? 0,
+    root: document.getElementById('workspaceRoot')?.textContent ?? '',
+    openButton: document.getElementById('openRoot')?.textContent ?? '',
+    removeAll: !!document.getElementById('cleanAll'),
+    columns: [...document.querySelectorAll('#workspaceList th')].map((th) => th.textContent.trim()),
+  });
+})()`) ?? '{}');
+
+if (!workspaces.ok) problems.push('the workspaces endpoint did not answer');
+if (!workspaces.root) problems.push('the workspace directory is not shown');
+if (!workspaces.openButton) problems.push('there is no button to open the workspace directory');
+if (!workspaces.removeAll) problems.push('there is no Remove all button');
+
+// Generous, because this is a real disk on a real machine - but a hundredth of what walking every
+// file used to cost, so it still fails if the sizes creep back into the listing.
+if (workspaces.ms > 3000)
+  problems.push(`listing the workspaces took ${workspaces.ms}ms - it is measuring sizes again`);
+
+if (workspaces.columns.includes('Last run'))
+  problems.push('the Last run column is back: its answer was wrong more often than right');
+
 // The address it listens on: what somebody clicks to open the page in a real browser.
 const address = await evaluate(`(document.body.textContent.match(/127\\.0\\.0\\.1:\\d+/) ?? [null])[0]`);
 if (!address) problems.push('the page never says where it is listening');
@@ -319,5 +358,5 @@ socket.close();
 browser.kill();
 daemon.kill();
 
-console.log(JSON.stringify({ tabs: tabNames, visited, asRepo, asFolder, plan, attention, address, consoleErrors, problems }, null, 2));
+console.log(JSON.stringify({ tabs: tabNames, visited, asRepo, asFolder, plan, attention, workspaces, address, consoleErrors, problems }, null, 2));
 process.exit(problems.length === 0 ? 0 : 1);

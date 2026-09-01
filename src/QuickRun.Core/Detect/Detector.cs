@@ -26,7 +26,12 @@ public sealed record Candidate(
     /// A desktop application: nothing to probe, but a window that appears when it is up. Waiting
     /// for that is the difference between "started" and "you can use it".
     /// </summary>
-    bool WaitsForWindow = false);
+    bool WaitsForWindow = false,
+    /// <summary>
+    /// What this entry point cannot start without and nobody has answered yet. A compose file's
+    /// placeholders with no default: the fields the run asks for before it does anything.
+    /// </summary>
+    IReadOnlyList<ComposeVariable>? Variables = null);
 
 public static class Detector
 {
@@ -89,6 +94,25 @@ public static class Detector
 
         var cwd = candidate.RelativeDir;
 
+        // Before anything else: a run that needs a password needs it before it starts, not in a log
+        // line afterwards. Each of these is exported under its own name, which is where compose
+        // looks for it.
+        if (candidate.Variables is { Count: > 0 } variables)
+        {
+            builder.AppendLine("inputs:");
+            foreach (var variable in variables)
+            {
+                builder.AppendLine($"  - id: {Quote(variable.Name)}");
+                builder.AppendLine($"    env: {Quote(variable.Name)}");
+                if (variable.Secret) builder.AppendLine("    type: password");
+                if (variable.Default is { Length: > 0 } value)
+                    builder.AppendLine($"    default: {Quote(value)}");
+                else
+                    builder.AppendLine("    required: true");
+            }
+            builder.AppendLine();
+        }
+
         if (candidate.Setup.Count > 0)
         {
             builder.AppendLine("setup:");
@@ -139,7 +163,8 @@ public static class Detector
         if (file is null) return null;
 
         return new("compose", Label("docker compose up", relative), relative,
-            Array.Empty<string>(), new[] { "docker compose up" }, 90, ComposePort(Read(file)));
+            Array.Empty<string>(), new[] { "docker compose up" }, 90, ComposePort(Read(file)),
+            Variables: ComposeVariables.Beside(dir, file));
     }
 
     /// <summary>The first published host port, which is the one a browser can reach.</summary>

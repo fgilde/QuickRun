@@ -155,6 +155,7 @@ extension on their side:
 
 ```markdown
 [![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/run?repo=owner/repo)
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/run?repo=fgilde/QuickRun)
 ```
 
 The badge links to a page that asks the local listener whether QuickRun is there. If it is, the page

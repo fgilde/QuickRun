@@ -271,6 +271,39 @@ if (!plan.shown) problems.push(`no plan appeared for a folder: ${plan.note ?? "(
 else if (!plan.commands?.some((c) => c.includes('echo hi')))
   problems.push(`the plan did not list the folder's command: ${JSON.stringify(plan.commands)}`);
 
+// Which run is happening, answerable at a glance.
+//
+// A prepared run is waiting for a decision, so its card has to be marked as such and the tab has to
+// say that something is going on. Before this, a run somebody had just started from a badge sat at
+// the bottom of the list looking exactly like the ones that finished last week.
+await evaluate(`refresh()`);
+await new Promise((done) => setTimeout(done, 600));
+
+const attention = JSON.parse(await evaluate(`JSON.stringify({
+  tab: document.querySelector('nav button[data-tab="runs"]')?.textContent?.trim(),
+  busy: document.querySelector('nav button[data-tab="runs"]')?.dataset.busy ?? '',
+  first: (() => {
+    const card = document.querySelector('#runList .card');
+    if (!card) return null;
+    return {
+      active: card.dataset.active ?? '',
+      waiting: card.dataset.waiting ?? '',
+      state: card.querySelector('[data-state]')?.textContent?.trim() ?? '',
+    };
+  })(),
+})`) ?? '{}');
+
+if (!attention.first) problems.push('the prepared run has no card in the list');
+else {
+  if (attention.first.active !== '1')
+    problems.push(`the waiting run's card is not marked active: ${JSON.stringify(attention.first)}`);
+  if (attention.first.waiting !== '1')
+    problems.push(`the waiting run's card is not marked as waiting: ${JSON.stringify(attention.first)}`);
+}
+
+if (attention.busy !== '1' || !/·\s*\d/.test(attention.tab ?? ''))
+  problems.push(`the Runs tab does not say anything is going on: ${JSON.stringify(attention)}`);
+
 // The address it listens on: what somebody clicks to open the page in a real browser.
 const address = await evaluate(`(document.body.textContent.match(/127\\.0\\.0\\.1:\\d+/) ?? [null])[0]`);
 if (!address) problems.push('the page never says where it is listening');
@@ -286,5 +319,5 @@ socket.close();
 browser.kill();
 daemon.kill();
 
-console.log(JSON.stringify({ tabs: tabNames, visited, asRepo, asFolder, plan, address, consoleErrors, problems }, null, 2));
+console.log(JSON.stringify({ tabs: tabNames, visited, asRepo, asFolder, plan, attention, address, consoleErrors, problems }, null, 2));
 process.exit(problems.length === 0 ? 0 : 1);

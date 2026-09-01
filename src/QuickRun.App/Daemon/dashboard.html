@@ -55,6 +55,17 @@ p { margin: 0 0 12px; }
   border: 1px solid var(--line); border-radius: 10px;
   background: var(--panel); padding: 16px; margin-bottom: 14px;
 }
+
+/* A run that is going, and one that is waiting for a person to decide. Both are findable at a
+   glance in a list that also holds everything that has already finished. */
+.card[data-active="1"] { border-left: 3px solid var(--accent); }
+.card[data-waiting="1"] { border-left: 3px solid var(--warn); }
+
+/* Same on the tab, for the times the list is not the tab you are looking at. */
+nav button[data-busy="1"] { font-weight: 600; }
+
+/* The card a link just pointed at, for a few seconds. */
+.card[data-linked="1"] { outline: 2px solid var(--accent); outline-offset: 2px; }
 .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .row + .row { margin-top: 10px; }
 .grow { flex: 1; min-width: 0; }
@@ -504,8 +515,13 @@ async function showPrepared(id) {
 }
 
 /** Fills the run form from a link and prepares the plan, leaving the decision on screen. */
-function prefillRun(repo, ref, pr) {
+async function prefillRun(repo, ref, pr) {
   document.querySelector('nav button[data-tab="runs"]')?.click();
+
+  // Arriving from a badge, the first question is "is this already going?" - and preparing a second
+  // run of the same branch silently was the wrong answer to it. If one is live, that card is what
+  // this link is about.
+  if (await showLiveRun(repo, ref, pr)) return;
 
   starter.repo.value = repo;
 
@@ -519,6 +535,42 @@ function prefillRun(repo, ref, pr) {
   if (pr) starter.pr.value = pr;
 
   prepareRun();
+}
+
+/**
+ * Shows the run this link is about, if it is already going. True when it found one.
+ *
+ * A badge link is pressed by somebody who wants to know what is happening, and the honest answer is
+ * often "it is already running, here it is" - which is more use than a second checkout of the same
+ * branch quietly appearing beside the first.
+ */
+async function showLiveRun(repo, ref, pr) {
+  const state = await api('/api/dashboard/state').catch(() => null);
+  if (!state?.runs) return false;
+
+  const wanted = state.runs.find((run) =>
+    isActive(run)
+    && run.repo === repo
+    // A link without a ref means the repository, whichever branch is going; with one, that branch.
+    && (!ref || run.ref === ref)
+    && (!pr || String(run.ref).includes(`/${pr}/`)));
+
+  if (!wanted) return false;
+
+  renderRuns(state.runs);
+
+  const card = cards.get(wanted.id)?.root;
+  if (!card) return false;
+
+  card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+  // Briefly, so it is obvious which of several cards the link meant.
+  card.dataset.linked = '1';
+  setTimeout(() => { delete card.dataset.linked; }, 4000);
+
+  const [label] = RUN_STATES[wanted.state] ?? [wanted.state];
+  say(`${wanted.displayName} is already here - ${label}`);
+  return true;
 }
 
 addEventListener('hashchange', openTabFromHash);
@@ -1051,6 +1103,28 @@ const RUN_STATES = {
 
 const TERMINAL_STATES = ['succeeded', 'failed', 'cancelled'];
 
+/**
+ * How much attention a run wants, most first.
+ *
+ * The list used to be in whatever order the daemon returned, which is the order runs were started -
+ * so the one thing somebody had just clicked sat at the bottom under a week of finished runs, and
+ * "which one is actually running?" was a question the window made you answer yourself.
+ */
+const ATTENTION = {
+  awaitingConfirmation: 0,   // waiting for a person: nothing happens until they look
+  awaitingInput: 1,
+  stopping: 2,
+  running: 3,
+  failed: 4,
+  cancelled: 5,
+  succeeded: 6,
+};
+
+/** Runs that are doing something, or waiting for someone. */
+function isActive(run) {
+  return !TERMINAL_STATES.includes(run.state) || (run.leftovers ?? 0) > 0;
+}
+
 function renderRuns(runs) {
   const target = document.getElementById('runList');
   const empty = document.getElementById('noRuns');
@@ -1065,19 +1139,42 @@ function renderRuns(runs) {
     cards.delete(id);
   }
 
-  for (const run of runs) {
+  // Whatever wants attention, at the top. append() moves a card that is already in the list, so
+  // the order is re-established on every poll without rebuilding anything. Sort is stable, so runs
+  // in the same state keep the order the daemon lists them in - which is the order they started.
+  const ordered = [...runs].sort((a, b) =>
+    (ATTENTION[a.state] ?? 9) - (ATTENTION[b.state] ?? 9));
+
+  for (const run of ordered) {
     let entry = cards.get(run.id);
 
     if (!entry) {
       entry = buildCard(run);
       cards.set(run.id, entry);
-      target.append(entry.root);
     }
 
+    target.append(entry.root);
     updateCard(entry, run);
   }
 
+  countRuns(runs);
   runs.filter((run) => run.state === 'running' || run.state === 'stopping').forEach(follow);
+}
+
+/**
+ * Says on the tab how many runs are going, so it is answerable from anywhere in the window.
+ *
+ * Someone starting a run from a README badge lands on a page with several tabs and a list; without
+ * this, finding out whether anything is happening means reading the list and knowing which words
+ * count as busy.
+ */
+function countRuns(runs) {
+  const tab = document.querySelector('nav button[data-tab="runs"]');
+  if (!tab) return;
+
+  const busy = runs.filter(isActive).length;
+  tab.textContent = busy > 0 ? `Runs · ${busy}` : 'Runs';
+  tab.dataset.busy = busy > 0 ? '1' : '';
 }
 
 /**
@@ -1191,6 +1288,12 @@ function updateCard(entry, run) {
     entry.state.innerHTML = pill(label, kind);
     renderActions(entry, run);
     seen.actions = actionable;
+
+    // Marked on the element rather than described in words: with several runs listed, the one that
+    // is doing something has to be findable without reading every card.
+    entry.root.dataset.active = isActive(run) ? '1' : '';
+    entry.root.dataset.waiting =
+      run.state === 'awaitingConfirmation' || run.state === 'awaitingInput' ? '1' : '';
   }
 
   const percent = run.progress?.percent ?? (run.state === 'succeeded' ? 100 : 0);

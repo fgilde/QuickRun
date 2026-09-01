@@ -49,6 +49,36 @@ public static class AppWindows
     /// </para>
     /// </summary>
     /// <returns>The folder, or null when the picker was dismissed or there was no window.</returns>
+    /// <summary>
+    /// The system's file picker, limited to configs. What the green Run file button opens.
+    /// <para>
+    /// The filter is a courtesy, not the guard: whatever comes back is checked again before it is
+    /// read, because a picker can be talked into returning anything on some platforms.
+    /// </para>
+    /// </summary>
+    public static async Task<string?> PickConfigAsync()
+    {
+        return await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            if (_dashboard is not { } window) return null;
+
+            var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Choose a quickrun.yml to run",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("QuickRun config")
+                    {
+                        Patterns = new[] { "*.yml", "*.yaml" },
+                    },
+                },
+            });
+
+            return files.Count == 0 ? null : files[0].TryGetLocalPath();
+        });
+    }
+
     public static async Task<string?> PickFolderAsync()
     {
         return await Dispatcher.UIThread.InvokeAsync(async () =>

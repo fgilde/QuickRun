@@ -81,6 +81,12 @@ public enum ConfigOrigin
     /// <summary>A config saved on this machine for this repository, which wins over the above.</summary>
     Local,
 
+    /// <summary>
+    /// One QuickRun keeps for this repository, for repositories that ship none. Written for it, so
+    /// better than the detector - and never in front of the repository's own.
+    /// </summary>
+    Collection,
+
     /// <summary>A config handed in for this run - from the editor, or --config-text.</summary>
     Supplied,
 
@@ -161,7 +167,8 @@ public static class RunPipeline
         catch (ArgumentException e) { return Usage(e.Message); }
         if (!Directory.Exists(root)) return Failed($"subdir '{args.Subdir}' does not exist in {repo}");
 
-        var loaded = LoadConfig(root, args, repo, new ConfigOverrides(store.Root));
+        var loaded = LoadConfig(root, args, repo, new ConfigOverrides(store.Root),
+            Path.Combine(store.Root, "collection"), notes);
         if (loaded.Error is { } loadError) return Failed(loadError);
 
         var config = loaded.Config!;
@@ -390,9 +397,14 @@ public static class RunPipeline
     /// named on the command line, your own override for this repository, the repository's own
     /// quickrun.yml, another launcher's scripts, and only then detection.
     /// </summary>
-    private static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others,
+    /// <remarks>
+    /// internal so the order of the chain can be tested for what it is - an order - rather than
+    /// through a checkout of something.
+    /// </remarks>
+    internal static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others,
         IReadOnlyList<string> Notes, ConfigOrigin Origin) LoadConfig(
-        string root, RunArgs args, string repo, ConfigOverrides overrides)
+        string root, RunArgs args, string repo, ConfigOverrides overrides,
+        string collectionCache, List<string> notes)
     {
         var explicitPath = args.ConfigPath;
 
@@ -462,6 +474,32 @@ public static class RunPipeline
             catch (ConfigException e)
             {
                 return (null, $"{Path.GetFileName(own)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Repository);
+            }
+        }
+
+        // A config QuickRun keeps for this repository. Better than reading the files and deciding,
+        // because somebody wrote it for this repository on purpose - and it only comes into play for
+        // a repository that ships nothing of its own, so it can never override a quickrun.yml.
+        //
+        // A local folder is not asked about: there is no repository to look up, and a directory name
+        // is nobody's business but this machine's.
+        if (args.LocalPath is null && ConfigCollection.For(repo, collectionCache) is { } curated)
+        {
+            try
+            {
+                return (ConfigParser.Parse(curated, OSKinds.Current), null, Empty,
+                    new[]
+                    {
+                        "using a config from QuickRun's collection - this repository ships none, and "
+                        + "this one was written for it rather than guessed",
+                    },
+                    ConfigOrigin.Collection);
+            }
+            catch (ConfigException e)
+            {
+                // Ours and wrong is still wrong, and the detector is right there. Said out loud so
+                // it gets fixed rather than silently skipped for ever.
+                notes.Add($"the collected config for {repo} is broken and was skipped: {e.Message}");
             }
         }
 

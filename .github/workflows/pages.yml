@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - 'configs/**'
       - 'samples/**'
       - 'schema/**'
       - 'scripts/install.sh'
@@ -70,6 +71,14 @@ jobs:
               echo "no $manifest in the latest release yet - skipping"
             fi
           done
+
+      # The curated configs, served so QuickRun can ask for one by repository name. Copied rather
+      # than committed under site/, so the tree in configs/ stays the single place they live.
+      - name: Stage the config collection
+        run: |
+          mkdir -p site/public/configs
+          cp -r configs/. site/public/configs/
+          echo "staged $(find site/public/configs -name '*.yml' | wc -l) configs"
 
       - name: Build
         working-directory: site

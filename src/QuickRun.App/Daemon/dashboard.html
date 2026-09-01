@@ -141,6 +141,21 @@ textarea.editor { padding: 10px 12px; background: var(--bg); resize: vertical; }
 .row.task { gap: 10px; }
 .issue { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; }
 .issue .where { color: var(--muted); font-size: 12px; min-width: 8em; }
+
+/* The one green thing in the window: running a file you point at is the way in, and it should look
+   like the way in. */
+button.go {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  font-weight: 600; margin-left: 14px;
+}
+
+/* Where a config came from, when that is worth knowing before the commands are read. A file named
+   in a link is the case this exists for. */
+.provenance {
+  border-left: 3px solid var(--warn); padding: 8px 12px; margin: 12px 0 0;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+.provenance .path { font-size: 12px; overflow-wrap: anywhere; }
 ol.plan .phase {
   font-size: 11px; color: var(--muted); border: 1px solid var(--line);
   border-radius: 10px; padding: 1px 6px; margin-right: 6px;
@@ -152,6 +167,9 @@ ol.plan .phase {
   <img src="/icon.png" alt="" width="26" height="26">
   <h1>QuickRun</h1>
   <span class="version">{{VERSION}}</span>
+  <!-- A way in rather than a setting, so it sits with the name: open a quickrun.yml from anywhere
+       and run it. Hidden where there is no window to open a picker with - a browser tab cannot. -->
+  <button id="runFile" class="go" hidden>Run file…</button>
   <span class="spacer"></span>
   <span id="updateBadge"></span>
   <!-- Only inside QuickRun's own window: a window has no address bar, so this is the way out. -->
@@ -912,6 +930,34 @@ function provisionList(run) {
  * The plan, and nothing else: this is the confirmation gate, so it shows the commands that would
  * run before anything has run. Every command is repository content and is escaped as such.
  */
+/**
+ * Where these commands came from.
+ *
+ * The confirmation window in the extension has said this from the start; this window did not, and it
+ * matters more now: a config out of QuickRun's collection was written by somebody who is not the
+ * repository's author, and a reader deciding whether to run it should not have to work that out.
+ */
+const ORIGINS = {
+  repository: ["the repository's quickrun.yml", ''],
+  local: ['your own config for this repository', 'it wins over the one the repository ships'],
+  supplied: ['the config you supplied', 'not the one in the repository'],
+  explicit: ['the config file you named', ''],
+  collection: ["QuickRun's collected config for this repository",
+    'this repository ships none, so this was written for it rather than guessed'],
+  foreign: ["this repository's Pinokio scripts", 'written for another launcher, read by QuickRun'],
+  detected: ['QuickRun, from reading the repository',
+    'there is no config here, so these commands are a considered guess'],
+};
+
+function originLine(run) {
+  const [what, detail] = ORIGINS[run.origin] ?? ORIGINS.repository;
+  const guessed = run.origin === 'detected' || run.origin === 'collection';
+
+  return `<div class="row"><span class="muted grow">from ${escapeHtml(what)}${
+    detail ? ' - ' + escapeHtml(detail) : ''}</span>${
+    guessed ? pill(run.origin === 'collection' ? 'collected' : 'guessed', 'warn') : ''}</div>`;
+}
+
 function renderPlan(run, panel = starter.plan) {
   const waiting = run.state === 'awaitingInput';
 
@@ -924,6 +970,7 @@ function renderPlan(run, panel = starter.plan) {
     <div class="row">
       <span class="muted mono grow">${escapeHtml(run.repo)} @ ${escapeHtml(run.ref)}${run.commit ? ' (' + run.commit.slice(0, 7) + ')' : ''}</span>
     </div>
+    ${originLine(run)}
     ${run.description ? `<p class="description">${escapeHtml(run.description)}</p>` : ''}
     ${run.workspace ? `<div class="row"><code class="grow mono">${escapeHtml(run.workspace)}</code></div>` : ''}
     <div data-inputs></div>
@@ -2347,9 +2394,110 @@ document.querySelector('nav button[data-tab="builder"]').addEventListener('click
 });
 
 // Inside the desktop window the page is the whole interface, so it has to offer the one thing a
-// window cannot: opening the same page in the real browser.
-if (new URLSearchParams(location.search).get('shell') === 'window')
+// window cannot: opening the same page in the real browser. And the file picker, which is the other
+// way round - a browser tab has no way to open one, so the button only appears where it works.
+if (new URLSearchParams(location.search).get('shell') === 'window') {
   document.getElementById('inBrowser').hidden = false;
+  document.getElementById('runFile').hidden = false;
+}
+
+document.getElementById('runFile').addEventListener('click', async () => {
+  document.querySelector('nav button[data-tab="runs"]')?.click();
+
+  try {
+    const chosen = await api('/api/dashboard/pick-config', { method: 'POST' });
+
+    if (!chosen.picker) { say('no window here to open a picker with'); return; }
+    if (!chosen.path) return;   // the picker was closed, which is not an error
+
+    await runConfigFile(chosen.path, { fromLink: false });
+  } catch (failure) {
+    say(failure.message);
+  }
+});
+
+/**
+ * Runs one config file: prepares it and shows the plan, exactly as a repository does.
+ *
+ * `fromLink` travels with it because it decides what the file is allowed to mean. A file picked
+ * here may run the folder it sits in; one named in a quickrun:// link may not, and is labelled as
+ * having come from a link before its commands are read.
+ */
+async function runConfigFile(path, { fromLink, repo = null }) {
+  starter.plan.hidden = true;
+  say(fromLink ? `reading the config this link named…` : 'reading the config…');
+
+  try {
+    const answer = await api('/api/dashboard/file', {
+      method: 'POST',
+      body: JSON.stringify({ path, repo, fromLink, inputs: parseInputs(starter.inputs.value) }),
+    });
+
+    say('');
+    showProvenance(path, fromLink);
+    renderPlan(answer.run);
+  } catch (failure) {
+    // A config with no repository in it is a question, not a failure: the window can ask.
+    if (failure.needsRepository) {
+      askForRepository(path, fromLink, failure.message);
+      return;
+    }
+
+    say(failure.message);
+  }
+}
+
+/** Where this plan's config came from, said before the commands rather than after. */
+function showProvenance(path, fromLink) {
+  const existing = document.getElementById('provenance');
+  if (existing) existing.remove();
+
+  const note = document.createElement('div');
+  note.id = 'provenance';
+  note.className = 'provenance';
+  note.innerHTML = `
+    <div><strong>${fromLink
+      ? 'This config was named by a link, not chosen here'
+      : 'Running a config file you chose'}</strong></div>
+    <div class="path mono"></div>`;
+
+  // textContent: a path is content from outside, and it is shown for reading, never as markup.
+  note.querySelector('.path').textContent = path;
+
+  starter.plan.before(note);
+}
+
+/**
+ * Asks which repository a config is for, when the config does not say.
+ *
+ * The field it fills in is the one that was already there, so answering the question is the same
+ * act as starting a repository - and the config stays the one that was opened.
+ */
+function askForRepository(path, fromLink, why) {
+  say(why);
+  showProvenance(path, fromLink);
+
+  starter.repo.focus();
+  starter.repo.placeholder = 'owner/repo for this config';
+
+  const answer = document.createElement('div');
+  answer.className = 'row';
+  answer.style.marginTop = '10px';
+
+  const button = document.createElement('button');
+  button.className = 'go';
+  button.textContent = 'Use this repository';
+  button.addEventListener('click', () => {
+    const named = starter.repo.value.trim();
+    if (!named) { say('name a repository first'); return; }
+
+    answer.remove();
+    runConfigFile(path, { fromLink, repo: named });
+  });
+
+  answer.append(button);
+  document.getElementById('provenance').append(answer);
+}
 
 refresh();
 loadScheme();

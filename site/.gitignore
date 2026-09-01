@@ -11,3 +11,6 @@ public/icon.png
 public/logo.png
 public/logo-dark.png
 preview.log
+
+# Staged from configs/ by the pages workflow, which is where they actually live.
+public/configs/

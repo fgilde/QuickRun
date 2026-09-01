@@ -113,8 +113,9 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
             // repository the link named.
             control.ShowWindow = hash => AppWindows.Show(registry, store, url, hash);
 
-            // The page asks for a folder; the picker belongs to the window, which is here.
+            // The page asks for a folder or a config; both pickers belong to the window, which is here.
             control.PickFolder = AppWindows.PickFolderAsync;
+            control.PickConfig = AppWindows.PickConfigAsync;
 
             if (!settings.NoWindow)
                 TrayApp.Started = settings.Browser

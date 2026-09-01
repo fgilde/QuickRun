@@ -25,6 +25,16 @@ public sealed record RunRequest(
     string? Config,
     Dictionary<string, string?>? Inputs);
 
+/// <param name="Path">The config file to run.</param>
+/// <param name="Repo">A repository to use, when the config names none or one is being overridden.</param>
+/// <param name="FromLink">
+/// True when this path arrived in a quickrun:// link rather than from a picker here. It is the one
+/// thing that decides whether the file's own directory may be run.
+/// </param>
+public sealed record ConfigFileRequest(
+    string? Path, string? Repo, string? Ref, string? Token,
+    Dictionary<string, string?>? Inputs, bool? FromLink);
+
 /// <summary>Which workspace to show in the file manager - none means the directory they live in.</summary>
 public sealed record RevealRequest(string? Id);
 
@@ -781,6 +791,9 @@ public static class DaemonHost
         /// way to name a folder is to type it.
         /// </summary>
         public Func<Task<string?>>? PickFolder { get; set; }
+
+        /// <summary>Opens the system's file picker for a config. Null where there is no window.</summary>
+        public Func<Task<string?>>? PickConfig { get; set; }
     }
 
     private static void ApplyCors(HttpContext context)
@@ -844,6 +857,75 @@ public static class DaemonHost
             if (host.PickFolder is not { } pick) return Results.Json(new { path = (string?)null, picker = false }, Json);
 
             return Results.Json(new { path = await pick(), picker = true }, Json);
+        });
+
+        // And the same for a config file: the green Run file button.
+        app.MapPost("/api/dashboard/pick-config", async (HttpContext context, Dashboard dashboard, HostControl host) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+            if (host.PickConfig is not { } pick) return Results.Json(new { path = (string?)null, picker = false }, Json);
+
+            return Results.Json(new { path = await pick(), picker = true }, Json);
+        });
+
+        // One config file, run on its own.
+        //
+        // `fromLink` is the whole security question in one field. A file somebody chose in the
+        // picker here may fall back to its own directory when it names no repository; a path that
+        // arrived in a quickrun:// link may not, because "run whatever is beside this file" is not
+        // something a link gets to decide about a machine. Such a link says so in the answer, and
+        // the window shows that before the commands.
+        app.MapPost("/api/dashboard/file", async (ConfigFileRequest request, HttpContext context,
+            Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var fromLink = request.FromLink ?? false;
+            var target = ConfigFileRun.Read(request.Path, OSKinds.Current, allowFolder: !fromLink);
+
+            if (target.Error is { } why)
+                return Results.Json(new { error = why, needsRepository = target.NeedsRepository },
+                    Json, statusCode: StatusCodes.Status400BadRequest);
+
+            // A repository the caller supplied answers the question the config left open.
+            var repo = string.IsNullOrWhiteSpace(request.Repo) ? target.Repo : request.Repo!.Trim();
+
+            if (repo is null && target.LocalFolder is null)
+                return Results.Json(new
+                {
+                    error = fromLink
+                        ? "this config does not name a repository, and a link may not run the folder it sits in - name a repository"
+                        : "this config does not say which repository it is for - name one",
+                    needsRepository = true,
+                }, Json, statusCode: StatusCodes.Status400BadRequest);
+
+            // A path is never a repository here: that is the same rule /api/run enforces, and a
+            // config file must not be a way around it.
+            if (repo is not null && PointsAtThisMachine(repo)) return Unauthorized();
+
+            var args = new RunArgs(
+                repo ?? "",
+                string.IsNullOrWhiteSpace(request.Ref) ? target.Ref : request.Ref!.Trim(),
+                PullRequest: null,
+                Subdir: null,
+                Inputs: (request.Inputs ?? new()).Select(kv => $"{kv.Key}={kv.Value}").ToList(),
+                Token: string.IsNullOrWhiteSpace(request.Token) ? null : request.Token,
+                Fresh: false,
+                Yes: true,
+                NoOpen: true,
+                ConfigPath: null,
+                ConfigText: target.Text,
+                LocalPath: repo is null ? target.LocalFolder : null,
+                Copy: false);
+
+            var (summary, error) = await runs.PrepareAsync(args);
+
+            // Nothing has run. The plan waits in the window, and the window says where this config
+            // came from before anybody approves it.
+            return error is null
+                ? Results.Json(new { run = summary, fromLink, file = request.Path }, Json)
+                : Results.Json(new { error, run = summary }, Json,
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
         app.MapPost("/api/show", (HttpContext context, HostControl host) =>

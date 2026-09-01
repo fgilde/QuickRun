@@ -174,6 +174,8 @@ const ORIGINS = {
   local: ['your own config for this repository', 'saved on this machine, and it wins over the one the repository ships'],
   supplied: ['the config you supplied', 'not the one in the repository'],
   explicit: ['the config file you named', ''],
+  collection: ["QuickRun's collected config for this repository",
+    'this repository ships none, so this one was written for it rather than guessed'],
   foreign: ["this repository's Pinokio scripts", 'written for another launcher, read by QuickRun'],
   detected: ['QuickRun, from reading the repository', 'there is no config here, so these commands are a considered guess'],
 };

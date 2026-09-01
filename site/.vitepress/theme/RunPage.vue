@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
+import ConfigView from './ConfigView.vue';
 
 const { lang } = useData();
 const de = computed(() => lang.value.startsWith('de'));
@@ -51,6 +52,20 @@ const t = computed(() => (de.value
       missing: 'QuickRun antwortet hier nicht — installiert und nicht gestartet sieht von einer '
         + 'Webseite genauso aus wie gar nicht installiert. Der Versuch klärt es.',
       run: 'In QuickRun öffnen',
+      configAsking: 'Wird nachgesehen, welche Config greift…',
+      configRepository: 'Dieses Repository bringt eine quickrun.yml mit — sie hat Vorrang.',
+      configCollection: 'Das Repository bringt keine mit, aber QuickRun hält eine dafür bereit.',
+      configNone: 'Weder das Repository noch die Sammlung haben eine Config. QuickRun sieht sich beim '
+        + 'Start die Dateien an und schlägt selbst etwas vor — der Plan sagt dann, dass es geraten ist.',
+      configUnknown: 'Für dieses Repository kann von hier nichts nachgesehen werden. QuickRun '
+        + 'entscheidet es beim Start.',
+      configShow: 'Config ansehen',
+      configHide: 'Config ausblenden',
+      configCaveat: 'Von hier aus sichtbar sind nur diese zwei. Eine Config, die du lokal gespeichert '
+        + 'hast, schlägt beide — sie steht auf deinem Rechner, und diese Seite sieht sie nicht. '
+        + 'Verbindlich ist die Angabe im Bestätigungsfenster.',
+      copy: 'Kopieren',
+      copied: 'Kopiert',
       runNote: 'Es öffnet sich das QuickRun-Fenster mit dem Plan. Gestartet wird erst, wenn du dort '
         + 'bestätigst — diese Seite kann nichts auf deinem Rechner ausführen.',
       tryNote: 'Öffnen startet QuickRun, wenn es installiert ist. Passiert nichts, führt der '
@@ -72,6 +87,20 @@ const t = computed(() => (de.value
       missing: 'QuickRun is not answering here - installed but not running looks the same from a '
         + 'web page as not installed at all. Opening it settles that.',
       run: 'Open in QuickRun',
+      configAsking: 'Looking up which config applies…',
+      configRepository: 'This repository ships a quickrun.yml - it takes precedence.',
+      configCollection: 'The repository ships none, and QuickRun keeps one for it.',
+      configNone: 'Neither the repository nor the collection has a config. QuickRun reads the files '
+        + 'when it starts and proposes something itself - the plan then says that it guessed.',
+      configUnknown: 'Nothing can be looked up for this repository from here. QuickRun decides when '
+        + 'it starts.',
+      configShow: 'View config',
+      configHide: 'Hide config',
+      configCaveat: 'Only those two are visible from here. A config you saved locally beats both - it '
+        + 'is on your machine, and this page cannot see it. The confirmation window is the '
+        + 'authoritative answer.',
+      copy: 'Copy',
+      copied: 'Copied',
       runNote: 'The QuickRun window opens with the plan. Nothing starts until you confirm it there '
         + '- this page cannot run anything on your machine.',
       tryNote: 'Opening starts QuickRun when it is installed. If nothing happens, the download '
@@ -95,7 +124,97 @@ onMounted(async () => {
   pr.value = query.get('pr') ?? '';
 
   running.value = await isRunning();
+
+  // Which config will decide this run, worked out from what is public: the repository's own file, or
+  // one out of the collection. What QuickRun would fall back to after those - another launcher's
+  // scripts, or reading the files - is not something a web page can know, and a config saved on that
+  // machine is nobody's business but its owner's, so both are said as what they are: unknown yet.
+  if (repo.value) findConfig();
+
+  // ?executeQuickRun=true - the same parameter the extension reads on a GitHub page, so one link
+  // works in both places. It hands the repository over; the plan and the decision are still on the
+  // other side.
+  if (asked(query.get('executeQuickRun'))) go({ automatic: true });
 });
+
+/**
+ * Which config this run will use, as far as a page can tell.
+ *
+ * Two of the five are public and can be looked up from here: the repository's own quickrun.yml on
+ * raw.githubusercontent.com, and QuickRun's collected one on this very site. The other three cannot
+ * be: a config saved on that machine belongs to whoever saved it, and another launcher's scripts or
+ * a reading of the files are decided during the run. So this says what it knows and stops there -
+ * the confirmation window is where the answer is authoritative, because that is the one place that
+ * has looked at all five.
+ */
+const config = ref(null);      // { origin: 'repository' | 'collection', text }
+const configState = ref('asking');
+const showConfig = ref(false);
+
+async function findConfig() {
+  const path = plainRepo(repo.value);
+
+  if (!path) { configState.value = 'unknown'; return; }
+
+  const branch = reference.value || 'HEAD';
+
+  for (const name of ['quickrun.yml', 'quickrun.yaml']) {
+    const own = await text(`https://raw.githubusercontent.com/${path}/${branch}/${name}`);
+
+    if (own) {
+      config.value = { origin: 'repository', text: own };
+      configState.value = 'found';
+      return;
+    }
+  }
+
+  const collected = await text(withBase(`/configs/${path}.yml`));
+
+  if (collected) {
+    config.value = { origin: 'collection', text: collected };
+    configState.value = 'found';
+    return;
+  }
+
+  configState.value = 'none';
+}
+
+/** owner/repo, or null for anything this cannot look up - a URL for another host, a path. */
+function plainRepo(value) {
+  let text = (value ?? '').trim();
+
+  for (const prefix of ['https://github.com/', 'http://github.com/', 'git@github.com:'])
+    if (text.toLowerCase().startsWith(prefix)) text = text.slice(prefix.length);
+
+  if (text.toLowerCase().endsWith('.git')) text = text.slice(0, -4);
+  if (text.includes('://') || text.startsWith('/') || /^[a-z]:/i.test(text)) return null;
+
+  const parts = text.replace(/^\/+|\/+$/g, '').split('/');
+  if (parts.length !== 2) return null;
+
+  return parts.every((part) => /^[A-Za-z0-9._-]+$/.test(part)) ? parts.join('/') : null;
+}
+
+/** The body of a request, or null for anything that was not a plain success. */
+async function text(url) {
+  try {
+    const answer = await fetch(url, { cache: 'no-cache' });
+    if (!answer.ok) return null;
+
+    const body = await answer.text();
+    return body.trim().length === 0 ? null : body;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the parameter is asking for it. Anything but an off value counts as yes. */
+function asked(value) {
+  if (value === null) return false;
+
+  const text = value.trim().toLowerCase();
+  return !['false', '0', 'no', 'off'].includes(text);
+}
 
 /**
  * Whether QuickRun answers on this machine.
@@ -126,12 +245,20 @@ async function isRunning() {
 }
 
 function open() {
+  go({ automatic: false });
+}
+
+/**
+ * Hands the repository over.
+ *
+ * @param automatic True when the address asked for it rather than a person clicking. It has to
+ *   navigate rather than open a tab: a browser blocks window.open that no click asked for, and a
+ *   blocked popup would look exactly like nothing happening.
+ */
+function go({ automatic }) {
   pressed.value = true;
 
-  // A new tab when QuickRun answered, because that is an ordinary page and this one should stay
-  // where it is; the same tab for quickrun://, where a blank tab would be all that is left if no
-  // handler picks it up.
-  if (running.value) window.open(target.value, '_blank', 'noopener');
+  if (running.value && !automatic) window.open(target.value, '_blank', 'noopener');
   else location.href = target.value;
 }
 
@@ -170,6 +297,33 @@ async function copy() {
         </div>
 
         <p class="m3-body qr-run-note">{{ running === false && !pressed ? t.tryNote : t.runNote }}</p>
+
+        <!-- Which config will decide this run. Two of the five places QuickRun looks are public, so
+             they can be shown here; the other three are on the reader's machine or decided during
+             the run, and saying so is more use than pretending to know. -->
+        <div class="qr-run-config">
+          <p class="m3-body qr-run-config-line">
+            {{ configState === 'asking' ? t.configAsking
+              : configState === 'none' ? t.configNone
+              : configState === 'unknown' ? t.configUnknown
+              : config.origin === 'repository' ? t.configRepository : t.configCollection }}
+          </p>
+
+          <template v-if="configState === 'found'">
+            <p>
+              <button class="m3-button m3-button--outlined" type="button" @click="showConfig = !showConfig">
+                {{ showConfig ? t.configHide : t.configShow }}
+              </button>
+            </p>
+
+            <ConfigView v-if="showConfig" :yaml="config.text"
+                        :source="config.origin === 'repository' ? t.configRepository : t.configCollection"
+                        :run-label="t.run" :copy-label="t.copy" :copied-label="t.copied"
+                        @run="open" />
+          </template>
+
+          <p class="m3-body qr-run-caveat">{{ t.configCaveat }}</p>
+        </div>
       </template>
 
       <template v-else>
@@ -247,6 +401,13 @@ async function copy() {
 }
 
 .qr-run-note { max-width: 62ch; color: var(--m3-on-surface-variant); }
+
+.qr-run-config { margin: 24px 0 0; }
+.qr-run-config-line { margin: 0 0 10px; max-width: 68ch; }
+.qr-run-caveat {
+  margin: 12px 0 0; max-width: 68ch; font-size: 12.5px;
+  color: var(--m3-on-surface-variant); opacity: 0.9;
+}
 
 .qr-run-field {
   display: flex;

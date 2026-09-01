@@ -74,4 +74,42 @@ if (problems.length > 0) {
 }
 
 console.log('built CSS carries no page-wide filter, transform, blend or opacity rule');
+// ---- what a page may do with a local QuickRun ---------------------------------------------------
+//
+// The rule the daemon enforces is that a web page may not drive it. What this side has to get right
+// is the other half: where a target is handed over, and that a page never invents one of its own
+// shape. Both are pure functions, so they are checked here rather than in a browser.
+const { carry, targetFor, DEFAULT_PORT } = await import('./.vitepress/theme/local.js');
+
+if (carry({ repo: 'acme/app' }) !== 'repo=acme%2Fapp')
+  problems.push(`a repository is not carried as expected: ${carry({ repo: 'acme/app' })}`);
+
+if (carry({ repo: 'acme/app', ref: 'feature/x' }) !== 'repo=acme%2Fapp&ref=feature%2Fx')
+  problems.push('a ref with a slash is not escaped');
+
+const asFile = carry({ file: 'C:\dev\demo.yml' });
+if (asFile !== 'file=C%3A%5Cdev%5Cdemo.yml')
+  problems.push(`a config file is not carried as expected: ${asFile}`);
+
+// A file and a repository are never carried together: a config file names its own repository, and
+// two answers to the same question is how the wrong one gets used.
+if (carry({ repo: 'acme/app', file: 'demo.yml' }).includes('repo='))
+  problems.push('a file and a repository were carried together');
+
+const localTarget = targetFor(true, { repo: 'acme/app' });
+if (!localTarget.startsWith(`http://127.0.0.1:${DEFAULT_PORT}/#run?`))
+  problems.push(`a running QuickRun is not handed the local page: ${localTarget}`);
+
+const schemeTarget = targetFor(false, { repo: 'acme/app' });
+if (!schemeTarget.startsWith('quickrun://run?'))
+  problems.push(`without QuickRun the scheme is not used: ${schemeTarget}`);
+
+// Loopback and nothing else: a target pointed anywhere else would be a page reaching a machine that
+// is not the reader's.
+for (const target of [localTarget, schemeTarget])
+  if (/^https?:\/\//.test(target) && !target.includes('127.0.0.1'))
+    problems.push(`a target points somewhere other than loopback: ${target}`);
+
+console.log('a page hands over to loopback only, and carries what it is allowed to');
+
 console.log('every browser is read as itself, and Opera installs from the Chrome listing');

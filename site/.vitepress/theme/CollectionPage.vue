@@ -9,8 +9,10 @@
  * QuickRun on the reader's machine and carries on there, or offers the download. Nothing on this
  * page can start anything - it cannot reach a local listener, and that is deliberate.
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
+import ConfigView from './ConfigView.vue';
+import { answering, open as handOver } from './local.js';
 
 const { lang } = useData();
 const german = computed(() => lang.value.startsWith('de'));
@@ -37,6 +39,13 @@ const t = computed(() => (german.value
         + 'nichts: Ein Lauf lässt nichts zurück. Die Befehle stehen vor dem Start im '
         + 'Bestätigungsfenster, und dort steht auch, dass die Config aus dieser Sammlung kommt.',
       contribute: 'Eine Config beitragen',
+      close: 'Schließen',
+      copy: 'Kopieren',
+      copied: 'Kopiert',
+      viewing: 'Config aus der QuickRun-Sammlung',
+      startingHere: 'QuickRun läuft — das Fenster öffnet sich mit dem Plan.',
+      startingThere: 'QuickRun antwortet hier nicht — die Startseite erklärt den Rest.',
+      configFailed: 'Diese Config konnte nicht geladen werden.',
     }
   : {
       eyebrow: 'Collection',
@@ -59,11 +68,26 @@ const t = computed(() => (german.value
         + 'run leaves nothing behind. The commands are shown before anything starts, and the '
         + 'confirmation window says the config came from this collection.',
       contribute: 'Contribute a config',
+      close: 'Close',
+      copy: 'Copy',
+      copied: 'Copied',
+      viewing: "A config from QuickRun's collection",
+      startingHere: 'QuickRun is running - its window opens with the plan.',
+      startingThere: 'QuickRun is not answering here - the start page explains the rest.',
+      configFailed: 'This config could not be loaded.',
     }));
 
 const entries = ref(null);
 const failed = ref(false);
 const query = ref('');
+
+/** Whether a QuickRun on this machine is listening. Null while nobody has asked yet. */
+const running = ref(null);
+
+/** The config being read, its text, and what went wrong if anything did. */
+const viewing = ref(null);
+const text = ref('');
+const problem = ref('');
 
 onMounted(async () => {
   try {
@@ -73,7 +97,53 @@ onMounted(async () => {
   } catch {
     failed.value = true;
   }
+
+  // Asked once, so a Run press goes straight to the window that is already open rather than through
+  // a page explaining what QuickRun is.
+  running.value = await answering();
+
+  window.addEventListener('keydown', onKey);
 });
+
+onUnmounted(() => window.removeEventListener('keydown', onKey));
+
+function onKey(event) {
+  if (event.key === 'Escape') close();
+}
+
+async function view(entry) {
+  viewing.value = entry;
+  text.value = '';
+  problem.value = '';
+
+  try {
+    const answer = await fetch(withBase('/' + entry.config), { cache: 'no-cache' });
+    if (!answer.ok) throw new Error(String(answer.status));
+    text.value = await answer.text();
+  } catch {
+    problem.value = t.value.configFailed;
+  }
+}
+
+function close() {
+  viewing.value = null;
+}
+
+/**
+ * Starts a repository from here.
+ *
+ * With QuickRun running this hands the repository to its own window, which prepares the plan and
+ * asks - the same thing the button on GitHub ends up doing, without a page in between. With nothing
+ * listening there is something to install first, and that is what /run is for.
+ */
+function run(entry) {
+  if (running.value) {
+    handOver(true, { repo: entry.repo });
+    return;
+  }
+
+  location.href = runLink(entry.repo);
+}
 
 const shown = computed(() => {
   const all = entries.value ?? [];
@@ -127,12 +197,41 @@ const configLink = (entry) => withBase('/' + entry.config);
         <p v-if="entry.description" class="qr-collection-text">{{ entry.description }}</p>
 
         <div class="qr-collection-actions">
-          <a class="m3-button" :href="runLink(entry.repo)">{{ t.run }}</a>
-          <a class="m3-button m3-button--text" :href="configLink(entry)"
-             target="_blank" rel="noreferrer">{{ t.config }}</a>
+          <!-- A button rather than a link: with QuickRun running this hands the repository straight
+               to its window, and only otherwise does it fall back to the page that explains it. -->
+          <button class="m3-button" type="button" @click="run(entry)">{{ t.run }}</button>
+          <button class="m3-button m3-button--text" type="button" @click="view(entry)">
+            {{ t.config }}
+          </button>
           <span v-if="entry.port" class="m3-label qr-collection-port">:{{ entry.port }}</span>
         </div>
       </article>
+    </div>
+
+    <!-- The config, read before anything is started with it. Closed with Escape, the backdrop, or
+         the button - and the Run inside it does exactly what the card's does. -->
+    <div v-if="viewing" class="qr-modal" @click.self="close">
+      <div class="qr-modal-panel" role="dialog" aria-modal="true">
+        <div class="qr-modal-head">
+          <img :src="viewing.icon" :alt="''" width="32" height="32">
+          <div class="qr-modal-name">
+            <strong>{{ viewing.name }}</strong>
+            <span class="qr-modal-repo">{{ viewing.repo }}</span>
+          </div>
+          <button class="m3-button m3-button--text" type="button" @click="close">{{ t.close }}</button>
+        </div>
+
+        <p v-if="problem" class="m3-body">{{ problem }}</p>
+
+        <ConfigView v-else-if="text" :yaml="text" :source="t.viewing" :run-label="t.run"
+                    :copy-label="t.copy" :copied-label="t.copied" @run="run(viewing)" />
+
+        <p v-else class="m3-body">{{ t.loading }}</p>
+
+        <p class="m3-body qr-modal-note">
+          {{ running === null ? '' : running ? t.startingHere : t.startingThere }}
+        </p>
+      </div>
     </div>
 
     <p class="m3-body qr-collection-note">{{ t.note }}</p>
@@ -181,4 +280,29 @@ const configLink = (entry) => withBase('/' + entry.config);
 .qr-collection-port { opacity: 0.6; margin-left: auto; }
 
 .qr-collection-note { margin: 30px 0 18px; max-width: 78ch; opacity: 0.85; }
+
+/* The config, over the page. Fixed so a long list does not scroll it away, and the panel itself is
+   what scrolls when a config is long. */
+.qr-modal {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+.qr-modal-panel {
+  display: flex; flex-direction: column; gap: 12px; min-height: 0;
+  width: min(920px, 100%); max-height: min(80vh, 900px);
+  padding: 18px; border-radius: 14px;
+  background: var(--vp-c-bg, #fff); border: 1px solid var(--vp-c-divider);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+.qr-modal-head { display: flex; align-items: center; gap: 12px; }
+.qr-modal-head img { border-radius: 8px; flex: none; }
+.qr-modal-name { display: grid; flex: 1; min-width: 0; }
+.qr-modal-repo { font-size: 12px; opacity: 0.7; overflow-wrap: anywhere; }
+.qr-modal-note { margin: 0; font-size: 12.5px; opacity: 0.7; }
+
+@media (max-width: 640px) {
+  .qr-modal { padding: 10px; }
+  .qr-modal-panel { max-height: 92vh; }
+}
 </style>

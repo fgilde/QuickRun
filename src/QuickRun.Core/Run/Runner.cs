@@ -73,6 +73,12 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
     /// <summary>The process each task is currently running as, for the window probe and the log.</summary>
     private readonly ConcurrentDictionary<string, int> _pids = new();
 
+    /// <summary>
+    /// Loopback ports this run opened - free before a task started, so whatever holds one at the
+    /// end is this run's leftover. Port to the task that claimed it, for the log line.
+    /// </summary>
+    private readonly ConcurrentDictionary<int, string> _ownedPorts = new();
+
     /// <summary>Directories of tools installed for this run, to go in front of its PATH.</summary>
     private readonly ConcurrentBag<string> _toolPaths = new();
 
@@ -159,6 +165,55 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
         foreach (var step in Applicable(_config.Stop))
             await RunStepAsync(step, "stop", _options, CancellationToken.None);
+
+        ReclaimPorts();
+    }
+
+    /// <summary>
+    /// Closes the ports this run opened, if anything is still holding them.
+    /// <para>
+    /// The last resort, and the only one that works against a process nothing can reach any more:
+    /// `npm start` spawns node in the gap between starting a process and putting it in the job
+    /// object, and once npm exits that node belongs to no job and no tree. It kept answering on
+    /// localhost:3001 while the run reported itself stopped.
+    /// </para>
+    /// </summary>
+    private void ReclaimPorts()
+    {
+        foreach (var (port, task) in _ownedPorts)
+        {
+            if (PortOwner.Reclaim(port) is not { } what) continue;
+
+            // Said out loud: a stop that had to kill something is worth knowing about, and this is
+            // the line that makes "stop did not stop" a report rather than a suspicion.
+            Emit(RunEventKind.Info, task, what);
+        }
+
+        _ownedPorts.Clear();
+    }
+
+    /// <summary>
+    /// The loopback port a task will listen on, from whichever of its fields names one.
+    /// <para>
+    /// Only loopback: a readiness check pointed at another machine says nothing about a process
+    /// here, and there would be nothing to reclaim.
+    /// </para>
+    /// </summary>
+    internal static int? PortOf(TaskDef task, RunOptions options)
+    {
+        if (task.ReadyWhen?.Port is { } declared) return declared;
+
+        foreach (var candidate in new[] { task.ReadyWhen?.Http, task.OpenUrl })
+        {
+            if (string.IsNullOrWhiteSpace(candidate)) continue;
+
+            var expanded = Interpolator.Expand(candidate!, options.Context);
+            if (!Uri.TryCreate(expanded, UriKind.Absolute, out var uri)) continue;
+            if (!uri.IsLoopback) continue;
+            if (uri.Port > 0) return uri.Port;
+        }
+
+        return null;
     }
 
     public async ValueTask DisposeAsync()
@@ -259,7 +314,11 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
             // pass on a stranger: the address answers before the task has started. Worth saying out
             // loud, because the usual reason is an earlier run of the same repository still running -
             // and the task itself is then about to fail to bind.
-            if (attempt == 1) await WarnIfTakenAsync(task, options, ct);
+            if (attempt == 1)
+            {
+                await WarnIfTakenAsync(task, options, ct);
+                await ClaimPortAsync(task, options, ct);
+            }
 
             using var watcher = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var watching = WatchReadinessAsync(task, log, options, watcher.Token);
@@ -378,6 +437,32 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
     /// Says so when the address a task waits for is already answering before the task starts.
     /// Readiness cannot tell two servers apart, so this is the only chance to notice.
     /// </summary>
+    /// <summary>
+    /// Notes the port this task is about to listen on, if nothing else has it yet.
+    /// <para>
+    /// Asked as a TCP question and not as the readiness check's question. A `readyWhen: {http: ...}`
+    /// against a port held by something that does not speak HTTP never answers, the pre-flight probe
+    /// runs into its budget, and a timeout is not evidence that a port is free - it is no evidence
+    /// at all. Getting that wrong in this direction would have QuickRun kill a stranger's server.
+    /// </para>
+    /// </summary>
+    private async Task ClaimPortAsync(TaskDef task, RunOptions options, CancellationToken ct)
+    {
+        if (PortOf(task, options) is not { } port) return;
+
+        try
+        {
+            var busy = await Readiness.PortOpenAsync(port).WaitAsync(PreflightBudget, ct);
+
+            // Busy, or an answer that did not arrive in time: either way this run does not own it.
+            if (!busy) _ownedPorts[port] = task.Name;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Could not find out, so the port stays somebody else's as far as stopping is concerned.
+        }
+    }
+
     private async Task WarnIfTakenAsync(TaskDef task, RunOptions options, CancellationToken ct)
     {
         var readyWhen = task.ReadyWhen;

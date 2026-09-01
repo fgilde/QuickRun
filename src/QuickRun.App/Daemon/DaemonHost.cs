@@ -83,7 +83,12 @@ public sealed record DashboardRunRequest(
     /// </summary>
     string? Path = null,
     /// <summary>Run a copy of that folder rather than the folder itself.</summary>
-    bool? Copy = null);
+    bool? Copy = null,
+    /// <summary>
+    /// Use the config QuickRun keeps for this repository even if the repository ships one. Set by
+    /// the Run button on the collection page, which shows that config and has to run it.
+    /// </summary>
+    bool? FromCollection = null);
 
 /// <summary>
 /// The localhost listener the browser extension talks to. Loopback only, and every endpoint that
@@ -579,7 +584,8 @@ public static class DaemonHost
                 ConfigPath: string.IsNullOrWhiteSpace(request.Config) ? null : request.Config,
                 ConfigText: string.IsNullOrWhiteSpace(request.ConfigText) ? null : request.ConfigText,
                 LocalPath: folder,
-                Copy: request.Copy ?? false);
+                Copy: request.Copy ?? false,
+                FromCollection: request.FromCollection ?? false);
 
             var (summary, error) = await runs.PrepareAsync(args);
 

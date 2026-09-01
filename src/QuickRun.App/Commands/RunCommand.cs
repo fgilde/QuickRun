@@ -57,6 +57,11 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
                      + "repository that is checked out, otherwise the file's own folder runs.")]
         public string? ConfigFile { get; init; }
 
+        [CommandOption("--from-collection")]
+        [Description("Use the config QuickRun keeps for this repository, even if the repository "
+                     + "ships one of its own.")]
+        public bool FromCollection { get; init; }
+
         [CommandOption("--fresh")]
         [Description("Delete the existing workspace and clone again.")]
         public bool Fresh { get; init; }
@@ -83,7 +88,7 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
 
         public RunArgs ToArgs() =>
             new(Repo, Ref, PullRequest, Subdir, Inputs, Token, Fresh, Yes, NoOpen, ConfigPath,
-                LocalPath: Folder, Copy: Copy);
+                LocalPath: Folder, Copy: Copy, FromCollection: FromCollection);
 
         /// <summary>
         /// The same run, described by a config file instead of by a repository.

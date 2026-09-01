@@ -522,6 +522,15 @@ function openTabFromHash() {
     if (file) { runConfigFile(file, { fromLink: true }); return; }
 
     const repo = wanted.get('repo');
+
+    // config=collection: run the config QuickRun keeps for this repository rather than the one the
+    // repository ships. Only ever because somebody pressed the button that shows that config - a
+    // link carries which source to use, never the commands themselves.
+    if (repo && wanted.get('config') === 'collection') {
+      prefillRun(repo, wanted.get('ref'), wanted.get('pr'), { fromCollection: true });
+      return;
+    }
+
     if (repo) prefillRun(repo, wanted.get('ref'), wanted.get('pr'));
     return;
   }
@@ -551,7 +560,7 @@ async function showPrepared(id) {
 }
 
 /** Fills the run form from a link and prepares the plan, leaving the decision on screen. */
-async function prefillRun(repo, ref, pr) {
+async function prefillRun(repo, ref, pr, { fromCollection = false } = {}) {
   document.querySelector('nav button[data-tab="runs"]')?.click();
 
   // Arriving from a badge, the first question is "is this already going?" - and preparing a second
@@ -570,7 +579,7 @@ async function prefillRun(repo, ref, pr) {
 
   if (pr) starter.pr.value = pr;
 
-  prepareRun();
+  prepareRun({ fromCollection });
 }
 
 /**
@@ -1064,7 +1073,7 @@ function renderPlan(run, panel = starter.plan) {
   });
 }
 
-async function prepareRun() {
+async function prepareRun({ fromCollection = false } = {}) {
   const target = starter.repo.value.trim();
   if (!target) { say('a repository or a folder is needed'); return; }
 
@@ -1095,6 +1104,7 @@ async function prepareRun() {
           token: starter.token.value || null,
           inputs: parseInputs(starter.inputs.value),
           fresh: starter.fresh.checked,
+          fromCollection,
         }),
     }));
     say('');
@@ -1112,7 +1122,9 @@ async function prepareRun() {
 }
 
 starter.repo.addEventListener('change', loadBranches);
-starter.prepare.addEventListener('click', prepareRun);
+// Wrapped, not passed: as a handler it would be given the click event, and reading fromCollection
+// off a MouseEvent happens to be false today and is a trap tomorrow.
+starter.prepare.addEventListener('click', () => prepareRun());
 
 /**
  * What each task of a run is doing, and where it is listening.

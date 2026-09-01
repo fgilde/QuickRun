@@ -49,10 +49,12 @@ public class CollectionFallbackTests : IDisposable
             Path.Combine(_cache, ConfigCollection.RepoPath(Repo)!.Replace('/', '_') + ".yml"),
             yaml);
 
-    private (RunConfig? Config, string? Error, IReadOnlyList<string> Notes, ConfigOrigin Origin) Load()
+    private (RunConfig? Config, string? Error, IReadOnlyList<string> Notes, ConfigOrigin Origin) Load(
+        bool fromCollection = false)
     {
         var args = new RunArgs("", null, null, null, Array.Empty<string>(), null,
-            Fresh: false, Yes: true, NoOpen: true, ConfigPath: null);
+            Fresh: false, Yes: true, NoOpen: true, ConfigPath: null,
+            FromCollection: fromCollection);
 
         var notes = new List<string>();
         var loaded = RunPipeline.LoadConfig(_root, args, Repo, new ConfigOverrides(_overrides), _cache, notes);
@@ -128,6 +130,68 @@ public class CollectionFallbackTests : IDisposable
         // And it did not take the run down with it.
         Assert.Null(error);
         Assert.NotNull(config);
+    }
+
+    /// <summary>
+    /// Asked for by name, the collected config runs - even against a repository that ships one.
+    /// <para>
+    /// This is the Run button on the collection page, which shows a config and then has to run that
+    /// config. Anything else is a button that says one thing and does another.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Asked_for_by_name_the_collection_wins_over_the_repositorys_own()
+    {
+        RepositoryShips("name: The repository's own\ntasks: [{run: echo own}]\n");
+        CollectionHolds("name: Collected\ntasks: [{run: echo collected}]\n");
+
+        var (config, error, notes, origin) = Load(fromCollection: true);
+
+        Assert.Null(error);
+        Assert.Equal(ConfigOrigin.Collection, origin);
+        Assert.Equal("Collected", config!.Name);
+
+        // And it says that it went past the repository's own, which is the surprising half.
+        Assert.Contains(notes, n => n.Contains("quickrun.yml this repository ships", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Without_being_asked_the_repositorys_own_still_wins()
+    {
+        RepositoryShips("name: The repository's own\ntasks: [{run: echo own}]\n");
+        CollectionHolds("name: Collected\ntasks: [{run: echo collected}]\n");
+
+        // The automatic chain is untouched - this is the case that must not have changed.
+        var (config, _, _, origin) = Load();
+
+        Assert.Equal(ConfigOrigin.Repository, origin);
+        Assert.Equal("The repository's own", config!.Name);
+    }
+
+    [Fact]
+    public void Asked_for_by_name_with_nothing_kept_says_so()
+    {
+        RepositoryShips("name: The repository's own\ntasks: [{run: echo own}]\n");
+
+        var (config, error, _, _) = Load(fromCollection: true);
+
+        // Falling back to the repository's config here would silently run something other than what
+        // the page showed. Better to say there is nothing to run.
+        Assert.Null(config);
+        Assert.Contains("keeps no config", error);
+    }
+
+    [Fact]
+    public void Asked_for_by_name_the_collection_also_beats_your_own_saved_config()
+    {
+        new ConfigOverrides(_overrides).Write(Repo, "name: Mine\ntasks: [{run: echo mine}]\n");
+        CollectionHolds("name: Collected\ntasks: [{run: echo collected}]\n");
+
+        // Both are deliberate, and the more recent deliberate act is the button just pressed.
+        var (config, _, _, origin) = Load(fromCollection: true);
+
+        Assert.Equal(ConfigOrigin.Collection, origin);
+        Assert.Equal("Collected", config!.Name);
     }
 
     [Fact]

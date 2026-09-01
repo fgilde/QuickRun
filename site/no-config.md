@@ -59,6 +59,26 @@ quickrun detect ./my-repo --save   # write it to quickrun.yml
 `--save` never overwrites an existing file. It is the quickest way to turn a detected or foreign
 config into one you can edit and commit.
 
+### Asking for a collected config by name
+
+Automatically, the repository's own `quickrun.yml` wins - that is the whole point of the order above,
+and it does not change. But a config can be asked for by name, and then it is what runs:
+
+```bash
+quickrun run acme/app --from-collection
+```
+
+That is what the **With this config** button on [the collection page](/collection) does. A card for a
+repository that ships its own config offers both, because the card shows one of them and pressing Run
+has to start the thing you were looking at.
+
+The link carries which *source* to use, never the commands: `#run?repo=acme/app&config=collection`
+tells QuickRun to fetch the config itself. A link that could carry commands would be a link that can
+put commands in front of somebody, and that stays impossible.
+
+Asked for by name with nothing kept for that repository is an error rather than a quiet fall back to
+the repository's own - otherwise a button that says "run this config" would run a different one.
+
 ## Pinokio
 
 A [Pinokio](https://pinokio.co) app ships a `pinokio.js` next to `install.js` and `start.js`, whose

@@ -39,7 +39,17 @@ public sealed record RunArgs(
     /// Run a copy of that folder under runs/ instead of the folder itself. Slower and it starts
     /// from a clean slate, but nothing the run does can reach the original.
     /// </summary>
-    bool Copy = false);
+    bool Copy = false,
+    /// <summary>
+    /// Use the config QuickRun keeps for this repository, even if the repository ships one.
+    /// <para>
+    /// Only ever set because somebody asked for it - the Run button on the collection page, or
+    /// --from-collection. The automatic chain is unchanged: a repository's own quickrun.yml still
+    /// wins when nobody says otherwise, because a collected config quietly overriding what a
+    /// repository says about itself would be a rule nobody expects.
+    /// </para>
+    /// </summary>
+    bool FromCollection = false);
 
 public sealed record RunPreparation(
     int ExitCode,
@@ -449,6 +459,34 @@ public static class RunPipeline
             }
         }
 
+        // Asked for by name. First of all the lookups, because the alternative is a button that
+        // says "run this config" and runs a different one.
+        if (args.FromCollection && args.LocalPath is null)
+        {
+            if (ConfigCollection.For(repo, collectionCache) is not { } asked)
+                return (null,
+                    $"QuickRun keeps no config for {repo} - nothing to run from the collection",
+                    Empty, NoNotes, ConfigOrigin.Collection);
+
+            try
+            {
+                return (ConfigParser.Parse(asked, OSKinds.Current), null, Empty,
+                    new[]
+                    {
+                        ConfigParser.FindConfigFile(root) is null
+                            ? "using the config from QuickRun's collection, as asked"
+                            : "using the config from QuickRun's collection, as asked - not the "
+                              + "quickrun.yml this repository ships",
+                    },
+                    ConfigOrigin.Collection);
+            }
+            catch (ConfigException e)
+            {
+                return (null, $"the collected config for {repo}: {e.Message}", Empty, NoNotes,
+                    ConfigOrigin.Collection);
+            }
+        }
+
         // Your own config for this repository. It beats the repository's, which is the point - but
         // that has to be said out loud, or a run that ignores a committed quickrun.yml is a mystery.
         if (overrides.Read(repo) is { } mine)
@@ -480,6 +518,10 @@ public static class RunPipeline
         // A config QuickRun keeps for this repository. Better than reading the files and deciding,
         // because somebody wrote it for this repository on purpose - and it only comes into play for
         // a repository that ships nothing of its own, so it can never override a quickrun.yml.
+        //
+        // Unless it was asked for by name, which is what FromCollection means: then it is what runs,
+        // and a repository that has since committed its own does not silently take over. That is
+        // handled above, before the repository's file is read.
         //
         // A local folder is not asked about: there is no repository to look up, and a directory name
         // is nobody's business but this machine's.

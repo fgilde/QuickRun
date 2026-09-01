@@ -39,13 +39,20 @@ export async function answering(port = DEFAULT_PORT) {
   }
 }
 
-/** The query a run target becomes, from the parts a page may name. */
-export function carry({ repo, ref = null, pr = null, file = null }) {
+/**
+ * The query a run target becomes, from the parts a page may name.
+ *
+ * `fromCollection` names a source, not a config: the link says "use the one QuickRun keeps for this
+ * repository", and QuickRun fetches it itself. The commands never travel in a URL - a link that
+ * could carry commands would be a link that can put commands in front of somebody.
+ */
+export function carry({ repo, ref = null, pr = null, file = null, fromCollection = false }) {
   if (file) return `file=${encodeURIComponent(file)}`;
 
   const parts = [`repo=${encodeURIComponent(repo)}`];
   if (ref) parts.push(`ref=${encodeURIComponent(ref)}`);
   if (pr) parts.push(`pr=${encodeURIComponent(pr)}`);
+  if (fromCollection) parts.push('config=collection');
   return parts.join('&');
 }
 

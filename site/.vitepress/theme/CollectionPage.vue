@@ -20,10 +20,10 @@ const german = computed(() => lang.value.startsWith('de'));
 const t = computed(() => (german.value
   ? {
       eyebrow: 'Sammlung',
-      title: 'Configs für Repositories, die keine mitbringen',
-      lead: 'Für diese Projekte hält QuickRun eine Config bereit. Wer eines davon startet, bekommt sie '
-        + 'automatisch — vor der Erkennung, aber niemals vor einer quickrun.yml, die das Repository '
-        + 'selbst mitbringt.',
+      title: 'Configs, die QuickRun bereithält',
+      lead: 'Für diese Projekte hält QuickRun eine Config bereit. Wer eines davon startet, bekommt '
+        + 'sie automatisch — vor der Erkennung, aber niemals vor einer quickrun.yml, die das '
+        + 'Repository selbst mitbringt. Von hier aus kannst du sie trotzdem ausdrücklich starten.',
       search: 'Suchen',
       searchLabel: 'Nach Name oder Repository filtern',
       run: 'Starten',
@@ -44,16 +44,20 @@ const t = computed(() => (german.value
       copied: 'Kopiert',
       viewing: 'Config aus der QuickRun-Sammlung',
       onGitHub: 'Auf GitHub ansehen',
+      runOurs: 'Mit dieser Config',
+      runTheirs: 'Mit Repo-Config',
+      shipsOwn: 'Dieses Repository bringt inzwischen eine eigene Config mit. Du kannst beides '
+        + 'starten — automatisch würde die des Repositories gewinnen.',
       startingHere: 'QuickRun läuft — das Fenster öffnet sich mit dem Plan.',
       startingThere: 'QuickRun antwortet hier nicht — die Startseite erklärt den Rest.',
       configFailed: 'Diese Config konnte nicht geladen werden.',
     }
   : {
       eyebrow: 'Collection',
-      title: 'Configs for repositories that ship none',
+      title: 'Configs QuickRun keeps',
       lead: 'QuickRun keeps a config for each of these projects. Start one and it is used '
         + 'automatically - ahead of detection, and never ahead of a quickrun.yml the repository '
-        + 'ships itself.',
+        + 'ships itself. From here you can still ask for it by name.',
       search: 'Search',
       searchLabel: 'Filter by name or repository',
       run: 'Run',
@@ -74,6 +78,10 @@ const t = computed(() => (german.value
       copied: 'Copied',
       viewing: "A config from QuickRun's collection",
       onGitHub: 'View on GitHub',
+      runOurs: 'With this config',
+      runTheirs: "With the repository's",
+      shipsOwn: 'This repository now ships a config of its own. Either can be started - left to '
+        + "itself, the repository's would win.",
       startingHere: 'QuickRun is running - its window opens with the plan.',
       startingThere: 'QuickRun is not answering here - the start page explains the rest.',
       configFailed: 'This config could not be loaded.',
@@ -138,13 +146,15 @@ function close() {
  * asks - the same thing the button on GitHub ends up doing, without a page in between. With nothing
  * listening there is something to install first, and that is what /run is for.
  */
-function run(entry) {
+function run(entry, { fromCollection = false } = {}) {
   if (running.value) {
-    handOver(true, { repo: entry.repo });
+    handOver(true, { repo: entry.repo, fromCollection });
     return;
   }
 
-  location.href = runLink(entry.repo);
+  // Nothing listening: the start page explains what to install. The source travels with it, so the
+  // press is not forgotten on the way.
+  location.href = runLink(entry.repo) + (fromCollection ? '&executeQuickRun=true&config=collection' : '');
 }
 
 const shown = computed(() => {
@@ -206,10 +216,24 @@ const configLink = (entry) => withBase('/' + entry.config);
 
         <p v-if="entry.description" class="qr-collection-text">{{ entry.description }}</p>
 
+        <!-- A repository that has since committed its own config: both are offered, because the
+             card shows ours and pressing Run has to be the thing the reader expects. -->
+        <p v-if="entry.shipsOwn" class="qr-collection-both">{{ t.shipsOwn }}</p>
+
         <div class="qr-collection-actions">
-          <!-- A button rather than a link: with QuickRun running this hands the repository straight
-               to its window, and only otherwise does it fall back to the page that explains it. -->
-          <button class="m3-button" type="button" @click="run(entry)">{{ t.run }}</button>
+          <!-- Buttons rather than links: with QuickRun running these hand the repository straight to
+               its window, and only otherwise fall back to the page that explains it. -->
+          <template v-if="entry.shipsOwn">
+            <button class="m3-button" type="button" @click="run(entry, { fromCollection: true })">
+              {{ t.runOurs }}
+            </button>
+            <button class="m3-button m3-button--outlined" type="button" @click="run(entry)">
+              {{ t.runTheirs }}
+            </button>
+          </template>
+
+          <button v-else class="m3-button" type="button" @click="run(entry)">{{ t.run }}</button>
+
           <button class="m3-button m3-button--text" type="button" @click="view(entry)">
             {{ t.config }}
           </button>
@@ -233,8 +257,12 @@ const configLink = (entry) => withBase('/' + entry.config);
 
         <p v-if="problem" class="m3-body">{{ problem }}</p>
 
-        <ConfigView v-else-if="text" :yaml="text" :source="t.viewing" :run-label="t.run"
-                    :copy-label="t.copy" :copied-label="t.copied" @run="run(viewing)" />
+        <ConfigView v-else-if="text" :yaml="text" :source="t.viewing"
+                    :run-label="viewing.shipsOwn ? t.runOurs : t.run"
+                    :copy-label="t.copy" :copied-label="t.copied"
+                    @run="run(viewing, { fromCollection: viewing.shipsOwn })" />
+
+        <p v-if="viewing.shipsOwn" class="m3-body qr-modal-note">{{ t.shipsOwn }}</p>
 
         <p v-else class="m3-body">{{ t.loading }}</p>
 
@@ -293,6 +321,13 @@ const configLink = (entry) => withBase('/' + entry.config);
 .qr-collection-text {
   margin: 0; font-size: 13.5px; opacity: 0.85; flex: 1;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.qr-collection-both {
+  margin: 0; padding: 8px 10px; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.45;
+  border-left: 3px solid var(--vp-c-warning-1, #d29922);
+  background: rgba(210, 153, 34, 0.09);
 }
 
 .qr-collection-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

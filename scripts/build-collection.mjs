@@ -225,6 +225,42 @@ writeFileSync(listing, written.sort().join('\n') + '\n');
 // The icon is the owner's GitHub avatar rather than the catalogue's artwork: that artwork belongs to
 // the projects, and copying it into this repository is not ours to do. An avatar is public, usually
 // is the project's own mark, and costs this repository nothing.
+// Which of these repositories have since committed a quickrun.yml of their own.
+//
+// Asked here rather than in the browser: the page would need one request per card, and a hundred and
+// sixty of those to load a list is not a trade worth making. A repository that commits one after this
+// ran is caught when its card is opened, which checks again.
+console.log('asking which repositories now ship their own config');
+
+async function shipsOwn(repo) {
+  for (const name of ['quickrun.yml', 'quickrun.yaml']) {
+    try {
+      const answer = await fetch(`https://raw.githubusercontent.com/${repo}/HEAD/${name}`,
+        { method: 'HEAD' });
+      if (answer.ok) return true;
+    } catch { /* offline, or GitHub having a moment: treated as "not that we know of" */ }
+  }
+  return false;
+}
+
+/** In batches, so a hundred and sixty lookups do not arrive as a hundred and sixty at once. */
+async function inBatches(items, size, work) {
+  const results = [];
+
+  for (let at = 0; at < items.length; at += size)
+    results.push(...await Promise.all(items.slice(at, at + size).map(work)));
+
+  return results;
+}
+
+const repos = written.map((relative) => relative.replace(/\.yml$/, ''));
+const own = new Set();
+const flags = await inBatches(repos, 8, async (repo) => [repo, await shipsOwn(repo)]);
+
+for (const [repo, has] of flags) if (has) own.add(repo);
+
+console.log(`  ${own.size} of ${repos.length} ship their own config`);
+
 const index = written.map((relative) => {
   const [owner, file] = relative.split('/');
   const repo = file.replace(/\.yml$/, '');
@@ -242,6 +278,9 @@ const index = written.map((relative) => {
     port: app?.port ?? null,
     icon: `https://github.com/${owner}.png?size=80`,
     config: `configs/${relative}`,
+    // True when the repository has a quickrun.yml of its own, so the card can offer both: this
+    // config, or the one the repository ships.
+    shipsOwn: own.has(`${owner}/${repo}`),
   };
 }).sort((a, b) => a.name.localeCompare(b.name));
 

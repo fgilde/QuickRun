@@ -6,7 +6,8 @@
     "docs": "https://github.com/ace-step/ACE-Step",
     "port": 7860,
     "icon": "https://github.com/ace-step.png?size=80",
-    "config": "configs/ace-step/ACE-Step.yml"
+    "config": "configs/ace-step/ACE-Step.yml",
+    "shipsOwn": false
   },
   {
     "repo": "actualbudget/actual",
@@ -15,7 +16,8 @@
     "docs": "https://actualbudget.org",
     "port": 5006,
     "icon": "https://github.com/actualbudget.png?size=80",
-    "config": "configs/actualbudget/actual.yml"
+    "config": "configs/actualbudget/actual.yml",
+    "shipsOwn": false
   },
   {
     "repo": "AdguardTeam/AdGuardHome",
@@ -24,7 +26,8 @@
     "docs": "https://adguard.com/adguard-home/overview.html",
     "port": 3000,
     "icon": "https://github.com/AdguardTeam.png?size=80",
-    "config": "configs/AdguardTeam/AdGuardHome.yml"
+    "config": "configs/AdguardTeam/AdGuardHome.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Mintplex-Labs/anything-llm",
@@ -33,7 +36,8 @@
     "docs": "https://anythingllm.com",
     "port": 3001,
     "icon": "https://github.com/Mintplex-Labs.png?size=80",
-    "config": "configs/Mintplex-Labs/anything-llm.yml"
+    "config": "configs/Mintplex-Labs/anything-llm.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ArchiveBox/ArchiveBox",
@@ -42,7 +46,8 @@
     "docs": "https://archivebox.io",
     "port": 8000,
     "icon": "https://github.com/ArchiveBox.png?size=80",
-    "config": "configs/ArchiveBox/ArchiveBox.yml"
+    "config": "configs/ArchiveBox/ArchiveBox.yml",
+    "shipsOwn": false
   },
   {
     "repo": "advplyr/audiobookshelf",
@@ -51,7 +56,8 @@
     "docs": "https://www.audiobookshelf.org",
     "port": 80,
     "icon": "https://github.com/advplyr.png?size=80",
-    "config": "configs/advplyr/audiobookshelf.yml"
+    "config": "configs/advplyr/audiobookshelf.yml",
+    "shipsOwn": false
   },
   {
     "repo": "autobrr/autobrr",
@@ -60,7 +66,8 @@
     "docs": "https://autobrr.com",
     "port": 7474,
     "icon": "https://github.com/autobrr.png?size=80",
-    "config": "configs/autobrr/autobrr.yml"
+    "config": "configs/autobrr/autobrr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "sabre-io/Baikal",
@@ -69,7 +76,8 @@
     "docs": "https://sabre.io/baikal/",
     "port": 80,
     "icon": "https://github.com/sabre-io.png?size=80",
-    "config": "configs/sabre-io/Baikal.yml"
+    "config": "configs/sabre-io/Baikal.yml",
+    "shipsOwn": false
   },
   {
     "repo": "morpheus65535/bazarr",
@@ -78,7 +86,8 @@
     "docs": "https://www.bazarr.media",
     "port": 6767,
     "icon": "https://github.com/morpheus65535.png?size=80",
-    "config": "configs/morpheus65535/bazarr.yml"
+    "config": "configs/morpheus65535/bazarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "bitcoin-cash-node/bitcoin-cash-node",
@@ -87,7 +96,8 @@
     "docs": "https://bitcoincashnode.org",
     "port": 8332,
     "icon": "https://github.com/bitcoin-cash-node.png?size=80",
-    "config": "configs/bitcoin-cash-node/bitcoin-cash-node.yml"
+    "config": "configs/bitcoin-cash-node/bitcoin-cash-node.yml",
+    "shipsOwn": false
   },
   {
     "repo": "bitcoinknots/bitcoin",
@@ -96,7 +106,8 @@
     "docs": "https://bitcoinknots.org",
     "port": 8332,
     "icon": "https://github.com/bitcoinknots.png?size=80",
-    "config": "configs/bitcoinknots/bitcoin.yml"
+    "config": "configs/bitcoinknots/bitcoin.yml",
+    "shipsOwn": false
   },
   {
     "repo": "seedtool/seedtool",
@@ -105,7 +116,18 @@
     "docs": "https://github.com/dennysubke/seedtool-web",
     "port": 8080,
     "icon": "https://github.com/seedtool.png?size=80",
-    "config": "configs/seedtool/seedtool.yml"
+    "config": "configs/seedtool/seedtool.yml",
+    "shipsOwn": false
+  },
+  {
+    "repo": "bitwarden/self-host",
+    "name": "Bitwarden",
+    "description": "Bitwarden — the official self-hosted server (Bitwarden Lite, formerly \"unified\"), the real thing rather than a reimplementation: vaults, organisations, collections, sends, attachments, the admin portal and the official web vault, with a MariaDB companion. Two things it needs from you: an installation id and key from https://bitwarden.com/host (free, one form), and HTTPS on the domain you set below — the browser extensions and mobile apps refuse a plain-http server. Put a proxy with a certificate in front of it (the domain dialog does that for you) and set BW_DOMAIN to that URL. Wants about 1–2 GB of RAM; for a smaller box, Vaultwarden in this store speaks the same client protocol at a fraction of the size.",
+    "docs": "https://bitwarden.com",
+    "port": 8080,
+    "icon": "https://github.com/bitwarden.png?size=80",
+    "config": "configs/bitwarden/self-host.yml",
+    "shipsOwn": false
   },
   {
     "repo": "BookStackApp/BookStack",
@@ -114,7 +136,8 @@
     "docs": "https://www.bookstackapp.com",
     "port": 80,
     "icon": "https://github.com/BookStackApp.png?size=80",
-    "config": "configs/BookStackApp/BookStack.yml"
+    "config": "configs/BookStackApp/BookStack.yml",
+    "shipsOwn": false
   },
   {
     "repo": "janoside/btc-rpc-explorer",
@@ -123,7 +146,8 @@
     "docs": "https://github.com/janoside/btc-rpc-explorer",
     "port": 3002,
     "icon": "https://github.com/janoside.png?size=80",
-    "config": "configs/janoside/btc-rpc-explorer.yml"
+    "config": "configs/janoside/btc-rpc-explorer.yml",
+    "shipsOwn": false
   },
   {
     "repo": "janeczku/calibre-web",
@@ -132,7 +156,8 @@
     "docs": "https://github.com/janeczku/calibre-web",
     "port": 8083,
     "icon": "https://github.com/janeczku.png?size=80",
-    "config": "configs/janeczku/calibre-web.yml"
+    "config": "configs/janeczku/calibre-web.yml",
+    "shipsOwn": false
   },
   {
     "repo": "dgtlmoon/changedetection.io",
@@ -141,7 +166,8 @@
     "docs": "https://changedetection.io",
     "port": 5000,
     "icon": "https://github.com/dgtlmoon.png?size=80",
-    "config": "configs/dgtlmoon/changedetection.io.yml"
+    "config": "configs/dgtlmoon/changedetection.io.yml",
+    "shipsOwn": false
   },
   {
     "repo": "coder/code-server",
@@ -150,7 +176,8 @@
     "docs": "https://github.com/coder/code-server",
     "port": 8080,
     "icon": "https://github.com/coder.png?size=80",
-    "config": "configs/coder/code-server.yml"
+    "config": "configs/coder/code-server.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Comfy-Org/ComfyUI",
@@ -159,7 +186,8 @@
     "docs": "https://github.com/comfyanonymous/ComfyUI",
     "port": 8188,
     "icon": "https://github.com/Comfy-Org.png?size=80",
-    "config": "configs/Comfy-Org/ComfyUI.yml"
+    "config": "configs/Comfy-Org/ComfyUI.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ElementsProject/lightning",
@@ -168,7 +196,8 @@
     "docs": "https://github.com/ElementsProject/lightning",
     "port": 9735,
     "icon": "https://github.com/ElementsProject.png?size=80",
-    "config": "configs/ElementsProject/lightning.yml"
+    "config": "configs/ElementsProject/lightning.yml",
+    "shipsOwn": false
   },
   {
     "repo": "azukaar/Cosmos-Server",
@@ -177,7 +206,8 @@
     "docs": "https://cosmos-cloud.io",
     "port": 80,
     "icon": "https://github.com/azukaar.png?size=80",
-    "config": "configs/azukaar/Cosmos-Server.yml"
+    "config": "configs/azukaar/Cosmos-Server.yml",
+    "shipsOwn": false
   },
   {
     "repo": "fgilde/CoworkeeNextJs",
@@ -186,7 +216,8 @@
     "docs": "https://coworkee.de",
     "port": 3000,
     "icon": "https://github.com/fgilde.png?size=80",
-    "config": "configs/fgilde/CoworkeeNextJs.yml"
+    "config": "configs/fgilde/CoworkeeNextJs.yml",
+    "shipsOwn": true
   },
   {
     "repo": "gchq/CyberChef",
@@ -195,7 +226,8 @@
     "docs": "https://gchq.github.io/CyberChef/",
     "port": 8000,
     "icon": "https://github.com/gchq.png?size=80",
-    "config": "configs/gchq/CyberChef.yml"
+    "config": "configs/gchq/CyberChef.yml",
+    "shipsOwn": false
   },
   {
     "repo": "lissy93/dashy",
@@ -204,7 +236,8 @@
     "docs": "https://dashy.to",
     "port": 8080,
     "icon": "https://github.com/lissy93.png?size=80",
-    "config": "configs/lissy93/dashy.yml"
+    "config": "configs/lissy93/dashy.yml",
+    "shipsOwn": false
   },
   {
     "repo": "deluge-team/deluge",
@@ -213,7 +246,8 @@
     "docs": "https://deluge-torrent.org",
     "port": 8112,
     "icon": "https://github.com/deluge-team.png?size=80",
-    "config": "configs/deluge-team/deluge.yml"
+    "config": "configs/deluge-team/deluge.yml",
+    "shipsOwn": false
   },
   {
     "repo": "louislam/dockge",
@@ -222,7 +256,8 @@
     "docs": "https://github.com/louislam/dockge",
     "port": 5001,
     "icon": "https://github.com/louislam.png?size=80",
-    "config": "configs/louislam/dockge.yml"
+    "config": "configs/louislam/dockge.yml",
+    "shipsOwn": false
   },
   {
     "repo": "docuseal/docuseal",
@@ -231,7 +266,8 @@
     "docs": "https://www.docuseal.com",
     "port": 3000,
     "icon": "https://github.com/docuseal.png?size=80",
-    "config": "configs/docuseal/docuseal.yml"
+    "config": "configs/docuseal/docuseal.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Dolibarr/dolibarr",
@@ -240,7 +276,8 @@
     "docs": "https://www.dolibarr.org",
     "port": 80,
     "icon": "https://github.com/Dolibarr.png?size=80",
-    "config": "configs/Dolibarr/dolibarr.yml"
+    "config": "configs/Dolibarr/dolibarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "amir20/dozzle",
@@ -249,7 +286,8 @@
     "docs": "https://dozzle.dev",
     "port": 8080,
     "icon": "https://github.com/amir20.png?size=80",
-    "config": "configs/amir20/dozzle.yml"
+    "config": "configs/amir20/dozzle.yml",
+    "shipsOwn": false
   },
   {
     "repo": "jgraph/drawio",
@@ -258,7 +296,8 @@
     "docs": "https://www.drawio.com",
     "port": 8080,
     "icon": "https://github.com/jgraph.png?size=80",
-    "config": "configs/jgraph/drawio.yml"
+    "config": "configs/jgraph/drawio.yml",
+    "shipsOwn": false
   },
   {
     "repo": "drupal/drupal",
@@ -267,7 +306,8 @@
     "docs": "https://www.drupal.org",
     "port": 80,
     "icon": "https://github.com/drupal.png?size=80",
-    "config": "configs/drupal/drupal.yml"
+    "config": "configs/drupal/drupal.yml",
+    "shipsOwn": false
   },
   {
     "repo": "duplicati/duplicati",
@@ -276,7 +316,8 @@
     "docs": "https://www.duplicati.com",
     "port": 8200,
     "icon": "https://github.com/duplicati.png?size=80",
-    "config": "configs/duplicati/duplicati.yml"
+    "config": "configs/duplicati/duplicati.yml",
+    "shipsOwn": false
   },
   {
     "repo": "romanz/electrs",
@@ -285,7 +326,8 @@
     "docs": "https://github.com/romanz/electrs",
     "port": 50001,
     "icon": "https://github.com/romanz.png?size=80",
-    "config": "configs/romanz/electrs.yml"
+    "config": "configs/romanz/electrs.yml",
+    "shipsOwn": false
   },
   {
     "repo": "spesmilo/electrumx",
@@ -294,7 +336,8 @@
     "docs": "https://github.com/lukechilds/docker-electrumx",
     "port": 50001,
     "icon": "https://github.com/spesmilo.png?size=80",
-    "config": "configs/spesmilo/electrumx.yml"
+    "config": "configs/spesmilo/electrumx.yml",
+    "shipsOwn": false
   },
   {
     "repo": "MediaBrowser/Emby",
@@ -303,7 +346,8 @@
     "docs": "https://emby.media",
     "port": 8096,
     "icon": "https://github.com/MediaBrowser.png?size=80",
-    "config": "configs/MediaBrowser/Emby.yml"
+    "config": "configs/MediaBrowser/Emby.yml",
+    "shipsOwn": false
   },
   {
     "repo": "esphome/esphome",
@@ -312,7 +356,8 @@
     "docs": "https://esphome.io",
     "port": 6052,
     "icon": "https://github.com/esphome.png?size=80",
-    "config": "configs/esphome/esphome.yml"
+    "config": "configs/esphome/esphome.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ether/etherpad",
@@ -321,7 +366,8 @@
     "docs": "https://etherpad.org",
     "port": 9001,
     "icon": "https://github.com/ether.png?size=80",
-    "config": "configs/ether/etherpad.yml"
+    "config": "configs/ether/etherpad.yml",
+    "shipsOwn": false
   },
   {
     "repo": "excalidraw/excalidraw",
@@ -330,7 +376,8 @@
     "docs": "https://excalidraw.com",
     "port": 80,
     "icon": "https://github.com/excalidraw.png?size=80",
-    "config": "configs/excalidraw/excalidraw.yml"
+    "config": "configs/excalidraw/excalidraw.yml",
+    "shipsOwn": false
   },
   {
     "repo": "filebrowser/filebrowser",
@@ -339,7 +386,8 @@
     "docs": "https://filebrowser.org",
     "port": 80,
     "icon": "https://github.com/filebrowser.png?size=80",
-    "config": "configs/filebrowser/filebrowser.yml"
+    "config": "configs/filebrowser/filebrowser.yml",
+    "shipsOwn": false
   },
   {
     "repo": "mickael-kerjean/filestash",
@@ -348,7 +396,8 @@
     "docs": "https://www.filestash.app",
     "port": 8334,
     "icon": "https://github.com/mickael-kerjean.png?size=80",
-    "config": "configs/mickael-kerjean/filestash.yml"
+    "config": "configs/mickael-kerjean/filestash.yml",
+    "shipsOwn": false
   },
   {
     "repo": "firefly-iii/firefly-iii",
@@ -357,7 +406,8 @@
     "docs": "https://www.firefly-iii.org",
     "port": 8080,
     "icon": "https://github.com/firefly-iii.png?size=80",
-    "config": "configs/firefly-iii/firefly-iii.yml"
+    "config": "configs/firefly-iii/firefly-iii.yml",
+    "shipsOwn": false
   },
   {
     "repo": "FlareSolverr/FlareSolverr",
@@ -366,7 +416,8 @@
     "docs": "https://github.com/FlareSolverr/FlareSolverr",
     "port": 8191,
     "icon": "https://github.com/FlareSolverr.png?size=80",
-    "config": "configs/FlareSolverr/FlareSolverr.yml"
+    "config": "configs/FlareSolverr/FlareSolverr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "dullage/flatnotes",
@@ -375,7 +426,8 @@
     "docs": "https://github.com/dullage/flatnotes",
     "port": 8080,
     "icon": "https://github.com/dullage.png?size=80",
-    "config": "configs/dullage/flatnotes.yml"
+    "config": "configs/dullage/flatnotes.yml",
+    "shipsOwn": false
   },
   {
     "repo": "FlowiseAI/Flowise",
@@ -384,7 +436,8 @@
     "docs": "https://flowiseai.com",
     "port": 3000,
     "icon": "https://github.com/FlowiseAI.png?size=80",
-    "config": "configs/FlowiseAI/Flowise.yml"
+    "config": "configs/FlowiseAI/Flowise.yml",
+    "shipsOwn": false
   },
   {
     "repo": "foldergram/foldergram",
@@ -393,7 +446,8 @@
     "docs": "https://github.com/foldergram/foldergram",
     "port": 4141,
     "icon": "https://github.com/foldergram.png?size=80",
-    "config": "configs/foldergram/foldergram.yml"
+    "config": "configs/foldergram/foldergram.yml",
+    "shipsOwn": false
   },
   {
     "repo": "FreshRSS/FreshRSS",
@@ -402,7 +456,8 @@
     "docs": "https://freshrss.org",
     "port": 80,
     "icon": "https://github.com/FreshRSS.png?size=80",
-    "config": "configs/FreshRSS/FreshRSS.yml"
+    "config": "configs/FreshRSS/FreshRSS.yml",
+    "shipsOwn": false
   },
   {
     "repo": "blakeblackshear/frigate",
@@ -411,7 +466,8 @@
     "docs": "https://frigate.video",
     "port": 8971,
     "icon": "https://github.com/blakeblackshear.png?size=80",
-    "config": "configs/blakeblackshear/frigate.yml"
+    "config": "configs/blakeblackshear/frigate.yml",
+    "shipsOwn": false
   },
   {
     "repo": "cculian/Fulcrum",
@@ -420,7 +476,8 @@
     "docs": "https://github.com/cculianu/Fulcrum",
     "port": 50001,
     "icon": "https://github.com/cculian.png?size=80",
-    "config": "configs/cculian/Fulcrum.yml"
+    "config": "configs/cculian/Fulcrum.yml",
+    "shipsOwn": false
   },
   {
     "repo": "TryGhost/Ghost",
@@ -429,7 +486,8 @@
     "docs": "https://ghost.org",
     "port": 2368,
     "icon": "https://github.com/TryGhost.png?size=80",
-    "config": "configs/TryGhost/Ghost.yml"
+    "config": "configs/TryGhost/Ghost.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ghostfolio/ghostfolio",
@@ -438,7 +496,8 @@
     "docs": "https://ghostfol.io",
     "port": 3333,
     "icon": "https://github.com/ghostfolio.png?size=80",
-    "config": "configs/ghostfolio/ghostfolio.yml"
+    "config": "configs/ghostfolio/ghostfolio.yml",
+    "shipsOwn": false
   },
   {
     "repo": "go-gitea/gitea",
@@ -447,7 +506,8 @@
     "docs": "https://about.gitea.com",
     "port": 3000,
     "icon": "https://github.com/go-gitea.png?size=80",
-    "config": "configs/go-gitea/gitea.yml"
+    "config": "configs/go-gitea/gitea.yml",
+    "shipsOwn": false
   },
   {
     "repo": "nicolargo/glances",
@@ -456,7 +516,8 @@
     "docs": "https://nicolargo.github.io/glances/",
     "port": 61208,
     "icon": "https://github.com/nicolargo.png?size=80",
-    "config": "configs/nicolargo/glances.yml"
+    "config": "configs/nicolargo/glances.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Forceu/Gokapi",
@@ -465,7 +526,8 @@
     "docs": "https://github.com/Forceu/Gokapi",
     "port": 53842,
     "icon": "https://github.com/Forceu.png?size=80",
-    "config": "configs/Forceu/Gokapi.yml"
+    "config": "configs/Forceu/Gokapi.yml",
+    "shipsOwn": false
   },
   {
     "repo": "gotify/server",
@@ -474,7 +536,8 @@
     "docs": "https://gotify.net",
     "port": 80,
     "icon": "https://github.com/gotify.png?size=80",
-    "config": "configs/gotify/server.yml"
+    "config": "configs/gotify/server.yml",
+    "shipsOwn": false
   },
   {
     "repo": "grafana/grafana",
@@ -483,7 +546,8 @@
     "docs": "https://grafana.com",
     "port": 3000,
     "icon": "https://github.com/grafana.png?size=80",
-    "config": "configs/grafana/grafana.yml"
+    "config": "configs/grafana/grafana.yml",
+    "shipsOwn": false
   },
   {
     "repo": "getgrav/grav",
@@ -492,7 +556,8 @@
     "docs": "https://getgrav.org",
     "port": 80,
     "icon": "https://github.com/getgrav.png?size=80",
-    "config": "configs/getgrav/grav.yml"
+    "config": "configs/getgrav/grav.yml",
+    "shipsOwn": false
   },
   {
     "repo": "grocy/grocy",
@@ -501,7 +566,8 @@
     "docs": "https://grocy.info",
     "port": 80,
     "icon": "https://github.com/grocy.png?size=80",
-    "config": "configs/grocy/grocy.yml"
+    "config": "configs/grocy/grocy.yml",
+    "shipsOwn": false
   },
   {
     "repo": "fgilde/hausverwaltung",
@@ -510,7 +576,8 @@
     "docs": "https://havewa.app",
     "port": 3000,
     "icon": "https://github.com/fgilde.png?size=80",
-    "config": "configs/fgilde/hausverwaltung.yml"
+    "config": "configs/fgilde/hausverwaltung.yml",
+    "shipsOwn": true
   },
   {
     "repo": "hedgedoc/hedgedoc",
@@ -519,7 +586,8 @@
     "docs": "https://hedgedoc.org",
     "port": 3000,
     "icon": "https://github.com/hedgedoc.png?size=80",
-    "config": "configs/hedgedoc/hedgedoc.yml"
+    "config": "configs/hedgedoc/hedgedoc.yml",
+    "shipsOwn": false
   },
   {
     "repo": "linuxserver/Heimdall",
@@ -528,7 +596,8 @@
     "docs": "https://heimdall.site",
     "port": 80,
     "icon": "https://github.com/linuxserver.png?size=80",
-    "config": "configs/linuxserver/Heimdall.yml"
+    "config": "configs/linuxserver/Heimdall.yml",
+    "shipsOwn": false
   },
   {
     "repo": "NousResearch/hermes-agent",
@@ -537,7 +606,8 @@
     "docs": "https://nousresearch.com",
     "port": 18789,
     "icon": "https://github.com/NousResearch.png?size=80",
-    "config": "configs/NousResearch/hermes-agent.yml"
+    "config": "configs/NousResearch/hermes-agent.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ajnart/homarr",
@@ -546,7 +616,8 @@
     "docs": "https://homarr.dev",
     "port": 7575,
     "icon": "https://github.com/ajnart.png?size=80",
-    "config": "configs/ajnart/homarr.yml"
+    "config": "configs/ajnart/homarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "home-assistant/core",
@@ -555,7 +626,8 @@
     "docs": "https://www.home-assistant.io",
     "port": 8123,
     "icon": "https://github.com/home-assistant.png?size=80",
-    "config": "configs/home-assistant/core.yml"
+    "config": "configs/home-assistant/core.yml",
+    "shipsOwn": false
   },
   {
     "repo": "hay-kot/homebox",
@@ -564,7 +636,8 @@
     "docs": "https://homebox.software",
     "port": 7745,
     "icon": "https://github.com/hay-kot.png?size=80",
-    "config": "configs/hay-kot/homebox.yml"
+    "config": "configs/hay-kot/homebox.yml",
+    "shipsOwn": false
   },
   {
     "repo": "homebridge/homebridge",
@@ -573,7 +646,8 @@
     "docs": "https://homebridge.io",
     "port": 8581,
     "icon": "https://github.com/homebridge.png?size=80",
-    "config": "configs/homebridge/homebridge.yml"
+    "config": "configs/homebridge/homebridge.yml",
+    "shipsOwn": false
   },
   {
     "repo": "benphelps/homepage",
@@ -582,7 +656,8 @@
     "docs": "https://gethomepage.dev",
     "port": 3000,
     "icon": "https://github.com/benphelps.png?size=80",
-    "config": "configs/benphelps/homepage.yml"
+    "config": "configs/benphelps/homepage.yml",
+    "shipsOwn": false
   },
   {
     "repo": "bastienwirtz/homer",
@@ -591,7 +666,8 @@
     "docs": "https://github.com/bastienwirtz/homer",
     "port": 8080,
     "icon": "https://github.com/bastienwirtz.png?size=80",
-    "config": "configs/bastienwirtz/homer.yml"
+    "config": "configs/bastienwirtz/homer.yml",
+    "shipsOwn": false
   },
   {
     "repo": "immich-app/immich",
@@ -600,7 +676,8 @@
     "docs": "https://immich.app",
     "port": 2283,
     "icon": "https://github.com/immich-app.png?size=80",
-    "config": "configs/immich-app/immich.yml"
+    "config": "configs/immich-app/immich.yml",
+    "shipsOwn": false
   },
   {
     "repo": "influxdata/influxdb",
@@ -609,7 +686,8 @@
     "docs": "https://www.influxdata.com",
     "port": 8086,
     "icon": "https://github.com/influxdata.png?size=80",
-    "config": "configs/influxdata/influxdb.yml"
+    "config": "configs/influxdata/influxdb.yml",
+    "shipsOwn": false
   },
   {
     "repo": "CorentinTh/it-tools",
@@ -618,7 +696,8 @@
     "docs": "https://it-tools.tech",
     "port": 80,
     "icon": "https://github.com/CorentinTh.png?size=80",
-    "config": "configs/CorentinTh/it-tools.yml"
+    "config": "configs/CorentinTh/it-tools.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Jackett/Jackett",
@@ -627,7 +706,8 @@
     "docs": "https://github.com/Jackett/Jackett",
     "port": 9117,
     "icon": "https://github.com/Jackett.png?size=80",
-    "config": "configs/Jackett/Jackett.yml"
+    "config": "configs/Jackett/Jackett.yml",
+    "shipsOwn": false
   },
   {
     "repo": "jaegertracing/jaeger",
@@ -636,7 +716,8 @@
     "docs": "https://www.jaegertracing.io",
     "port": 16686,
     "icon": "https://github.com/jaegertracing.png?size=80",
-    "config": "configs/jaegertracing/jaeger.yml"
+    "config": "configs/jaegertracing/jaeger.yml",
+    "shipsOwn": false
   },
   {
     "repo": "jellyfin/jellyfin",
@@ -645,7 +726,8 @@
     "docs": "https://jellyfin.org",
     "port": 8096,
     "icon": "https://github.com/jellyfin.png?size=80",
-    "config": "configs/jellyfin/jellyfin.yml"
+    "config": "configs/jellyfin/jellyfin.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Fallenbagel/jellyseerr",
@@ -654,7 +736,8 @@
     "docs": "https://github.com/Fallenbagel/jellyseerr",
     "port": 5055,
     "icon": "https://github.com/Fallenbagel.png?size=80",
-    "config": "configs/Fallenbagel/jellyseerr.yml"
+    "config": "configs/Fallenbagel/jellyseerr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "joinstr/joinstr",
@@ -663,7 +746,8 @@
     "docs": "https://github.com/1440000bytes/joinstr",
     "port": 5000,
     "icon": "https://github.com/joinstr.png?size=80",
-    "config": "configs/joinstr/joinstr.yml"
+    "config": "configs/joinstr/joinstr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "joomla/joomla-cms",
@@ -672,7 +756,8 @@
     "docs": "https://www.joomla.org",
     "port": 80,
     "icon": "https://github.com/joomla.png?size=80",
-    "config": "configs/joomla/joomla-cms.yml"
+    "config": "configs/joomla/joomla-cms.yml",
+    "shipsOwn": false
   },
   {
     "repo": "jupyterlab/jupyterlab",
@@ -681,7 +766,8 @@
     "docs": "https://jupyter.org",
     "port": 8888,
     "icon": "https://github.com/jupyterlab.png?size=80",
-    "config": "configs/jupyterlab/jupyterlab.yml"
+    "config": "configs/jupyterlab/jupyterlab.yml",
+    "shipsOwn": false
   },
   {
     "repo": "kanboard/kanboard",
@@ -690,7 +776,8 @@
     "docs": "https://kanboard.org",
     "port": 80,
     "icon": "https://github.com/kanboard.png?size=80",
-    "config": "configs/kanboard/kanboard.yml"
+    "config": "configs/kanboard/kanboard.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Kareadita/Kavita",
@@ -699,7 +786,8 @@
     "docs": "https://www.kavitareader.com",
     "port": 5000,
     "icon": "https://github.com/Kareadita.png?size=80",
-    "config": "configs/Kareadita/Kavita.yml"
+    "config": "configs/Kareadita/Kavita.yml",
+    "shipsOwn": false
   },
   {
     "repo": "kimai/kimai",
@@ -708,7 +796,8 @@
     "docs": "https://www.kimai.org",
     "port": 8001,
     "icon": "https://github.com/kimai.png?size=80",
-    "config": "configs/kimai/kimai.yml"
+    "config": "configs/kimai/kimai.yml",
+    "shipsOwn": false
   },
   {
     "repo": "gotson/komga",
@@ -717,7 +806,8 @@
     "docs": "https://komga.org",
     "port": 25600,
     "icon": "https://github.com/gotson.png?size=80",
-    "config": "configs/gotson/komga.yml"
+    "config": "configs/gotson/komga.yml",
+    "shipsOwn": false
   },
   {
     "repo": "langflow-ai/langflow",
@@ -726,7 +816,8 @@
     "docs": "https://www.langflow.org",
     "port": 7860,
     "icon": "https://github.com/langflow-ai.png?size=80",
-    "config": "configs/langflow-ai/langflow.yml"
+    "config": "configs/langflow-ai/langflow.yml",
+    "shipsOwn": false
   },
   {
     "repo": "leaf-wiki/leaf-wiki",
@@ -735,7 +826,8 @@
     "docs": "https://leafwiki.com",
     "port": 8080,
     "icon": "https://github.com/leaf-wiki.png?size=80",
-    "config": "configs/leaf-wiki/leaf-wiki.yml"
+    "config": "configs/leaf-wiki/leaf-wiki.yml",
+    "shipsOwn": false
   },
   {
     "repo": "danny-avila/LibreChat",
@@ -744,7 +836,8 @@
     "docs": "https://www.librechat.ai",
     "port": 3080,
     "icon": "https://github.com/danny-avila.png?size=80",
-    "config": "configs/danny-avila/LibreChat.yml"
+    "config": "configs/danny-avila/LibreChat.yml",
+    "shipsOwn": false
   },
   {
     "repo": "LibrePhotos/librephotos",
@@ -753,7 +846,8 @@
     "docs": "https://www.librephotos.com",
     "port": 8001,
     "icon": "https://github.com/LibrePhotos.png?size=80",
-    "config": "configs/LibrePhotos/librephotos.yml"
+    "config": "configs/LibrePhotos/librephotos.yml",
+    "shipsOwn": false
   },
   {
     "repo": "librespeed/speedtest",
@@ -762,7 +856,8 @@
     "docs": "https://librespeed.org",
     "port": 80,
     "icon": "https://github.com/librespeed.png?size=80",
-    "config": "configs/librespeed/speedtest.yml"
+    "config": "configs/librespeed/speedtest.yml",
+    "shipsOwn": false
   },
   {
     "repo": "uav4geo/LibreTranslate",
@@ -771,7 +866,8 @@
     "docs": "https://libretranslate.com",
     "port": 5000,
     "icon": "https://github.com/uav4geo.png?size=80",
-    "config": "configs/uav4geo/LibreTranslate.yml"
+    "config": "configs/uav4geo/LibreTranslate.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Lidarr/Lidarr",
@@ -780,7 +876,8 @@
     "docs": "https://lidarr.audio",
     "port": 8686,
     "icon": "https://github.com/Lidarr.png?size=80",
-    "config": "configs/Lidarr/Lidarr.yml"
+    "config": "configs/Lidarr/Lidarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "LimeSurvey/LimeSurvey",
@@ -789,7 +886,8 @@
     "docs": "https://www.limesurvey.org",
     "port": 8080,
     "icon": "https://github.com/LimeSurvey.png?size=80",
-    "config": "configs/LimeSurvey/LimeSurvey.yml"
+    "config": "configs/LimeSurvey/LimeSurvey.yml",
+    "shipsOwn": false
   },
   {
     "repo": "sissbruecker/linkding",
@@ -798,7 +896,8 @@
     "docs": "https://linkding.link",
     "port": 9090,
     "icon": "https://github.com/sissbruecker.png?size=80",
-    "config": "configs/sissbruecker/linkding.yml"
+    "config": "configs/sissbruecker/linkding.yml",
+    "shipsOwn": false
   },
   {
     "repo": "JulianPrieber/linkstack",
@@ -807,7 +906,8 @@
     "docs": "https://linkstack.org",
     "port": 80,
     "icon": "https://github.com/JulianPrieber.png?size=80",
-    "config": "configs/JulianPrieber/linkstack.yml"
+    "config": "configs/JulianPrieber/linkstack.yml",
+    "shipsOwn": false
   },
   {
     "repo": "linkwarden/linkwarden",
@@ -816,7 +916,8 @@
     "docs": "https://linkwarden.app",
     "port": 3000,
     "icon": "https://github.com/linkwarden.png?size=80",
-    "config": "configs/linkwarden/linkwarden.yml"
+    "config": "configs/linkwarden/linkwarden.yml",
+    "shipsOwn": false
   },
   {
     "repo": "lnbits/lnbits",
@@ -825,7 +926,8 @@
     "docs": "https://lnbits.com",
     "port": 5000,
     "icon": "https://github.com/lnbits.png?size=80",
-    "config": "configs/lnbits/lnbits.yml"
+    "config": "configs/lnbits/lnbits.yml",
+    "shipsOwn": false
   },
   {
     "repo": "lobehub/lobe-chat",
@@ -834,7 +936,8 @@
     "docs": "https://lobehub.com",
     "port": 3210,
     "icon": "https://github.com/lobehub.png?size=80",
-    "config": "configs/lobehub/lobe-chat.yml"
+    "config": "configs/lobehub/lobe-chat.yml",
+    "shipsOwn": false
   },
   {
     "repo": "mudler/LocalAGI",
@@ -843,7 +946,8 @@
     "docs": "https://github.com/mudler/LocalAGI",
     "port": 3000,
     "icon": "https://github.com/mudler.png?size=80",
-    "config": "configs/mudler/LocalAGI.yml"
+    "config": "configs/mudler/LocalAGI.yml",
+    "shipsOwn": false
   },
   {
     "repo": "mudler/LocalRecall",
@@ -852,7 +956,8 @@
     "docs": "https://github.com/mudler/LocalRecall",
     "port": 8080,
     "icon": "https://github.com/mudler.png?size=80",
-    "config": "configs/mudler/LocalRecall.yml"
+    "config": "configs/mudler/LocalRecall.yml",
+    "shipsOwn": false
   },
   {
     "repo": "laxxx-lab/lx-family-planner",
@@ -861,7 +966,8 @@
     "docs": "https://github.com/laxxx-lab/lx-family-planner",
     "port": 3001,
     "icon": "https://github.com/laxxx-lab.png?size=80",
-    "config": "configs/laxxx-lab/lx-family-planner.yml"
+    "config": "configs/laxxx-lab/lx-family-planner.yml",
+    "shipsOwn": true
   },
   {
     "repo": "fgilde/Maestro",
@@ -870,7 +976,8 @@
     "docs": "https://github.com/fgilde/Maestro",
     "port": 7860,
     "icon": "https://github.com/fgilde.png?size=80",
-    "config": "configs/fgilde/Maestro.yml"
+    "config": "configs/fgilde/Maestro.yml",
+    "shipsOwn": true
   },
   {
     "repo": "matomo-org/matomo",
@@ -879,7 +986,8 @@
     "docs": "https://matomo.org",
     "port": 80,
     "icon": "https://github.com/matomo-org.png?size=80",
-    "config": "configs/matomo-org/matomo.yml"
+    "config": "configs/matomo-org/matomo.yml",
+    "shipsOwn": false
   },
   {
     "repo": "mattermost/mattermost",
@@ -888,7 +996,8 @@
     "docs": "https://mattermost.com",
     "port": 8065,
     "icon": "https://github.com/mattermost.png?size=80",
-    "config": "configs/mattermost/mattermost.yml"
+    "config": "configs/mattermost/mattermost.yml",
+    "shipsOwn": false
   },
   {
     "repo": "mealie-recipes/mealie",
@@ -897,7 +1006,8 @@
     "docs": "https://mealie.io",
     "port": 9000,
     "icon": "https://github.com/mealie-recipes.png?size=80",
-    "config": "configs/mealie-recipes/mealie.yml"
+    "config": "configs/mealie-recipes/mealie.yml",
+    "shipsOwn": false
   },
   {
     "repo": "usememos/memos",
@@ -906,7 +1016,8 @@
     "docs": "https://www.usememos.com",
     "port": 5230,
     "icon": "https://github.com/usememos.png?size=80",
-    "config": "configs/usememos/memos.yml"
+    "config": "configs/usememos/memos.yml",
+    "shipsOwn": false
   },
   {
     "repo": "mempool/mempool",
@@ -915,7 +1026,8 @@
     "docs": "https://github.com/mempool/mempool",
     "port": 8080,
     "icon": "https://github.com/mempool.png?size=80",
-    "config": "configs/mempool/mempool.yml"
+    "config": "configs/mempool/mempool.yml",
+    "shipsOwn": false
   },
   {
     "repo": "metabase/metabase",
@@ -924,7 +1036,8 @@
     "docs": "https://www.metabase.com",
     "port": 3000,
     "icon": "https://github.com/metabase.png?size=80",
-    "config": "configs/metabase/metabase.yml"
+    "config": "configs/metabase/metabase.yml",
+    "shipsOwn": false
   },
   {
     "repo": "alexta69/metube",
@@ -933,7 +1046,8 @@
     "docs": "https://github.com/alexta69/metube",
     "port": 8081,
     "icon": "https://github.com/alexta69.png?size=80",
-    "config": "configs/alexta69/metube.yml"
+    "config": "configs/alexta69/metube.yml",
+    "shipsOwn": false
   },
   {
     "repo": "minio/minio",
@@ -942,7 +1056,8 @@
     "docs": "https://min.io",
     "port": 9001,
     "icon": "https://github.com/minio.png?size=80",
-    "config": "configs/minio/minio.yml"
+    "config": "configs/minio/minio.yml",
+    "shipsOwn": false
   },
   {
     "repo": "monicahq/monica",
@@ -951,7 +1066,8 @@
     "docs": "https://www.monicahq.com",
     "port": 80,
     "icon": "https://github.com/monicahq.png?size=80",
-    "config": "configs/monicahq/monica.yml"
+    "config": "configs/monicahq/monica.yml",
+    "shipsOwn": false
   },
   {
     "repo": "fgilde/MuseForge",
@@ -960,7 +1076,8 @@
     "docs": "https://github.com/fgilde/MuseForge",
     "port": 7860,
     "icon": "https://github.com/fgilde.png?size=80",
-    "config": "configs/fgilde/MuseForge.yml"
+    "config": "configs/fgilde/MuseForge.yml",
+    "shipsOwn": true
   },
   {
     "repo": "gnmyt/myspeed",
@@ -969,7 +1086,8 @@
     "docs": "https://myspeed.dev",
     "port": 5216,
     "icon": "https://github.com/gnmyt.png?size=80",
-    "config": "configs/gnmyt/myspeed.yml"
+    "config": "configs/gnmyt/myspeed.yml",
+    "shipsOwn": false
   },
   {
     "repo": "navidrome/navidrome",
@@ -978,7 +1096,8 @@
     "docs": "https://www.navidrome.org",
     "port": 4533,
     "icon": "https://github.com/navidrome.png?size=80",
-    "config": "configs/navidrome/navidrome.yml"
+    "config": "configs/navidrome/navidrome.yml",
+    "shipsOwn": false
   },
   {
     "repo": "nextcloud/server",
@@ -987,7 +1106,8 @@
     "docs": "https://nextcloud.com",
     "port": 80,
     "icon": "https://github.com/nextcloud.png?size=80",
-    "config": "configs/nextcloud/server.yml"
+    "config": "configs/nextcloud/server.yml",
+    "shipsOwn": false
   },
   {
     "repo": "jc21/nginx-proxy-manager",
@@ -996,7 +1116,8 @@
     "docs": "https://nginxproxymanager.com",
     "port": 81,
     "icon": "https://github.com/jc21.png?size=80",
-    "config": "configs/jc21/nginx-proxy-manager.yml"
+    "config": "configs/jc21/nginx-proxy-manager.yml",
+    "shipsOwn": false
   },
   {
     "repo": "nocodb/nocodb",
@@ -1005,7 +1126,8 @@
     "docs": "https://nocodb.com",
     "port": 8080,
     "icon": "https://github.com/nocodb.png?size=80",
-    "config": "configs/nocodb/nocodb.yml"
+    "config": "configs/nocodb/nocodb.yml",
+    "shipsOwn": false
   },
   {
     "repo": "node-red/node-red",
@@ -1014,7 +1136,8 @@
     "docs": "https://nodered.org",
     "port": 1880,
     "icon": "https://github.com/node-red.png?size=80",
-    "config": "configs/node-red/node-red.yml"
+    "config": "configs/node-red/node-red.yml",
+    "shipsOwn": false
   },
   {
     "repo": "binwiederhier/ntfy",
@@ -1023,7 +1146,8 @@
     "docs": "https://ntfy.sh",
     "port": 80,
     "icon": "https://github.com/binwiederhier.png?size=80",
-    "config": "configs/binwiederhier/ntfy.yml"
+    "config": "configs/binwiederhier/ntfy.yml",
+    "shipsOwn": false
   },
   {
     "repo": "OctoPrint/OctoPrint",
@@ -1032,7 +1156,8 @@
     "docs": "https://octoprint.org",
     "port": 80,
     "icon": "https://github.com/OctoPrint.png?size=80",
-    "config": "configs/OctoPrint/OctoPrint.yml"
+    "config": "configs/OctoPrint/OctoPrint.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ONLYOFFICE/DocumentServer",
@@ -1041,7 +1166,8 @@
     "docs": "https://www.onlyoffice.com",
     "port": 80,
     "icon": "https://github.com/ONLYOFFICE.png?size=80",
-    "config": "configs/ONLYOFFICE/DocumentServer.yml"
+    "config": "configs/ONLYOFFICE/DocumentServer.yml",
+    "shipsOwn": false
   },
   {
     "repo": "open-webui/open-webui",
@@ -1050,7 +1176,8 @@
     "docs": "https://openwebui.com",
     "port": 8080,
     "icon": "https://github.com/open-webui.png?size=80",
-    "config": "configs/open-webui/open-webui.yml"
+    "config": "configs/open-webui/open-webui.yml",
+    "shipsOwn": false
   },
   {
     "repo": "openclaw/openclaw",
@@ -1059,7 +1186,8 @@
     "docs": "https://github.com/getumbrel/openclaw-umbrel",
     "port": 18789,
     "icon": "https://github.com/openclaw.png?size=80",
-    "config": "configs/openclaw/openclaw.yml"
+    "config": "configs/openclaw/openclaw.yml",
+    "shipsOwn": false
   },
   {
     "repo": "outline/outline",
@@ -1068,7 +1196,8 @@
     "docs": "https://www.getoutline.com",
     "port": 3000,
     "icon": "https://github.com/outline.png?size=80",
-    "config": "configs/outline/outline.yml"
+    "config": "configs/outline/outline.yml",
+    "shipsOwn": false
   },
   {
     "repo": "sct/overseerr",
@@ -1077,7 +1206,8 @@
     "docs": "https://overseerr.dev",
     "port": 5055,
     "icon": "https://github.com/sct.png?size=80",
-    "config": "configs/sct/overseerr.yml"
+    "config": "configs/sct/overseerr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "paperclip-ai/paperclip",
@@ -1086,7 +1216,8 @@
     "docs": "https://github.com/paperclipai/paperclip",
     "port": 3100,
     "icon": "https://github.com/paperclip-ai.png?size=80",
-    "config": "configs/paperclip-ai/paperclip.yml"
+    "config": "configs/paperclip-ai/paperclip.yml",
+    "shipsOwn": false
   },
   {
     "repo": "paperless-ai/paperless-ai",
@@ -1095,7 +1226,8 @@
     "docs": "https://github.com/clusterzx/paperless-ai",
     "port": 3000,
     "icon": "https://github.com/paperless-ai.png?size=80",
-    "config": "configs/paperless-ai/paperless-ai.yml"
+    "config": "configs/paperless-ai/paperless-ai.yml",
+    "shipsOwn": false
   },
   {
     "repo": "paperless-ngx/paperless-ngx",
@@ -1104,7 +1236,8 @@
     "docs": "https://docs.paperless-ngx.com",
     "port": 8000,
     "icon": "https://github.com/paperless-ngx.png?size=80",
-    "config": "configs/paperless-ngx/paperless-ngx.yml"
+    "config": "configs/paperless-ngx/paperless-ngx.yml",
+    "shipsOwn": false
   },
   {
     "repo": "pearcircle/seeder",
@@ -1113,7 +1246,8 @@
     "docs": "https://github.com/peerloomllc/pearcircle-seeder",
     "port": 8730,
     "icon": "https://github.com/pearcircle.png?size=80",
-    "config": "configs/pearcircle/seeder.yml"
+    "config": "configs/pearcircle/seeder.yml",
+    "shipsOwn": false
   },
   {
     "repo": "penpot/penpot",
@@ -1122,7 +1256,8 @@
     "docs": "https://penpot.app",
     "port": 8080,
     "icon": "https://github.com/penpot.png?size=80",
-    "config": "configs/penpot/penpot.yml"
+    "config": "configs/penpot/penpot.yml",
+    "shipsOwn": false
   },
   {
     "repo": "photoprism/photoprism",
@@ -1131,7 +1266,8 @@
     "docs": "https://www.photoprism.app",
     "port": 2342,
     "icon": "https://github.com/photoprism.png?size=80",
-    "config": "configs/photoprism/photoprism.yml"
+    "config": "configs/photoprism/photoprism.yml",
+    "shipsOwn": false
   },
   {
     "repo": "phpmyadmin/phpmyadmin",
@@ -1140,7 +1276,8 @@
     "docs": "https://www.phpmyadmin.net",
     "port": 80,
     "icon": "https://github.com/phpmyadmin.png?size=80",
-    "config": "configs/phpmyadmin/phpmyadmin.yml"
+    "config": "configs/phpmyadmin/phpmyadmin.yml",
+    "shipsOwn": false
   },
   {
     "repo": "pi-hole/pi-hole",
@@ -1149,7 +1286,8 @@
     "docs": "https://pi-hole.net",
     "port": 80,
     "icon": "https://github.com/pi-hole.png?size=80",
-    "config": "configs/pi-hole/pi-hole.yml"
+    "config": "configs/pi-hole/pi-hole.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Piwigo/Piwigo",
@@ -1158,7 +1296,8 @@
     "docs": "https://piwigo.org",
     "port": 80,
     "icon": "https://github.com/Piwigo.png?size=80",
-    "config": "configs/Piwigo/Piwigo.yml"
+    "config": "configs/Piwigo/Piwigo.yml",
+    "shipsOwn": false
   },
   {
     "repo": "plankanban/planka",
@@ -1167,7 +1306,8 @@
     "docs": "https://planka.app",
     "port": 1337,
     "icon": "https://github.com/plankanban.png?size=80",
-    "config": "configs/plankanban/planka.yml"
+    "config": "configs/plankanban/planka.yml",
+    "shipsOwn": false
   },
   {
     "repo": "plexinc/plex",
@@ -1176,7 +1316,8 @@
     "docs": "https://www.plex.tv",
     "port": 32400,
     "icon": "https://github.com/plexinc.png?size=80",
-    "config": "configs/plexinc/plex.yml"
+    "config": "configs/plexinc/plex.yml",
+    "shipsOwn": false
   },
   {
     "repo": "portainer/portainer",
@@ -1185,7 +1326,8 @@
     "docs": "https://www.portainer.io",
     "port": 9000,
     "icon": "https://github.com/portainer.png?size=80",
-    "config": "configs/portainer/portainer.yml"
+    "config": "configs/portainer/portainer.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Prowlarr/Prowlarr",
@@ -1194,7 +1336,8 @@
     "docs": "https://prowlarr.com",
     "port": 9696,
     "icon": "https://github.com/Prowlarr.png?size=80",
-    "config": "configs/Prowlarr/Prowlarr.yml"
+    "config": "configs/Prowlarr/Prowlarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "qbittorrent/qBittorrent",
@@ -1203,7 +1346,8 @@
     "docs": "https://www.qbittorrent.org",
     "port": 8080,
     "icon": "https://github.com/qbittorrent.png?size=80",
-    "config": "configs/qbittorrent/qBittorrent.yml"
+    "config": "configs/qbittorrent/qBittorrent.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Radarr/Radarr",
@@ -1212,7 +1356,8 @@
     "docs": "https://radarr.video",
     "port": 7878,
     "icon": "https://github.com/Radarr.png?size=80",
-    "config": "configs/Radarr/Radarr.yml"
+    "config": "configs/Radarr/Radarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "saubyk/c-lightning-REST",
@@ -1221,7 +1366,8 @@
     "docs": "https://github.com/Ride-The-Lightning/RTL",
     "port": 3000,
     "icon": "https://github.com/saubyk.png?size=80",
-    "config": "configs/saubyk/c-lightning-REST.yml"
+    "config": "configs/saubyk/c-lightning-REST.yml",
+    "shipsOwn": false
   },
   {
     "repo": "meienberger/runtipi",
@@ -1230,7 +1376,8 @@
     "docs": "https://runtipi.io",
     "port": 3000,
     "icon": "https://github.com/meienberger.png?size=80",
-    "config": "configs/meienberger/runtipi.yml"
+    "config": "configs/meienberger/runtipi.yml",
+    "shipsOwn": false
   },
   {
     "repo": "vladmandic/automatic",
@@ -1239,7 +1386,8 @@
     "docs": "https://github.com/vladmandic/sdnext",
     "port": 7860,
     "icon": "https://github.com/vladmandic.png?size=80",
-    "config": "configs/vladmandic/automatic.yml"
+    "config": "configs/vladmandic/automatic.yml",
+    "shipsOwn": false
   },
   {
     "repo": "searxng/searxng",
@@ -1248,7 +1396,8 @@
     "docs": "https://docs.searxng.org",
     "port": 8080,
     "icon": "https://github.com/searxng.png?size=80",
-    "config": "configs/searxng/searxng.yml"
+    "config": "configs/searxng/searxng.yml",
+    "shipsOwn": false
   },
   {
     "repo": "shaarli/Shaarli",
@@ -1257,7 +1406,8 @@
     "docs": "https://shaarli.readthedocs.io",
     "port": 80,
     "icon": "https://github.com/shaarli.png?size=80",
-    "config": "configs/shaarli/Shaarli.yml"
+    "config": "configs/shaarli/Shaarli.yml",
+    "shipsOwn": false
   },
   {
     "repo": "go-shiori/shiori",
@@ -1266,7 +1416,8 @@
     "docs": "https://github.com/go-shiori/shiori",
     "port": 8080,
     "icon": "https://github.com/go-shiori.png?size=80",
-    "config": "configs/go-shiori/shiori.yml"
+    "config": "configs/go-shiori/shiori.yml",
+    "shipsOwn": false
   },
   {
     "repo": "skybro/skybro",
@@ -1275,7 +1426,8 @@
     "docs": "https://github.com/xdeekay/skybro",
     "port": 5000,
     "icon": "https://github.com/skybro.png?size=80",
-    "config": "configs/skybro/skybro.yml"
+    "config": "configs/skybro/skybro.yml",
+    "shipsOwn": false
   },
   {
     "repo": "snipe/snipe-it",
@@ -1284,7 +1436,8 @@
     "docs": "https://snipeitapp.com",
     "port": 80,
     "icon": "https://github.com/snipe.png?size=80",
-    "config": "configs/snipe/snipe-it.yml"
+    "config": "configs/snipe/snipe-it.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Sonarr/Sonarr",
@@ -1293,7 +1446,8 @@
     "docs": "https://sonarr.tv",
     "port": 8989,
     "icon": "https://github.com/Sonarr.png?size=80",
-    "config": "configs/Sonarr/Sonarr.yml"
+    "config": "configs/Sonarr/Sonarr.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Stirling-Tools/Stirling-PDF",
@@ -1302,7 +1456,8 @@
     "docs": "https://www.stirlingpdf.com",
     "port": 8080,
     "icon": "https://github.com/Stirling-Tools.png?size=80",
-    "config": "configs/Stirling-Tools/Stirling-PDF.yml"
+    "config": "configs/Stirling-Tools/Stirling-PDF.yml",
+    "shipsOwn": false
   },
   {
     "repo": "syncthing/syncthing",
@@ -1311,7 +1466,8 @@
     "docs": "https://syncthing.net",
     "port": 8384,
     "icon": "https://github.com/syncthing.png?size=80",
-    "config": "configs/syncthing/syncthing.yml"
+    "config": "configs/syncthing/syncthing.yml",
+    "shipsOwn": false
   },
   {
     "repo": "Tautulli/Tautulli",
@@ -1320,7 +1476,8 @@
     "docs": "https://tautulli.com",
     "port": 8181,
     "icon": "https://github.com/Tautulli.png?size=80",
-    "config": "configs/Tautulli/Tautulli.yml"
+    "config": "configs/Tautulli/Tautulli.yml",
+    "shipsOwn": false
   },
   {
     "repo": "transmute/transmute",
@@ -1329,7 +1486,8 @@
     "docs": "https://transmute.sh",
     "port": 3313,
     "icon": "https://github.com/transmute.png?size=80",
-    "config": "configs/transmute/transmute.yml"
+    "config": "configs/transmute/transmute.yml",
+    "shipsOwn": false
   },
   {
     "repo": "getumbrel/umbrel",
@@ -1338,7 +1496,8 @@
     "docs": "https://umbrel.com",
     "port": 80,
     "icon": "https://github.com/getumbrel.png?size=80",
-    "config": "configs/getumbrel/umbrel.yml"
+    "config": "configs/getumbrel/umbrel.yml",
+    "shipsOwn": false
   },
   {
     "repo": "louislam/uptime-kuma",
@@ -1347,7 +1506,8 @@
     "docs": "https://github.com/louislam/uptime-kuma",
     "port": 3001,
     "icon": "https://github.com/louislam.png?size=80",
-    "config": "configs/louislam/uptime-kuma.yml"
+    "config": "configs/louislam/uptime-kuma.yml",
+    "shipsOwn": false
   },
   {
     "repo": "valorgrid/valorgrid",
@@ -1356,7 +1516,8 @@
     "docs": "https://github.com/aivm23/valorgrid",
     "port": 1325,
     "icon": "https://github.com/valorgrid.png?size=80",
-    "config": "configs/valorgrid/valorgrid.yml"
+    "config": "configs/valorgrid/valorgrid.yml",
+    "shipsOwn": false
   },
   {
     "repo": "dani-garcia/vaultwarden",
@@ -1365,7 +1526,8 @@
     "docs": "https://github.com/dani-garcia/vaultwarden",
     "port": 80,
     "icon": "https://github.com/dani-garcia.png?size=80",
-    "config": "configs/dani-garcia/vaultwarden.yml"
+    "config": "configs/dani-garcia/vaultwarden.yml",
+    "shipsOwn": false
   },
   {
     "repo": "fgilde/videola",
@@ -1374,7 +1536,8 @@
     "docs": "https://fgilde.github.io/videola/",
     "port": 7331,
     "icon": "https://github.com/fgilde.png?size=80",
-    "config": "configs/fgilde/videola.yml"
+    "config": "configs/fgilde/videola.yml",
+    "shipsOwn": true
   },
   {
     "repo": "go-vikunja/vikunja",
@@ -1383,7 +1546,8 @@
     "docs": "https://vikunja.io",
     "port": 3456,
     "icon": "https://github.com/go-vikunja.png?size=80",
-    "config": "configs/go-vikunja/vikunja.yml"
+    "config": "configs/go-vikunja/vikunja.yml",
+    "shipsOwn": false
   },
   {
     "repo": "wallabag/wallabag",
@@ -1392,7 +1556,8 @@
     "docs": "https://wallabag.org",
     "port": 80,
     "icon": "https://github.com/wallabag.png?size=80",
-    "config": "configs/wallabag/wallabag.yml"
+    "config": "configs/wallabag/wallabag.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ellite/Wallos",
@@ -1401,7 +1566,8 @@
     "docs": "https://github.com/ellite/Wallos",
     "port": 80,
     "icon": "https://github.com/ellite.png?size=80",
-    "config": "configs/ellite/Wallos.yml"
+    "config": "configs/ellite/Wallos.yml",
+    "shipsOwn": false
   },
   {
     "repo": "fgilde/WebDataStudio",
@@ -1410,7 +1576,8 @@
     "docs": "https://fgilde.github.io/WebDataStudio/",
     "port": 8080,
     "icon": "https://github.com/fgilde.png?size=80",
-    "config": "configs/fgilde/WebDataStudio.yml"
+    "config": "configs/fgilde/WebDataStudio.yml",
+    "shipsOwn": true
   },
   {
     "repo": "ahmetoner/whisper-asr-webservice",
@@ -1419,7 +1586,8 @@
     "docs": "https://github.com/ahmetoner/whisper-asr-webservice",
     "port": 9000,
     "icon": "https://github.com/ahmetoner.png?size=80",
-    "config": "configs/ahmetoner/whisper-asr-webservice.yml"
+    "config": "configs/ahmetoner/whisper-asr-webservice.yml",
+    "shipsOwn": false
   },
   {
     "repo": "benbusby/whoogle-search",
@@ -1428,7 +1596,8 @@
     "docs": "https://github.com/benbusby/whoogle-search",
     "port": 5000,
     "icon": "https://github.com/benbusby.png?size=80",
-    "config": "configs/benbusby/whoogle-search.yml"
+    "config": "configs/benbusby/whoogle-search.yml",
+    "shipsOwn": false
   },
   {
     "repo": "requarks/wiki",
@@ -1437,7 +1606,8 @@
     "docs": "https://js.wiki",
     "port": 3000,
     "icon": "https://github.com/requarks.png?size=80",
-    "config": "configs/requarks/wiki.yml"
+    "config": "configs/requarks/wiki.yml",
+    "shipsOwn": false
   },
   {
     "repo": "WordPress/WordPress",
@@ -1446,7 +1616,8 @@
     "docs": "https://wordpress.org",
     "port": 80,
     "icon": "https://github.com/WordPress.png?size=80",
-    "config": "configs/WordPress/WordPress.yml"
+    "config": "configs/WordPress/WordPress.yml",
+    "shipsOwn": false
   },
   {
     "repo": "ulsklyc/yuvomi",
@@ -1455,6 +1626,7 @@
     "docs": "https://github.com/ulsklyc/yuvomi",
     "port": 3000,
     "icon": "https://github.com/ulsklyc.png?size=80",
-    "config": "configs/ulsklyc/yuvomi.yml"
+    "config": "configs/ulsklyc/yuvomi.yml",
+    "shipsOwn": false
   }
 ]

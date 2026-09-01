@@ -48,6 +48,7 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `-t, --token` | Zugriffstoken für ein privates Repository |
 | `-c, --config` | andere Config-Datei verwenden, relativ zum Projekt-Root |
 | `-f, --file` | eine einzelne Config-Datei starten, egal wo sie liegt — siehe unten |
+| `--from-collection` | die Config aus QuickRuns Sammlung nutzen, auch wenn das Repository eine eigene mitbringt |
 | `--path` | einen Ordner dieser Maschine ausführen, statt ein Repository auszuchecken |
 | `--copy` | mit `--path`: eine Kopie unter `runs/` ausführen, das Original bleibt unberührt |
 | `--fresh` | Workspace löschen und neu klonen |

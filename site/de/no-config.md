@@ -61,6 +61,28 @@ quickrun detect ./mein-repo --save   # in eine quickrun.yml schreiben
 `--save` überschreibt niemals eine vorhandene Datei. Es ist der schnellste Weg, aus einer erkannten
 oder fremden Config eine zu machen, die man bearbeiten und committen kann.
 
+### Eine gesammelte Config ausdrücklich anfordern
+
+Automatisch gewinnt die `quickrun.yml` des Repositories — genau darum geht es in der Reihenfolge
+oben, und daran ändert sich nichts. Eine Config lässt sich aber ausdrücklich anfordern, und dann ist
+sie es, die läuft:
+
+```bash
+quickrun run acme/app --from-collection
+```
+
+Genau das macht der Knopf **Mit dieser Config** auf [der Sammlungsseite](/de/collection). Eine Karte
+für ein Repository, das eine eigene Config mitbringt, bietet beides an — denn die Karte zeigt eine
+davon, und ein Klick auf Starten muss das starten, was man gerade angesehen hat.
+
+Der Link nennt die *Quelle*, niemals die Befehle: `#run?repo=acme/app&config=collection` sagt
+QuickRun, es solle die Config selbst holen. Ein Link, der Befehle tragen könnte, wäre ein Link, der
+jemandem Befehle vorlegen kann — und das bleibt unmöglich.
+
+Ausdrücklich angefordert, obwohl für dieses Repository nichts bereitliegt, ist ein Fehler und kein
+stilles Zurückfallen auf die Config des Repositories — sonst würde ein Knopf mit der Aufschrift „Mit
+dieser Config" eine andere starten.
+
 ## Pinokio
 
 Eine [Pinokio](https://pinokio.co)-App liefert eine `pinokio.js` neben `install.js` und `start.js`,

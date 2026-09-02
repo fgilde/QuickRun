@@ -137,6 +137,15 @@ textarea.editor { padding: 10px 12px; background: var(--bg); resize: vertical; }
 .inputs { display: grid; gap: 12px; margin: 12px 0 4px; }
 .field { display: grid; gap: 3px; }
 .field-label { font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; gap: 6px; align-items: baseline;
+  font-size: 11px; padding: 2px 8px; border-radius: 11px;
+  border: 1px solid var(--line); max-width: 100%;
+}
+.chip > b { color: var(--muted); font-weight: 600; }
+.chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.secret > span { color: var(--muted); font-style: italic; }
 .field .required { font-weight: 400; font-size: 11px; color: var(--warn); }
 .field .hint { font-size: 12px; color: var(--muted); }
 .field input[type="checkbox"] { justify-self: start; }
@@ -853,6 +862,65 @@ function parseInputs(text) {
 }
 
 /**
+ * What a run was started with, in the words a person chose them in.
+ *
+ * Once a run is going its form is gone, and with it the only record of what was answered - so a run
+ * of the same repository looked identical whichever branch of its config it had taken. A select is
+ * reported by its option's label rather than its value, because the value is often a flag
+ * ("-v --remove-orphans") and the label is the sentence somebody actually picked.
+ *
+ * A password is never shown. The daemon does not even send it - a secret arrives with a null value
+ * on purpose - so the field is reported as existing and nothing more.
+ */
+function chosenValues(run) {
+  const defs = run.inputs ?? [];
+  const values = run.values ?? {};
+
+  return defs.map((def) => {
+    const raw = values[def.id];
+
+    if (def.type === 'password') return { label: def.label || def.id, text: 'hidden', secret: true };
+
+    if (def.type === 'bool') return { label: def.label || def.id, text: raw === 'true' ? 'yes' : 'no' };
+
+    if (def.type === 'select') {
+      const option = (def.options ?? []).find((o) => o.value === raw);
+      return { label: def.label || def.id, text: option?.label || option?.value || String(raw ?? '') };
+    }
+
+    const empty = raw === null || raw === undefined || raw === '';
+
+    return { label: def.label || def.id, text: empty ? '(empty)' : String(raw), secret: empty };
+  });
+}
+
+/** Those values as chips. Built with DOM calls: a label or a value is config text, never markup. */
+function valueChips(run) {
+  const chosen = chosenValues(run);
+  if (chosen.length === 0) return null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chips';
+
+  for (const { label, text, secret } of chosen) {
+    const chip = document.createElement('span');
+    chip.className = secret ? 'chip secret' : 'chip';
+    chip.title = `${label}: ${text}`;
+
+    const name = document.createElement('b');
+    name.textContent = label;
+
+    const value = document.createElement('span');
+    value.textContent = text;
+
+    chip.append(name, value);
+    wrap.append(chip);
+  }
+
+  return wrap;
+}
+
+/**
  * The form a config's `inputs` block asks for, built with DOM calls so that a label, a hint or the
  * options of a select cannot become markup.
  */
@@ -1307,6 +1375,7 @@ function buildCard(run) {
     </div>
     <div class="row"><span class="muted mono grow" data-where></span></div>
     <p class="description" data-description hidden></p>
+    <div class="row" data-values hidden></div>
     <div class="row">
       <div class="bar grow"><div style="width:0%"></div></div>
       <span class="muted" style="min-width:3.2em;text-align:right" data-percent>0%</span>
@@ -1326,6 +1395,7 @@ function buildCard(run) {
     actions: root.querySelector('[data-actions]'),
     where: root.querySelector('[data-where]'),
     description: root.querySelector('[data-description]'),
+    values: root.querySelector('[data-values]'),
     fill: root.querySelector('.bar > div'),
     percent: root.querySelector('[data-percent]'),
     detail: root.querySelector('[data-detail]'),
@@ -1360,6 +1430,15 @@ function updateCard(entry, run) {
     entry.description.textContent = run.description ?? '';
     entry.description.hidden = !run.description;
     seen.description = run.description;
+  }
+
+  // What this run was answered with, kept in front of the reader for as long as the card exists.
+  const answered = JSON.stringify(chosenValues(run));
+  if (seen.values !== answered) {
+    const chips = valueChips(run);
+    entry.values.replaceChildren(...(chips ? [chips] : []));
+    entry.values.hidden = chips === null;
+    seen.values = answered;
   }
 
   // A finished run can still own processes: a task that launches a server and exits leaves it

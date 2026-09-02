@@ -58,6 +58,14 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: v
 .facts { display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px; margin: 0; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; gap: 6px; align-items: baseline; max-width: 100%;
+  font-size: 12px; padding: 1px 8px; border-radius: 11px; border: 1px solid var(--line);
+}
+.chip > b { color: var(--muted); font-weight: 600; }
+.chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.secret > span { color: var(--muted); font-style: italic; }
 
 ol { margin: 0; padding-left: 20px; }
 ol li { margin-bottom: 8px; }

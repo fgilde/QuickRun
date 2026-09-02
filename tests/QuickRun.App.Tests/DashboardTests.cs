@@ -102,6 +102,38 @@ public class DashboardTests
         Assert.DoesNotContain("innerHTML = def.label", html);
     }
 
+    /// <summary>
+    /// A run says what it was answered with, for as long as its card exists.
+    /// <para>
+    /// The form is gone once a run starts, and with it went the only record of which values it had
+    /// been given - so two runs of the same repository looked identical while doing different
+    /// things. The card keeps them, and keeps them readable: a choice is shown by its option's
+    /// label rather than its value, because a value is often a flag and the label is the sentence
+    /// somebody picked.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void The_page_says_what_a_run_was_answered_with()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("function chosenValues(run)", html);
+        Assert.Contains("function valueChips(run)", html);
+        Assert.Contains("[data-values]", html);
+
+        // A choice reads as its label.
+        Assert.Contains("option?.label", html);
+
+        // And a secret never reads as anything. Both halves matter: the word that is shown, and the
+        // absence of any path from the value to the page.
+        Assert.Contains("text: 'hidden', secret: true", html);
+        Assert.DoesNotContain("textContent = values[def.id]", html);
+
+        // Built with DOM calls, because a label and a value are both text out of somebody's config.
+        Assert.Contains("value.textContent = text", html);
+        Assert.DoesNotContain("innerHTML = text", html);
+    }
+
     /// <summary>Per-task state and the address each task reports, as a link.</summary>
     [Fact]
     public void The_page_shows_what_each_task_is_doing()

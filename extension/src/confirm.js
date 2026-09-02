@@ -6,6 +6,7 @@
 
 import { httpUrl } from './safeurl.js';
 import { inputForm } from './inputs.js';
+import { chosenValues } from './answers.js';
 import { baseUrl, settings } from './api.js';
 
 // Two ways in: a plan waiting to be approved, or a run that is already going and wants watching
@@ -78,9 +79,44 @@ async function replay(runId) {
  * log, with a Stop that means it. Everything since the run started is replayed by the daemon, so
  * the log is not empty just because this window is new.
  */
+/** Those values, as chips. textContent throughout: a label and a value are both config text. */
+function showChosenValues(current) {
+  const host = document.getElementById('answered');
+  const caption = document.getElementById('answeredLabel');
+  if (!host || !caption) return;
+
+  const chosen = chosenValues(current);
+
+  host.replaceChildren();
+  host.hidden = chosen.length === 0;
+  caption.hidden = chosen.length === 0;
+  if (chosen.length === 0) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chips';
+
+  for (const { label, text, secret } of chosen) {
+    const chip = document.createElement('span');
+    chip.className = secret ? 'chip secret' : 'chip';
+    chip.title = `${label}: ${text}`;
+
+    const name = document.createElement('b');
+    name.textContent = label;
+
+    const value = document.createElement('span');
+    value.textContent = text;
+
+    chip.append(name, value);
+    wrap.append(chip);
+  }
+
+  host.append(wrap);
+}
+
 function attach(current) {
   decided = true;
   document.getElementById('name').textContent = current.displayName || current.repo;
+  showChosenValues(current);
   review.hidden = true;
   progress.hidden = false;
   approve.hidden = true;
@@ -459,6 +495,7 @@ async function decide(approved) {
 
   // Hand the window over to the run.
   document.getElementById('name').textContent = run.displayName || run.repo;
+  showChosenValues(run);
   review.hidden = true;
   progress.hidden = false;
   approve.hidden = true;

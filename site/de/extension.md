@@ -47,6 +47,12 @@ diese Werte ergeben: du bestätigst genau das, was läuft, und es bleibt bei ein
 Befehlsliste zu bestätigen. Werte mit `env` gehen als diese Umgebungsvariable in den Lauf, und ein
 Secret wird nie ans Fenster zurückgeschickt.
 
+Sobald der Lauf geht, tritt das Formular ab — aber die Antworten bleiben stehen: unter **Answered**
+zeigt das Fenster, mit welchen Werten dieser Lauf gestartet ist, und die Karte im QuickRun-Fenster
+tut dasselbe. Eine Auswahl steht dort mit ihrem Options-Text und nicht mit ihrem Wert, weil der Wert
+oft ein Flag ist und der Text der Satz, den du gelesen hast. Ein `password` steht als *hidden* da,
+niemals als Wert — den schickt der Dienst gar nicht mit.
+
 Solange ein Lauf dieses Branches läuft, ist der Button der Weg dorthin und nicht der Weg in einen
 zweiten Lauf. Ein Klick öffnet die Aktionen:
 
@@ -191,8 +197,78 @@ cd extension
 sh build.sh
 ```
 
-Ein Quellbaum, zwei Builds: `dist/chromium` für Chrome, Edge und Opera, und `dist/firefox`, das sich
-nur im Manifest unterscheidet.
+Ein Quellbaum, drei Builds: `dist/chromium` für Chrome, Edge und Opera, `dist/firefox` und
+`dist/safari`. Sie unterscheiden sich nur in ihren Manifesten.
+
+## Safari
+
+Safari kennt kein „entpackt laden", das einen Neustart übersteht. Eine Erweiterung wird dort in
+einer nativen macOS-App ausgeliefert, und diese App zu bauen braucht einen Mac mit Xcode — der
+Safari-Build ist also der eine, den man unter Windows oder Linux nur bis zum Ordner selbst bringen
+kann.
+
+**Ausprobieren, auf einem Mac, ohne Xcode und ohne Apple-Konto.** Safari lädt den gebauten Ordner
+direkt:
+
+1. `cd extension && sh build.sh`
+2. Safari → Einstellungen → Erweitert → *Funktionen für Webentwickler anzeigen*
+3. Einstellungen → Entwickler → *Unsignierte Erweiterungen erlauben* ankreuzen
+4. Einstellungen → Entwickler → *Temporäre Erweiterung hinzufügen…* → `extension/dist/safari` wählen
+
+Schritt 4 nimmt auch ein Zip statt eines Ordners — `quickrun-extension-safari.zip` aus jedem Release
+funktioniert also, ohne etwas zu bauen.
+
+Safari wirft eine temporäre Erweiterung beim Beenden weg, und *Unsignierte Erweiterungen erlauben*
+setzt sich mit zurück — das ist also für einen Blick gedacht, nicht für den Alltag.
+
+**Die App bauen.** Auf einem Mac mit Xcode:
+
+```bash
+sh scripts/build-safari.sh
+```
+
+Das führt den Extension-Build aus, übergibt `extension/dist/safari` an Apples
+`xcrun safari-web-extension-packager` und baut das erzeugte Xcode-Projekt zu
+`safari/build/Release/QuickRun.app`. Diese App einmal starten, dann steht die Erweiterung in Safaris
+Erweiterungsliste. Unsigniert braucht sie weiterhin *Unsignierte Erweiterungen erlauben*; mit einer
+Developer-ID signiert und notarisiert nicht mehr, ab Safari 18.4.
+
+Das Skript verweigert den Dienst überall außer auf macOS, weil der Packager nur in Xcode existiert.
+
+### Was Safari anders macht
+
+- **Du musst der Erweiterung Zugriff auf github.com geben.** Safari führt ein Content-Script auf
+  einer Seite erst aus, wenn du es erlaubst — über den Button der Erweiterung in der Symbolleiste.
+  Vorher gibt es keinen Run-Button auf der Seite. `127.0.0.1` braucht dieselbe Freigabe, unter
+  Einstellungen → Erweiterungen → QuickRun.
+- **Safari 16.4 oder neuer.** Das Manifest sagt es. Ältere Versionen haben kein `storage.session`,
+  und dort wartet ein vorbereiteter Lauf, während das Bestätigungsfenster aufgeht.
+- **Nur macOS.** Das Bestätigungsfenster ist der ganze Sinn von QuickRun, und Safari auf iOS kann
+  überhaupt kein Erweiterungsfenster öffnen — ein iOS-Build hätte also einen Run-Button, der nichts
+  bestätigen kann.
+- **Ein schon offenes Fenster kommt nach vorn, hüpft aber nicht im Dock.** Safari ignoriert
+  `drawAttention`.
+- Die Background-Seite ist eine Event-Page und kein Service Worker, weil Safari einem Service Worker
+  den Loopback-Zugriff nicht gibt, den das Manifest verlangt. Dasselbe `background.js`, genau wie
+  bei Firefox.
+
+### Veröffentlichen
+
+Dieser Teil braucht eine Mitgliedschaft im Apple Developer Program (99 USD pro Jahr); einen Mac
+braucht er nicht zwingend.
+
+- **Ohne Mac:** In App Store Connect gibt es unter dem Tab Xcode Cloud einen *Safari Web Extension
+  Packager*. App-Datensatz anlegen, die Extension-Dateien hochladen — `quickrun-safari-<version>.zip`
+  aus `extension/dist` ist genau das — und er baut, signiert und reicht die App ein, auf Kosten der
+  Xcode-Cloud-Minuten der Mitgliedschaft.
+- **Mit Mac:** das Projekt aus `scripts/build-safari.sh` in Xcode archivieren und hochladen, oder es
+  mit einer Developer-ID signieren und notarisieren, um die App außerhalb des App Store zu
+  verteilen.
+
+In beiden Fällen prüft ein Mensch die App-Store-Einreichung, und es gibt keine Upload-API, mit der
+sich das automatisieren ließe, wie Chrome, Edge und Firefox sie haben. Der Release-Workflow baut und
+signiert die Safari-App deshalb als CI-Artefakt und hört dort auf; das Einreichen ist ein bewusst
+manueller Schritt.
 
 ## Wenn GitHub sein DOM ändert
 

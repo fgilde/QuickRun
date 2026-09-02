@@ -259,6 +259,9 @@ jobs:
           mkdir -p ../dist
           cp dist/quickrun-chromium-"$version".zip ../dist/quickrun-extension-chromium.zip
           cp dist/quickrun-firefox-"$version".zip ../dist/quickrun-extension-firefox.zip
+          # Safari's "Add Temporary Extension…" takes a zip, so this asset is directly loadable on
+          # a Mac - and it is what the Safari Web Extension Packager in App Store Connect eats.
+          cp dist/quickrun-safari-"$version".zip ../dist/quickrun-extension-safari.zip
 
       # Auto-update verifies downloaded assets against this file, so it covers
       # every asset and is published alongside them.
@@ -394,6 +397,110 @@ jobs:
           API_KEY: ${{ secrets.EDGE_API_KEY }}
         run: |
           bash scripts/publish-edge.sh dist/quickrun-extension-chromium.zip "${{ steps.version.outputs.value }}"
+
+  # --- Safari ------------------------------------------------------------------------------
+  #
+  # Safari has no store API to upload to: an extension is delivered inside a native app, and the
+  # only thing that builds that app is Apple's packager, which ships with Xcode. So this is a macOS
+  # job of its own rather than a step in `distribute`.
+  #
+  # It always produces the Xcode project and an unsigned app, because neither needs a credential
+  # and an unsigned app is what a beta tester installs with "Allow unsigned extensions" ticked.
+  # Only the signature is gated, like the macOS bundle above: absent certificate, absent signature,
+  # a warning in the log, and a release that still finishes.
+  #
+  # Publishing is by hand and stays that way: the App Store submission needs a product page and a
+  # review, and nothing here should be able to push a build at reviewers on its own.
+  safari:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A Safari release that cannot be built is worth seeing, not worth turning a finished release
+      # red - the binaries and the other two extension builds do not depend on it.
+      - name: Package the Safari extension
+        continue-on-error: true
+        run: sh scripts/build-safari.sh "${{ steps.version.outputs.value }}"
+
+      # Signed and notarised, the app installs in Safari 18.4 or later without anyone having to
+      # tick "Allow unsigned extensions" - which is the only way to distribute outside the App
+      # Store. Needs the same secrets the QuickRun bundle already uses.
+      - name: Sign and notarise the Safari app
+        continue-on-error: true
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          app="safari/build/Release/QuickRun.app"
+
+          if [ ! -d "$app" ]; then
+            echo "::warning::no Safari app was built - nothing to sign"
+            exit 0
+          fi
+
+          if [ -z "$CERT_P12" ] || [ -z "$SIGN_IDENTITY" ]; then
+            echo "::warning::no Apple certificate - the Safari app is unsigned, and Safari only loads it with \"Allow unsigned extensions\" ticked"
+            exit 0
+          fi
+
+          keychain="$RUNNER_TEMP/safari-signing.keychain-db"
+          pass=$(openssl rand -hex 16)
+
+          # A keychain of its own, so nothing is left in the runner's login keychain.
+          security create-keychain -p "$pass" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$pass" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+          echo "$CERT_P12" | base64 -d > "$RUNNER_TEMP/safari-cert.p12"
+          security import "$RUNNER_TEMP/safari-cert.p12" -k "$keychain" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pass" "$keychain"
+          rm -f "$RUNNER_TEMP/safari-cert.p12"
+
+          # --deep, because the extension is a bundle inside the app bundle and an unsigned nested
+          # bundle makes the whole app unloadable.
+          codesign --force --deep --timestamp --options runtime --sign "$SIGN_IDENTITY" "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$RUNNER_TEMP/safari-notarise.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/safari-notarise.zip" \
+            --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 30m
+          xcrun stapler staple "$app"
+          echo "::notice::the Safari app is signed and notarised"
+
+      # The zip goes up too: it is what the Safari Web Extension Packager in App Store Connect
+      # takes, which is the one route to the App Store that needs no Mac at all.
+      - name: Collect the Safari artifact
+        continue-on-error: true
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          mkdir -p safari-artifact
+          cp extension/dist/quickrun-safari-"$version".zip safari-artifact/ || true
+
+          if [ -d safari/build/Release/QuickRun.app ]; then
+            ditto -c -k --sequesterRsrc --keepParent \
+              safari/build/Release/QuickRun.app "safari-artifact/QuickRun-safari-app.zip"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: safari
+          path: safari-artifact/
+          if-no-files-found: warn
 
   # wingetcreate is a Windows binary, so its submission is its own job.
   # Needs WINGET_TOKEN: a PAT with public_repo, used to fork microsoft/winget-pkgs and open the

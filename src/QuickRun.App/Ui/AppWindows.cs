@@ -31,13 +31,13 @@ public static class AppWindows
                 return;
             }
 
-            var window = new DashboardWindow(runs, store, listenerUrl);
+            // The target is handed to the window rather than navigated to afterwards. Afterwards
+            // raced the WebView's own start-up and lost: the page loaded with no target, so the
+            // first hand-over to a closed window did nothing and only a second one worked.
+            var window = new DashboardWindow(runs, store, listenerUrl, hash);
             window.Closed += (_, _) => _dashboard = null;
             _dashboard = window;
             window.Show();
-
-            // After Show, because there is no view to point anywhere before the window exists.
-            if (hash.Length > 0) window.GoTo(hash);
         });
 
     /// <summary>

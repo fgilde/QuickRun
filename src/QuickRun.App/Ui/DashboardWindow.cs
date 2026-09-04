@@ -55,7 +55,16 @@ public sealed class DashboardWindow : Window
     private readonly TextBlock _updateState = Muted("checking…");
     private readonly DispatcherTimer _timer;
 
-    public DashboardWindow(RunRegistry runs, WorkspaceStore store, string listenerUrl)
+    /// <param name="hash">
+    /// Where the page should open - <c>#run?repo=...</c> when a link or a page handed a repository
+    /// over. Part of the URL the view is created with, rather than a navigation afterwards: the
+    /// WebView is still starting when a brand-new window returns from Show, so a Navigate at that
+    /// moment was dropped and the page loaded with no target at all. That was the whole of "the
+    /// window opens but the repository is not there, and pressing again works" - the second press
+    /// found a window that had finished loading. Handed to the view instead, it is loaded exactly
+    /// the way a fresh browser tab loads it, which always worked.
+    /// </param>
+    public DashboardWindow(RunRegistry runs, WorkspaceStore store, string listenerUrl, string hash = "")
     {
         _runs = runs;
         _store = store;
@@ -72,7 +81,7 @@ public sealed class DashboardWindow : Window
         // Opens where it was left, at the size it was left at.
         WindowPlacement.Remember(this, store.Root);
 
-        Content = BuildLayout();
+        Content = BuildLayout(hash);
 
         _timer = new DispatcherTimer { Interval = RefreshInterval };
         _timer.Tick += (_, _) => Refresh();
@@ -100,21 +109,46 @@ public sealed class DashboardWindow : Window
     /// page understands it. Where the window draws the native view instead, there is nothing to
     /// navigate, and being raised is all that happens.
     /// </summary>
+    /// <summary>
+    /// The address the page is shown at.
+    /// <para>
+    /// <c>?shell=window</c> tells the page it is inside this window: it drops nothing, but it does
+    /// offer a way out into the real browser, which is the one thing a window cannot provide. The
+    /// target rides along as the fragment, which is how a link, a badge and this window all name a
+    /// repository - and it has to be part of this URL rather than navigated to afterwards, because
+    /// a brand-new window's view is still starting and drops a navigation issued at that moment.
+    /// </para>
+    /// </summary>
+    internal static string PageUrl(string listenerUrl, string hash = "") =>
+        $"{listenerUrl}/?shell=window{hash}";
+
+    /// <summary>
+    /// Points an open window at a target. Only for a window that already exists - a new one is
+    /// created pointing there, see the constructor.
+    /// </summary>
     public void GoTo(string hash)
     {
-        if (!OperatingSystem.IsWindows()) return;
-        if (_browser is WebView2Host hosted)
-            hosted.Navigate($"{_listenerUrl}/?shell=window{hash}");
+        var url = PageUrl(_listenerUrl, hash);
+
+        // The platform check is what the analyser needs; the type check is what actually decides,
+        // since a WebView2Host only ever exists on Windows.
+        if (OperatingSystem.IsWindows() && _browser is WebView2Host hosted)
+        {
+            hosted.Navigate(url);
+            return;
+        }
+
+        // The system WebView on macOS and Linux. It used to be left out of this entirely, so a
+        // second hand-over there raised a window still showing the first one's target.
+        if (_browser is not null) EmbeddedBrowser.Navigate(_browser, url);
     }
 
-    private Control BuildLayout()
+    private Control BuildLayout(string hash = "")
     {
         var shell = new ContentControl();
         _header.Content = Header();
 
-        // ?shell=window tells the page it is inside this window: it drops nothing, but it does
-        // offer a way out into the real browser, which is the one thing a window cannot provide.
-        var browser = EmbeddedBrowser.TryCreate($"{_listenerUrl}/?shell=window", reason =>
+        var browser = EmbeddedBrowser.TryCreate(PageUrl(_listenerUrl, hash), reason =>
             Dispatcher.UIThread.Post(() =>
             {
                 Output.Warn($"the embedded browser could not start ({reason}) - using the native view");

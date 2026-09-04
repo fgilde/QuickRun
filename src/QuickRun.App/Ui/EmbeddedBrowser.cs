@@ -79,6 +79,20 @@ public static class EmbeddedBrowser
         }
     }
 
+    /// <summary>
+    /// Points an already-created view at another address.
+    /// <para>
+    /// Only the system WebView needs this: WebView2 is driven through its own host, which knows how
+    /// to wait for its controller. Anything else - a native fallback view - is left alone rather
+    /// than guessed at.
+    /// </para>
+    /// </summary>
+    public static void Navigate(Control view, string url)
+    {
+        if (view is NativeWebView native && Uri.TryCreate(url, UriKind.Absolute, out var target))
+            native.Source = target;
+    }
+
     [SupportedOSPlatform("windows")]
     private static Control? Windows(string url, Action<string> onFailure, uint background)
     {

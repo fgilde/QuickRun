@@ -135,6 +135,11 @@ Wo ein Store sie noch nicht führt, entpackt laden. Download entzippen, dann:
   der entpackte Ordner
 - **Firefox** — `about:debugging` → Dieser Firefox → Temporäres Add-on laden → die `manifest.json`
   darin
+- **Safari** — Einstellungen → Erweitert → Funktionen für Webentwickler anzeigen, dann Entwickeln →
+  Unsignierte Erweiterungen erlauben, dann Entwickeln → Temporäre Erweiterung hinzufügen und den
+  Ordner oder das Zip selbst wählen. Ab Safari 16.4. Die Erlaubnis fällt beim Neustart von Safari
+  weg — das ist zum Ausprobieren, nicht zum Behalten: dauerhaft braucht die Erweiterung eine
+  signierte App, [hier beschrieben](/de/extension#safari)
 
 Das war es: es gibt nichts zu koppeln. QuickRun nimmt nur Anfragen von einer Browser-Erweiterung an.
 

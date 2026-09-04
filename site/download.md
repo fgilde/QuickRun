@@ -132,6 +132,11 @@ Where a store does not carry it yet, load it unpacked. Unzip the download, then:
   folder
 - **Firefox** — `about:debugging` → This Firefox → Load Temporary Add-on → the `manifest.json`
   inside the folder
+- **Safari** — Settings → Advanced → Show features for web developers, then Develop → Allow
+  unsigned extensions, then Develop → Add Temporary Extension and pick the folder or the zip
+  itself. Safari 16.4 or later. The permission goes away when Safari restarts, so this is for
+  trying it rather than for keeping it - a permanent install needs the extension inside a signed
+  app, which is [described here](/extension#safari)
 
 That is all: there is nothing to pair. QuickRun accepts requests only from a browser extension.
 

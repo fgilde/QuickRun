@@ -23,6 +23,9 @@ const t = computed(() => (props.lang === 'de'
       installHere: 'Für {browser} installieren',
       noStoreYet: 'Für {browser} gibt es die Store-Version noch nicht — der Build unten lässt sich '
         + 'von Hand laden.',
+      safariState: 'ohne Store, von Hand',
+      safariInvite: 'Für Safari gibt es keine Store-Version: der Build unten lädt sich temporär, '
+        + 'wenn unsignierte Erweiterungen erlaubt sind.',
     }
   : {
       pending: 'store review pending',
@@ -34,6 +37,9 @@ const t = computed(() => (props.lang === 'de'
       yours: 'Your browser',
       installHere: 'Install for {browser}',
       noStoreYet: 'There is no store build for {browser} yet — the download below loads by hand.',
+      safariState: 'no store, by hand',
+      safariInvite: 'Safari has no store build: the download below loads temporarily, once unsigned '
+        + 'extensions are allowed.',
     }));
 
 // The official logos, kept as separate files: each carries gradients with ids a-d, and inlining
@@ -43,6 +49,21 @@ const browsers = computed(() => [
   { name: 'Edge', logo: 'edge', tint: '#0f7ebf', asset: 'quickrun-extension-chromium.zip', shared: true },
   { name: 'Opera', logo: 'opera', tint: '#e5233c', asset: 'quickrun-extension-chromium.zip', shared: true },
   { name: 'Firefox', logo: 'firefox', tint: '#ff7139', asset: 'quickrun-extension-firefox.zip', shared: false },
+  // Apple's own mark rather than Safari's compass: this repository ships the one it already had for
+  // the macOS download, and drawing somebody else's logo from memory is not a thing to do.
+  //
+  // "review pending" would be a lie here. Nothing has been submitted and nothing can be until there
+  // is a signed app to submit, so this card says what is actually true - the build is downloadable
+  // and Safari will load it once it is told to accept unsigned extensions.
+  {
+    name: 'Safari',
+    logo: 'apple',
+    tint: '#0071e3',
+    asset: 'quickrun-extension-safari.zip',
+    shared: false,
+    state: 'safariState',
+    invite: 'safariInvite',
+  },
 ].map((browser) => ({ ...browser, listing: listingFor(browser.logo) })));
 
 /**
@@ -59,6 +80,7 @@ const yours = computed(() => browsers.value.find((browser) => browser.logo === m
 
 const invitation = computed(() => {
   if (!yours.value) return null;
+  if (yours.value.invite) return t.value[yours.value.invite];
 
   const template = yours.value.listing ? t.value.installHere : t.value.noStoreYet;
   return template.replace('{browser}', yours.value.name);
@@ -102,7 +124,7 @@ const invitation = computed(() => {
       </template>
 
       <template v-else>
-        <span class="qr-state">{{ t.pending }}</span>
+        <span class="qr-state">{{ browser.state ? t[browser.state] : t.pending }}</span>
         <a :href="`${base}/${browser.asset}`">
           {{ browser.shared ? t.shared : t.download }}
         </a>

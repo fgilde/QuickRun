@@ -31,17 +31,28 @@ const AGENTS = {
   opera: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
     + 'Chrome/128.0.0.0 Safari/537.36 OPR/114.0.0.0',
   firefox: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0',
+  // Every agent above also says "Safari", which is why Safari can only be read after all of them
+  // have been ruled out. Getting that order wrong reads Chrome as Safari and offers a Chrome user a
+  // download that will not load in their browser.
+  safari: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
+    + '(KHTML, like Gecko) Version/17.0 Safari/605.1.15',
 };
 
 for (const [expected, agent] of Object.entries(AGENTS)) {
   const seen = currentBrowser(agent);
   if (seen !== expected) problems.push(`browser check: ${expected} was read as ${seen}`);
+
 }
 
-// Safari takes no extension of this kind; saying nothing beats guessing.
-const safari = currentBrowser('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
-  + '(KHTML, like Gecko) Version/17.0 Safari/605.1.15');
-if (safari !== null) problems.push(`browser check: Safari was read as ${safari}`);
+// Safari has a build but no store listing, and cannot have one until the extension ships inside a
+// signed app. Its card offers the download instead - and a listing that appeared here by accident
+// would turn that card into a link to a page that does not exist.
+if (STORES.safari !== null)
+  problems.push('Safari has a store listing now - its card needs checking, it offers a download');
+
+// Something this page has never heard of gets no button rather than a wrong one.
+const unknown = currentBrowser('Mozilla/5.0 (X11; CrOS x86_64) SomeBrowser/1.0');
+if (unknown !== null) problems.push(`browser check: an unknown browser was read as ${unknown}`);
 
 // Opera installs from the Chrome listing, so it has one exactly when Chrome does.
 if (listingFor('opera') !== STORES.chrome)

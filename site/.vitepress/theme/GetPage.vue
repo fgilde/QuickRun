@@ -37,6 +37,7 @@ const t = computed(() => (de.value
       extensionPending: 'Store-Prüfung läuft',
       extensionListed: 'im Store',
       extensionViaChrome: 'über den Chrome Web Store',
+      extensionSafari: 'ohne Store, von Hand',
       extensionGet: 'Installieren',
       extensionZip: 'Build laden',
       extensionByHandTitle: 'Von Hand laden, wo es den Store noch nicht gibt',
@@ -85,6 +86,7 @@ const t = computed(() => (de.value
       extensionPending: 'store review pending',
       extensionListed: 'in the store',
       extensionViaChrome: 'from the Chrome Web Store',
+      extensionSafari: 'no store, by hand',
       extensionGet: 'Install',
       extensionZip: 'Download the build',
       extensionByHandTitle: 'Loading it by hand, where there is no store listing yet',
@@ -122,11 +124,17 @@ const browsers = computed(() => [
   { name: 'Edge', logo: 'edge', store: 'edge', asset: 'quickrun-extension-chromium.zip' },
   { name: 'Firefox', logo: 'firefox', store: 'firefox', asset: 'quickrun-extension-firefox.zip' },
   { name: 'Opera', logo: 'opera', store: 'opera', asset: 'quickrun-extension-chromium.zip' },
+  // Apple's mark, which this repository already ships for the macOS download. Safari has no store
+  // build and cannot have one until there is a signed app, so its row says that rather than
+  // claiming a review is pending.
+  { name: 'Safari', logo: 'apple', store: 'safari', asset: 'quickrun-extension-safari.zip' },
 ].map((browser) => ({
   ...browser,
   listing: listingFor(browser.store),
   // Opera installs from Chrome's listing, which is worth saying rather than leaving as a surprise.
-  note: browser.store === 'opera' && listingFor('opera') ? t.value.extensionViaChrome : null,
+  note: browser.store === 'opera' && listingFor('opera') ? t.value.extensionViaChrome
+    : browser.store === 'safari' ? t.value.extensionSafari
+    : null,
 })));
 
 // Which browser is reading this - `mine` is already the operating system. Read after mounting: this

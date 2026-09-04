@@ -476,9 +476,15 @@ public class RunnerTests
             Config($"tasks:\n  - name: web\n    run: {serve}\n    readyWhen:\n      http: http://127.0.0.1:{port}/"),
             Options(repo.Path), CancellationToken.None);
 
+        // Waiting for the callout itself and not merely for readiness. The status is asked for
+        // after the address has answered, so the line arrives a moment after TaskReady - on two
+        // machines it was already there and on a CI runner it was not, which failed a green build
+        // for no reason. Either the line or the task exiting ends this; nothing here sleeps a fixed
+        // amount and hopes.
         var deadline = DateTime.UtcNow.AddSeconds(30);
         while (DateTime.UtcNow < deadline
-               && !log.Events.Any(e => e.Kind is RunEventKind.TaskReady or RunEventKind.TaskExited))
+               && !log.Text.Contains("answers 404", StringComparison.Ordinal)
+               && !log.Events.Any(e => e.Kind == RunEventKind.TaskExited))
             await Task.Delay(200);
 
         var exited = log.Events.Any(e => e.Kind == RunEventKind.TaskExited);

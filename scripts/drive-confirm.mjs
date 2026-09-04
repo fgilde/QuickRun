@@ -116,7 +116,14 @@ const browser = spawn(chrome, [
   `http://127.0.0.1:${port}/confirm.html`,
 ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
-/** The debugging port Chrome chose, from the line it prints on stderr. */
+/**
+ * The debugging port Chrome chose, from the line it prints on stderr.
+ *
+ * A minute rather than twenty seconds: a cold CI runner starting a snap Chromium for the first time
+ * has taken longer than that, and this failed a green build with a timeout that said nothing about
+ * why. Whatever Chrome did say goes into the error, so the next one is diagnosable from the log
+ * instead of from a rerun.
+ */
 const endpoint = await new Promise((resolve, reject) => {
   let buffered = '';
   browser.stderr.on('data', (chunk) => {
@@ -124,8 +131,10 @@ const endpoint = await new Promise((resolve, reject) => {
     const match = buffered.match(/ws:\/\/127\.0\.0\.1:(\d+)\/devtools\/browser\/\S+/);
     if (match) resolve(match[0]);
   });
-  browser.on('exit', (code) => reject(new Error(`chrome exited with ${code}`)));
-  setTimeout(() => reject(new Error('chrome never printed a debugging endpoint')), 20000);
+  browser.on('exit', (code) => reject(new Error(
+    `chrome exited with ${code}${buffered ? `: ${buffered.trim()}` : ' and said nothing'}`)));
+  setTimeout(() => reject(new Error('chrome never printed a debugging endpoint within 60s'
+    + (buffered ? `, it said: ${buffered.trim()}` : ' and said nothing at all'))), 60000);
 });
 
 const targets = await (await fetch(`http://127.0.0.1:${new URL(endpoint).port}/json/list`)).json();

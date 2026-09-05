@@ -134,6 +134,32 @@ public class DashboardTests
         Assert.DoesNotContain("innerHTML = text", html);
     }
 
+    /// <summary>
+    /// The page can be a window opened on one plan, rather than the whole interface.
+    /// <para>
+    /// A repository handed over by the website or a quickrun:// link used to land in the big window
+    /// with a panel somewhere in it, while the browser extension opened a window showing that plan
+    /// and nothing else. Same page, same controls, same log - the difference is what is taken away,
+    /// which is why this is a stylesheet and a flag rather than a second copy of the window living
+    /// somewhere else.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void The_page_can_be_a_window_opened_on_one_plan()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("shell === 'confirm'", html);
+        Assert.Contains("body[data-shell=\"confirm\"] > nav", html);
+        Assert.Contains("body[data-shell=\"confirm\"] #runList", html);
+
+        // The plan is what is left, so it must not be among what the shell hides.
+        Assert.DoesNotContain("body[data-shell=\"confirm\"] #planPanel { display: none; }", html);
+
+        // And once it starts, the run stays in that window - its card, its log and its Stop.
+        Assert.Contains("panel === builder.plan || confirming()", html);
+    }
+
     /// <summary>Per-task state and the address each task reports, as a link.</summary>
     [Fact]
     public void The_page_shows_what_each_task_is_doing()

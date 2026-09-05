@@ -15,10 +15,59 @@ public static class AppWindows
 {
     private static DashboardWindow? _dashboard;
 
+    /// <summary>
+    /// The window a handed-over repository opens in: one plan, read once and answered.
+    /// <para>
+    /// Its own window rather than a tab in the big one, because that is what a hand-over is - the
+    /// browser extension has always opened exactly this, and a plan arriving from quickrun.org or a
+    /// quickrun:// link deserves the same thing rather than the whole interface with a panel
+    /// somewhere in it. Kept as one: a second hand-over points this window at the new plan instead
+    /// of stacking another.
+    /// </para>
+    /// </summary>
+    private static DashboardWindow? _confirm;
+
     /// <param name="hash">
     /// What to show once it is open - the dashboard's own <c>#run?repo=...</c>, when a link named a
     /// repository. Empty means the window opens where it always does.
     /// </param>
+    /// <summary>
+    /// Opens the confirmation window on a target, or the whole interface when there is none.
+    /// <para>
+    /// A tray click has nothing to confirm and gets the dashboard; everything that names a
+    /// repository, a file or a prepared run is something to read and answer, and gets the window
+    /// for that.
+    /// </para>
+    /// </summary>
+    public static void ShowTarget(RunRegistry runs, WorkspaceStore store, string listenerUrl, string hash)
+    {
+        if (hash.Length == 0) { Show(runs, store, listenerUrl); return; }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_confirm is { } existing)
+            {
+                existing.Show();
+                existing.Activate();
+                existing.GoTo(hash);
+                return;
+            }
+
+            // The size the browser extension's window has used all along, because this is the same
+            // window by another route and two different shapes for one thing is a thing to explain.
+            var window = new DashboardWindow(runs, store, listenerUrl, hash, "confirm")
+            {
+                Title = "QuickRun - confirm",
+                Width = 760,
+                Height = 720,
+            };
+
+            window.Closed += (_, _) => _confirm = null;
+            _confirm = window;
+            window.Show();
+        });
+    }
+
     public static void Show(RunRegistry runs, WorkspaceStore store, string listenerUrl, string hash = "") =>
         Dispatcher.UIThread.Post(() =>
         {

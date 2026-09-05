@@ -54,9 +54,11 @@ public class WindowTargetTests
     [Fact]
     public void A_window_is_created_pointing_at_its_target()
     {
+        // By name rather than by position: the constructor has since grown a parameter for which of
+        // the two windows it is, and a test that counts them fails for a reason that has nothing to
+        // do with what it is about.
         var accepts = typeof(DashboardWindow).GetConstructors()
-            .Any(c => c.GetParameters() is [_, _, { ParameterType.Name: "String" },
-                { ParameterType.Name: "String" }]);
+            .Any(c => c.GetParameters().Any(p => p.Name == "hash" && p.ParameterType == typeof(string)));
 
         Assert.True(accepts,
             "DashboardWindow no longer takes a target - a new window can only be navigated after "

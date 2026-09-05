@@ -70,6 +70,28 @@ nav button[data-busy="1"] { font-weight: 600; }
 .row + .row { margin-top: 10px; }
 .grow { flex: 1; min-width: 0; }
 ul.plain { list-style: none; margin: 0; padding: 0; }
+
+/*
+ * The confirmation window: this same page, with everything that is not this one run taken away.
+ *
+ * A window opened on a plan is not a place to browse from - it exists to be read once and answered,
+ * the way the browser extension's window does. So the tabs, the header and the list of other runs
+ * go, and what is left is the plan, its inputs, and afterwards the log and Stop. One page and one
+ * set of controls rather than a second copy of them living somewhere else.
+ */
+body[data-shell="confirm"] > header,
+body[data-shell="confirm"] > nav,
+body[data-shell="confirm"] #runs > h2,
+body[data-shell="confirm"] #runs > .card > .row,
+body[data-shell="confirm"] #runs > .card > details,
+body[data-shell="confirm"] #noRuns,
+body[data-shell="confirm"] #runList { display: none; }
+
+body[data-shell="confirm"] #runs > .card {
+  border: none; background: none; padding: 0; margin: 0;
+}
+
+body[data-shell="confirm"] main { padding: 16px 18px 18px; }
 ul.plain > li + li { margin-top: 8px; }
 .name { font-weight: 600; overflow-wrap: anywhere; }
 code, .mono {
@@ -1141,10 +1163,13 @@ function renderPlan(run, panel = starter.plan) {
 
     // In the builder the run has to stay in sight: that tab is where a config is tried out, over
     // and over, and the whole point is watching what it does and stopping it again.
-    if (panel === builder.plan) {
+    if (panel === builder.plan || confirming()) {
+      // The builder tries a config out over and over and has to watch it; a confirmation window is
+      // the same shape of thing for a different reason - it was opened on this run and there is
+      // nothing else in it to look at. Both keep the card, its log and its Stop right here.
       panel.textContent = '';
       mountRun(run.id, panel);
-      builderSay('running - the log and Stop are below');
+      if (panel === builder.plan) builderSay('running - the log and Stop are below');
     } else {
       panel.hidden = true;
       say('started');
@@ -2585,10 +2610,19 @@ document.querySelector('nav button[data-tab="builder"]').addEventListener('click
 // Inside the desktop window the page is the whole interface, so it has to offer the one thing a
 // window cannot: opening the same page in the real browser. And the file picker, which is the other
 // way round - a browser tab has no way to open one, so the button only appears where it works.
-if (new URLSearchParams(location.search).get('shell') === 'window') {
+const shell = new URLSearchParams(location.search).get('shell');
+
+if (shell === 'window') {
   document.getElementById('inBrowser').hidden = false;
   document.getElementById('runFile').hidden = false;
 }
+
+// Marked on the body rather than decided in a dozen places: the stylesheet takes everything that is
+// not this run out of the way, and the two behaviours that cannot be expressed in CSS ask for it.
+if (shell === 'confirm') document.body.dataset.shell = 'confirm';
+
+/** Whether this page is a window opened on one plan rather than the whole interface. */
+const confirming = () => document.body.dataset.shell === 'confirm';
 
 document.getElementById('runFile').addEventListener('click', async () => {
   document.querySelector('nav button[data-tab="runs"]')?.click();

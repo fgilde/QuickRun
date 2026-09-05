@@ -32,6 +32,7 @@ public sealed class DashboardWindow : Window
     private readonly RunRegistry _runs;
     private readonly WorkspaceStore _store;
     private readonly string _listenerUrl;
+    private readonly string _shell = "window";
 
     private readonly StackPanel _runList = Rows();
     private readonly ContentControl _header = new();
@@ -64,11 +65,20 @@ public sealed class DashboardWindow : Window
     /// found a window that had finished loading. Handed to the view instead, it is loaded exactly
     /// the way a fresh browser tab loads it, which always worked.
     /// </param>
-    public DashboardWindow(RunRegistry runs, WorkspaceStore store, string listenerUrl, string hash = "")
+    /// <param name="shell">
+    /// Which of the two windows this is. <c>window</c> is the whole interface; <c>confirm</c> is a
+    /// window opened on one plan, where the page takes the tabs and the other runs away and leaves
+    /// the plan, its inputs, and afterwards the log and Stop - the same thing the browser
+    /// extension's window shows, drawn by the same code as everything else here rather than by a
+    /// second copy of it.
+    /// </param>
+    public DashboardWindow(RunRegistry runs, WorkspaceStore store, string listenerUrl,
+        string hash = "", string shell = "window")
     {
         _runs = runs;
         _store = store;
         _listenerUrl = listenerUrl;
+        _shell = shell;
 
         Title = $"QuickRun {BuildInfo.Version}";
         Width = 900;
@@ -81,7 +91,7 @@ public sealed class DashboardWindow : Window
         // Opens where it was left, at the size it was left at.
         WindowPlacement.Remember(this, store.Root);
 
-        Content = BuildLayout(hash);
+        Content = BuildLayout(hash, shell);
 
         _timer = new DispatcherTimer { Interval = RefreshInterval };
         _timer.Tick += (_, _) => Refresh();
@@ -119,8 +129,8 @@ public sealed class DashboardWindow : Window
     /// a brand-new window's view is still starting and drops a navigation issued at that moment.
     /// </para>
     /// </summary>
-    internal static string PageUrl(string listenerUrl, string hash = "") =>
-        $"{listenerUrl}/?shell=window{hash}";
+    internal static string PageUrl(string listenerUrl, string hash = "", string shell = "window") =>
+        $"{listenerUrl}/?shell={shell}{hash}";
 
     /// <summary>
     /// Points an open window at a target. Only for a window that already exists - a new one is
@@ -128,7 +138,7 @@ public sealed class DashboardWindow : Window
     /// </summary>
     public void GoTo(string hash)
     {
-        var url = PageUrl(_listenerUrl, hash);
+        var url = PageUrl(_listenerUrl, hash, _shell);
 
         // The platform check is what the analyser needs; the type check is what actually decides,
         // since a WebView2Host only ever exists on Windows.
@@ -143,12 +153,12 @@ public sealed class DashboardWindow : Window
         if (_browser is not null) EmbeddedBrowser.Navigate(_browser, url);
     }
 
-    private Control BuildLayout(string hash = "")
+    private Control BuildLayout(string hash = "", string shellName = "window")
     {
         var shell = new ContentControl();
         _header.Content = Header();
 
-        var browser = EmbeddedBrowser.TryCreate(PageUrl(_listenerUrl, hash), reason =>
+        var browser = EmbeddedBrowser.TryCreate(PageUrl(_listenerUrl, hash, shellName), reason =>
             Dispatcher.UIThread.Post(() =>
             {
                 Output.Warn($"the embedded browser could not start ({reason}) - using the native view");

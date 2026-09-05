@@ -111,7 +111,7 @@ public sealed class UiCommand : AsyncCommand<UiCommand.Settings>
 
             // What a second start, and every quickrun:// link, reaches: this window, raised, on the
             // repository the link named.
-            control.ShowWindow = hash => AppWindows.Show(registry, store, url, hash);
+            control.ShowWindow = hash => AppWindows.ShowTarget(registry, store, url, hash);
 
             // The page asks for a folder or a config; both pickers belong to the window, which is here.
             control.PickFolder = AppWindows.PickFolderAsync;

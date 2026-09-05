@@ -28,4 +28,21 @@ public class VersionCheckTests
     [InlineData("no digits here", null)]
     public void Extract_pulls_the_first_dotted_version(string text, string? expected)
         => Assert.Equal(expected, VersionCheck.Extract(text));
+
+    /// <summary>
+    /// Ten is more than nine, which a comparison on text would get wrong.
+    /// <para>
+    /// This decides whether a release is offered at all: the check is "is the published version
+    /// greater than mine", and the next one after 0.9.9 is 0.9.10. Compared as text that is smaller,
+    /// and every machine on 0.9.9 would be told it is current for ever.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("0.9.10", "0.9.9", true)]
+    [InlineData("0.9.9", "0.9.10", false)]
+    [InlineData("0.10.0", "0.9.99", true)]
+    [InlineData("1.0.0", "0.9.10", true)]
+    [InlineData("0.9.9", "0.9.9", false)]
+    public void A_double_digit_release_is_newer_than_a_single_digit_one(string published, string mine, bool newer)
+        => Assert.Equal(newer, VersionCheck.Satisfies(published, ">" + mine));
 }

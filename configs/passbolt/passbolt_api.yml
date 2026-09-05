@@ -1,0 +1,87 @@
+# Hand-written, and it wins over the catalogue on purpose: scripts/build-collection.mjs skips any
+# config it did not write. The generated one would publish port 80, carry no APP_FULL_BASE_URL and
+# create no administrator - so passbolt would start and there would be no way to log into it. This
+# one asks for a port, builds the address from it, and prints the setup link the first login needs.
+#
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
+version: 1
+name: Passbolt
+repository: passbolt/passbolt_api
+description: >-
+  Open-source password manager for teams. Starts the official CE image (passbolt/passbolt:latest-ce)
+  with its MariaDB and registers a first administrator, whose one-time setup link appears in the log.
+  Nothing is stored, so stopping the run leaves nothing behind - including the server's own keys,
+  which are generated fresh every time.
+docs: https://www.passbolt.com/docs/hosting/install/ce/docker/
+
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+
+inputs:
+  - id: port
+    label: Port
+    description: Where passbolt answers on this machine. Its own address has to match, so it is built from this.
+    default: "8080"
+  - id: email
+    label: Administrator's email
+    description: >-
+      The account the setup link below belongs to. Nothing is sent anywhere - passbolt prints the
+      link into the log instead of mailing it - so an address you cannot receive mail at is fine.
+    default: admin@passbolt.test
+
+setup:
+  # One network, so the two containers reach each other by name. continueOnError, because the second
+  # run of this finds it already there.
+  - run: docker network create quickrun-passbolt-net
+    continueOnError: true
+
+tasks:
+  - name: db
+    # The credentials from passbolt's own compose file, minus the volume: a run that leaves a
+    # database behind is not what "try it" means here.
+    run: >-
+      docker run --rm --name quickrun-passbolt-db --network quickrun-passbolt-net
+      -e MYSQL_RANDOM_ROOT_PASSWORD="true" -e MYSQL_DATABASE="passbolt"
+      -e MYSQL_USER="passbolt" -e MYSQL_PASSWORD="passbolt"
+      mariadb:10.11
+    readyWhen: {log: "ready for connections"}
+
+  - name: passbolt
+    # wait-for.sh in front of the entrypoint is passbolt's own arrangement, kept because it is the
+    # one that knows when the database is really usable: mariadb says "ready for connections" once
+    # while initialising and once for real, and the first one is a lie for anything but the log.
+    #
+    # http rather than https on purpose. PASSBOLT_SSL_FORCE defaults to false, and the image's own
+    # documentation allows a plain http APP_FULL_BASE_URL - which is what a machine with no
+    # certificate for "localhost" can actually serve.
+    run: >-
+      docker run --rm --name quickrun-passbolt --network quickrun-passbolt-net
+      -p ${inputs.port}:80
+      -e APP_FULL_BASE_URL="http://localhost:${inputs.port}"
+      -e DATASOURCES_DEFAULT_HOST="quickrun-passbolt-db"
+      -e DATASOURCES_DEFAULT_USERNAME="passbolt"
+      -e DATASOURCES_DEFAULT_PASSWORD="passbolt"
+      -e DATASOURCES_DEFAULT_DATABASE="passbolt"
+      passbolt/passbolt:latest-ce
+      /usr/bin/wait-for.sh -t 0 quickrun-passbolt-db:3306 -- /docker-entrypoint.sh
+    dependsOn: [db]
+    readyWhen: {http: "http://localhost:${inputs.port}"}
+    open: true
+
+  - name: administrator
+    # Passbolt has no first-run wizard: until a user exists there is nothing to log in as, and the
+    # only way to make one is this command. It prints a single-use setup link, which is what the
+    # reader needs out of this log - the browser cannot get past the login page without it.
+    run: >-
+      docker exec -u www-data quickrun-passbolt
+      bin/cake passbolt register_user -u ${inputs.email} -f Quick -l Run -r admin
+    dependsOn: [passbolt]
+
+stop:
+  - run: docker rm -f quickrun-passbolt
+    continueOnError: true
+  - run: docker rm -f quickrun-passbolt-db
+    continueOnError: true
+  - run: docker network rm quickrun-passbolt-net
+    continueOnError: true

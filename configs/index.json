@@ -1240,6 +1240,16 @@
     "shipsOwn": false
   },
   {
+    "repo": "passbolt/passbolt_api",
+    "name": "Passbolt",
+    "description": "Open-source password manager for teams. Starts the official CE image (passbolt/passbolt:latest-ce) with its MariaDB and registers a first administrator, whose one-time setup link appears in the log. Nothing is stored, so stopping the run leaves nothing behind - including the server's own keys, which are generated fresh every time.",
+    "docs": "https://www.passbolt.com/docs/hosting/install/ce/docker/",
+    "port": null,
+    "icon": "https://github.com/passbolt.png?size=80",
+    "config": "configs/passbolt/passbolt_api.yml",
+    "shipsOwn": false
+  },
+  {
     "repo": "pearcircle/seeder",
     "name": "PearCircle Seeder",
     "description": "Run a blind seeder for your PearCircle circles on your Umbrel so their history stays in sync even when every phone is offline. ... PearCircle is a peer-to-peer location-sharing app with no accounts and no servers: a circle's data lives only on its members' devices and syncs directly between them. That means a circle is only reachable while at least one member's phone is online. This app runs the PearCircle…",

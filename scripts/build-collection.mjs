@@ -15,7 +15,7 @@
 // what actually works; building a hundred and sixty projects from source is a different promise.
 // Nothing is kept: no volumes, so a run leaves nothing behind - said in every description.
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const argument = (name, fallback = null) => {
@@ -238,6 +238,25 @@ for (const relative of previous) {
   if (existsSync(path)) rmSync(path);
 }
 
+/**
+ * Configs already here that this script did not write, which it must not overwrite.
+ *
+ * The catalogue grows, and the day it learns about a repository somebody had already written a
+ * config for by hand, generating over it would replace a tested config with a templated one - which
+ * is exactly what happened to passbolt: the generated version publishes port 80, sets no address
+ * and creates no first user, so it starts and cannot be logged into. Hand-written wins, and the run
+ * says which ones it left alone.
+ *
+ * Computed after the removal above, so a previously generated file does not count as hand-written.
+ */
+const protectedFiles = existsSync(outDir)
+  ? readdirSync(outDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((owner) => readdirSync(join(outDir, owner.name))
+        .filter((file) => file.endsWith('.yml'))
+        .map((file) => `${owner.name}/${file}`))
+  : [];
+
 const written = [];
 const skipped = [];
 
@@ -251,6 +270,11 @@ for (const app of presets) {
   const path = join(outDir, relative);
 
   if (written.includes(relative)) { skipped.push(`${app.id}: ${relative} already written`); continue; }
+
+  if (protectedFiles.includes(relative)) {
+    skipped.push(`${app.id}: ${relative} is hand-written and was left alone`);
+    continue;
+  }
 
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, configFor(app, target));
@@ -293,7 +317,96 @@ async function inBatches(items, size, work) {
   return results;
 }
 
-const repos = written.map((relative) => relative.replace(/\.yml$/, ''));
+/**
+ * Configs somebody wrote by hand, which this script did not produce and must not touch.
+ *
+ * They were already served and already ran - the fallback chain fetches configs/<owner>/<repo>.yml
+ * without asking who wrote it - but the collection page reads index.json, and that was built from
+ * the generated list alone. So a hand-written config worked everywhere except the one place people
+ * would find it.
+ */
+function handWritten(root, generated) {
+  const found = [];
+
+  for (const owner of readdirSync(root, { withFileTypes: true })) {
+    if (!owner.isDirectory()) continue;
+
+    for (const file of readdirSync(join(root, owner.name))) {
+      if (!file.endsWith('.yml')) continue;
+
+      const relative = `${owner.name}/${file}`;
+      if (!generated.includes(relative)) found.push(relative);
+    }
+  }
+
+  return found.sort();
+}
+
+/**
+ * The few fields the card needs, out of a config's own text.
+ *
+ * Not a YAML parser: these are top-level scalars and one folded block, and the configs that reach
+ * here are checked by CollectionTests with the real parser anyway. A field this cannot read comes
+ * back null and the card falls back, which is the right failure for a card.
+ */
+function describe(text) {
+  const scalar = (key) => {
+    const match = text.match(new RegExp(`^${key}:[ 	]*(.+)$`, 'm'));
+    if (!match) return null;
+
+    const value = match[1].trim();
+    if (value === '>-' || value === '>' || value === '|' || value === '|-') return null;
+
+    return value.replace(/^['"]|['"]$/g, '');
+  };
+
+  // A folded block: the indented lines under the key, joined the way YAML folds them.
+  const block = (key) => {
+    const start = text.match(new RegExp(`^${key}:[ 	]*[>|]-?[ 	]*$`, 'm'));
+    if (!start) return null;
+
+    const after = text.slice(start.index + start[0].length).split('\n').slice(1);
+    const lines = [];
+
+    for (const line of after) {
+      if (!/^\s+\S/.test(line)) break;
+      lines.push(line.trim());
+    }
+
+    return lines.join(' ').trim() || null;
+  };
+
+  return {
+    name: scalar('name'),
+    description: block('description') ?? scalar('description'),
+    docs: scalar('docs'),
+  };
+}
+
+const extra = handWritten(outDir, written).map((relative) => {
+  const [owner, file] = relative.split('/');
+  const repo = file.replace(/\.yml$/, '');
+  const read = describe(readFileSync(join(outDir, relative), 'utf8'));
+
+  return {
+    relative,
+    repo: `${owner}/${repo}`,
+    name: read.name || repo,
+    description: read.description ?? '',
+    docs: read.docs ?? `https://github.com/${owner}/${repo}`,
+    // A hand-written config often asks for its port rather than fixing one, and a number the card
+    // states has to be one the run will actually use.
+    port: null,
+    icon: `https://github.com/${owner}.png?size=80`,
+    config: `configs/${relative}`,
+  };
+});
+
+if (extra.length > 0)
+  console.log(`  ${extra.length} hand-written config(s): ${extra.map((e) => e.repo).join(', ')}`);
+
+const repos = [...written.map((relative) => relative.replace(/\.yml$/, '')),
+  ...extra.map((e) => e.repo)];
 const own = new Set();
 const flags = await inBatches(repos, 8, async (repo) => [repo, await shipsOwn(repo)]);
 
@@ -322,9 +435,19 @@ const index = written.map((relative) => {
     // config, or the one the repository ships.
     shipsOwn: own.has(`${owner}/${repo}`),
   };
-}).sort((a, b) => a.name.localeCompare(b.name));
+}).concat(extra.map((e) => ({
+  repo: e.repo,
+  name: e.name,
+  description: e.description,
+  docs: e.docs,
+  port: e.port,
+  icon: e.icon,
+  config: e.config,
+  shipsOwn: own.has(e.repo),
+}))).sort((a, b) => a.name.localeCompare(b.name));
 
 writeFileSync(join(outDir, 'index.json'), JSON.stringify(index, null, 2) + '\n');
 
 console.log(`wrote ${written.length} configs into ${outDir}`);
+console.log(`  the index lists ${index.length}, hand-written ones included`);
 for (const note of skipped) console.log(`  skipped ${note}`);

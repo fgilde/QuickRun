@@ -149,10 +149,19 @@ onMounted(async () => {
   mine.value = detectOs();
   myBrowser.value = currentBrowser();
 
-  // The tag is a nicety, not a dependency: no network, no version chip, everything else still works.
+  // From the release's own manifest rather than GitHub's API. The API is rate-limited for anyone
+  // not sending a token, and a shared address reaches that limit without doing anything unusual -
+  // it answers 403 and the version simply stopped appearing here, which is how this page came to
+  // show no version at all while a release was sitting there. The manifest is a plain file from the
+  // same release, and it carries the version as a number rather than a tag.
+  //
+  // Still a nicety, not a dependency: no network, no version chip, everything else works.
   try {
-    const answer = await fetch('https://api.github.com/repos/fgilde/QuickRun/releases/latest');
-    if (answer.ok) version.value = (await answer.json()).tag_name ?? '';
+    const answer = await fetch('https://github.com/fgilde/QuickRun/releases/latest/download/quickrun.json');
+    if (answer.ok) {
+      const manifest = await answer.json();
+      version.value = manifest.version ? `v${manifest.version}` : '';
+    }
   } catch {
     version.value = '';
   }

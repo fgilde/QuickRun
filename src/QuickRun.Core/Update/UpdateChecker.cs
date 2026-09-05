@@ -36,6 +36,32 @@ public sealed class UpdateChecker(Func<string, Task<string>>? fetch = null)
     public const string LatestReleaseUrl =
         "https://api.github.com/repos/" + BuildInfo.Repository + "/releases/latest";
 
+    /// <summary>
+    /// The release's own manifest, which is a file rather than an API call.
+    /// <para>
+    /// Asked first, because the API above is rate-limited for anyone not sending a token and a
+    /// shared address reaches that limit without doing anything unusual. It answers 403, the check
+    /// treats it as "could not ask", and what the user sees is "no update" - a release sitting there
+    /// while every machine behind that address says it is current. This is a plain download from the
+    /// same release, with no limit of that kind.
+    /// </para>
+    /// </summary>
+    public const string ManifestUrl =
+        "https://github.com/" + BuildInfo.Repository + "/releases/latest/download/quickrun.json";
+
+    /// <summary>
+    /// What each platform's archive is called. Fixed names, which is what makes the manifest enough:
+    /// with the version known, every asset's address is known too, and nothing has to be listed by
+    /// an API to be found.
+    /// </summary>
+    private static readonly string[] ArchiveNames =
+    {
+        "quickrun-win-x64.zip", "quickrun-win-arm64.zip",
+        "quickrun-linux-x64.tar.gz", "quickrun-linux-arm64.tar.gz",
+        "quickrun-osx-x64.tar.gz", "quickrun-osx-arm64.tar.gz",
+        "SHA256SUMS",
+    };
+
     private static readonly HttpClient Http = CreateClient();
 
     private readonly Func<string, Task<string>> _fetch = fetch ?? (url => Http.GetStringAsync(url));
@@ -56,7 +82,41 @@ public sealed class UpdateChecker(Func<string, Task<string>>? fetch = null)
         }
     }
 
-    public async Task<ReleaseInfo?> LatestAsync()
+    public async Task<ReleaseInfo?> LatestAsync() =>
+        await FromManifestAsync() ?? await FromApiAsync();
+
+    /// <summary>
+    /// The release read from its manifest, or null when there is none to read.
+    /// <para>
+    /// Null rather than an exception on anything unexpected: this is the first of two ways to ask,
+    /// and a manifest that is missing or written by an older release must fall through to the API
+    /// rather than end the check.
+    /// </para>
+    /// </summary>
+    private async Task<ReleaseInfo?> FromManifestAsync()
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(await _fetch(ManifestUrl));
+
+            if (!document.RootElement.TryGetProperty("version", out var field)) return null;
+            if (field.GetString() is not { Length: > 0 } version) return null;
+
+            var tag = "v" + version;
+            var assets = ArchiveNames
+                .Select(name => new ReleaseAsset(
+                    name, $"https://github.com/{BuildInfo.Repository}/releases/download/{tag}/{name}"))
+                .ToList();
+
+            return new ReleaseInfo(version, tag, assets);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<ReleaseInfo?> FromApiAsync()
     {
         var json = await _fetch(LatestReleaseUrl);
         using var document = JsonDocument.Parse(json);

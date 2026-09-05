@@ -146,6 +146,80 @@ public class UpdateCheckerTests
         Assert.Contains("brew upgrade quickrun", status.Advice);
     }
 
+    /// <summary>The manifest a release publishes: a file, not an API call.</summary>
+    private const string ManifestJson = """
+        {
+          "version": "1.3.0",
+          "architecture": {
+            "64bit": { "url": "https://github.com/fgilde/QuickRun/releases/download/v1.3.0/quickrun-win-x64.zip" }
+          }
+        }
+        """;
+
+    /// <summary>A fetcher that answers per address, so which one was asked is visible.</summary>
+    private static UpdateChecker Both(string? manifest, string? api, List<string>? asked = null) =>
+        new(url =>
+        {
+            asked?.Add(url);
+
+            var answer = url == UpdateChecker.ManifestUrl ? manifest : api;
+
+            return answer is null
+                ? Task.FromException<string>(new HttpRequestException("404"))
+                : Task.FromResult(answer);
+        });
+
+    /// <summary>
+    /// The manifest is asked first, and the API is not asked at all when it answers.
+    /// <para>
+    /// The API is rate-limited for anyone without a token, and a shared address reaches that limit
+    /// without doing anything unusual: it answers 403, the check reads that as "could not ask", and
+    /// the user is told they are up to date while a release sits there. Reported exactly that way.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task The_manifest_is_read_before_the_rate_limited_api()
+    {
+        var asked = new List<string>();
+        var release = await Both(ManifestJson, ReleaseJson, asked).LatestAsync();
+
+        Assert.Equal("1.3.0", release!.Version);
+        Assert.Equal(new[] { UpdateChecker.ManifestUrl }, asked);
+    }
+
+    [Fact]
+    public async Task A_manifest_names_every_platform_archive()
+    {
+        var release = await Both(ManifestJson, null).LatestAsync();
+
+        // The names are fixed, so the version is enough to know every address - which is what makes
+        // one small file a complete answer.
+        Assert.Equal("https://github.com/fgilde/QuickRun/releases/download/v1.3.0/quickrun-win-x64.zip",
+            release!.AssetFor("win-x64")!.Url);
+        Assert.NotNull(release.AssetFor("linux-arm64"));
+        Assert.NotNull(release.Asset("SHA256SUMS"));
+    }
+
+    [Fact]
+    public async Task Without_a_manifest_the_api_still_answers()
+    {
+        // An older release published no manifest, and updating away from one has to keep working.
+        var release = await Both(null, ReleaseJson).LatestAsync();
+
+        Assert.Equal("1.2.0", release!.Version);
+    }
+
+    [Fact]
+    public async Task An_update_is_found_when_the_api_refuses()
+    {
+        // The reported case, from the outside: the API is refusing and the answer is still right.
+        var status = await Both(ManifestJson, null).CheckAsync("0.9.8", InstallSource.Standalone);
+
+        Assert.True(status.UpdateAvailable);
+        Assert.Equal("1.3.0", status.Latest);
+        Assert.Null(status.Error);
+    }
+
     [Fact]
     public async Task A_failed_request_is_reported_rather_than_thrown()
     {

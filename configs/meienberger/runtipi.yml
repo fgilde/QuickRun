@@ -24,13 +24,13 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-runtipi-db --network quickrun-runtipi-net -e POSTGRES_USER="tipi" -e POSTGRES_DB="tipi" -e POSTGRES_PASSWORD="postgres" postgres:14
+    run: docker run --rm --name quickrun-runtipi-db --network quickrun-runtipi-net -e POSTGRES_USER=tipi -e POSTGRES_DB=tipi -e POSTGRES_PASSWORD=postgres postgres:14
     readyWhen: {log: database system is ready to accept connections}
   - name: queue
-    run: docker run --rm --name quickrun-runtipi-queue --network quickrun-runtipi-net -p 5672:5672 -e RABBITMQ_DEFAULT_USER="tipi" -e RABBITMQ_DEFAULT_PASS="tipi" rabbitmq:4-alpine
+    run: docker run --rm --name quickrun-runtipi-queue --network quickrun-runtipi-net -p 5672:5672 -e RABBITMQ_DEFAULT_USER=tipi -e RABBITMQ_DEFAULT_PASS=tipi rabbitmq:4-alpine
     readyWhen: {port: 5672}
   - name: runtipi
-    run: docker run --rm --name quickrun-runtipi --network quickrun-runtipi-net -p 3000:3000 -e NODE_ENV="production" -e TIPI_VERSION="v4.10.1" -e ROOT_FOLDER="/data" -e RUNTIPI_APP_DATA_PATH="/data" -e POSTGRES_HOST="quickrun-runtipi-db" -e POSTGRES_PORT="5432" -e POSTGRES_DBNAME="tipi" -e POSTGRES_USERNAME="tipi" -e POSTGRES_PASSWORD="postgres" -e RABBITMQ_HOST="quickrun-runtipi-queue" -e RABBITMQ_USERNAME="tipi" -e RABBITMQ_PASSWORD="tipi" ghcr.io/runtipi/runtipi:v4.10.1
+    run: docker run --rm --name quickrun-runtipi --network quickrun-runtipi-net -p 3000:3000 -e NODE_ENV=production -e TIPI_VERSION=v4.10.1 -e ROOT_FOLDER=/data -e RUNTIPI_APP_DATA_PATH=/data -e POSTGRES_HOST=quickrun-runtipi-db -e POSTGRES_PORT=5432 -e POSTGRES_DBNAME=tipi -e POSTGRES_USERNAME=tipi -e POSTGRES_PASSWORD=postgres -e RABBITMQ_HOST=quickrun-runtipi-queue -e RABBITMQ_USERNAME=tipi -e RABBITMQ_PASSWORD=tipi ghcr.io/runtipi/runtipi:v4.10.1
     dependsOn: [db, queue]
     readyWhen: {http: 'http://localhost:3000'}
     open: true

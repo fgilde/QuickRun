@@ -25,7 +25,7 @@ setup:
 
 tasks:
   - name: pearcircle-seeder
-    run: docker run --rm --name quickrun-pearcircle-seeder --network quickrun-pearcircle-seeder-net -p 8730:8730 -e SEEDER_HOST="0.0.0.0" -e SEEDER_PORT="8730" -e SEEDER_NO_AUTH="1" -e SEEDER_NO_UPDATE_CHECK="1" ghcr.io/peerloomllc/pearcircle-seeder:1.0.23
+    run: docker run --rm --name quickrun-pearcircle-seeder --network quickrun-pearcircle-seeder-net -p 8730:8730 -e SEEDER_HOST=0.0.0.0 -e SEEDER_PORT=8730 -e SEEDER_NO_AUTH=1 -e SEEDER_NO_UPDATE_CHECK=1 ghcr.io/peerloomllc/pearcircle-seeder:1.0.23
     readyWhen: {http: 'http://localhost:8730'}
     open: true
 

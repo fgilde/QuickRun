@@ -29,10 +29,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-havewa-db --network quickrun-havewa-net -e POSTGRES_USER="havewa" -e POSTGRES_PASSWORD="havewa" -e POSTGRES_DB="havewa" postgres:16-alpine
+    run: docker run --rm --name quickrun-havewa-db --network quickrun-havewa-net -e POSTGRES_USER=havewa -e POSTGRES_PASSWORD=havewa -e POSTGRES_DB=havewa postgres:16-alpine
     readyWhen: {log: database system is ready to accept connections}
   - name: havewa
-    run: docker run --rm --name quickrun-havewa --network quickrun-havewa-net -p 3000:3000 -e AUTH_TRUST_HOST="true" -e DATABASE_URL="postgresql://havewa:havewa@quickrun-havewa-db:5432/havewa?schema=public" ghcr.io/fgilde/hausverwaltung:latest
+    run: docker run --rm --name quickrun-havewa --network quickrun-havewa-net -p 3000:3000 -e AUTH_TRUST_HOST=true -e DATABASE_URL="postgresql://havewa:havewa@quickrun-havewa-db:5432/havewa?schema=public" ghcr.io/fgilde/hausverwaltung:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:3000'}
     open: true

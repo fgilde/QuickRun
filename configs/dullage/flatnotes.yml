@@ -21,7 +21,7 @@ setup:
 
 tasks:
   - name: flatnotes
-    run: docker run --rm --name quickrun-flatnotes --network quickrun-flatnotes-net -p 8080:8080 -e FLATNOTES_AUTH_TYPE="password" dullage/flatnotes:latest
+    run: docker run --rm --name quickrun-flatnotes --network quickrun-flatnotes-net -p 8080:8080 -e FLATNOTES_AUTH_TYPE=password dullage/flatnotes:latest
     readyWhen: {http: 'http://localhost:8080'}
     open: true
 

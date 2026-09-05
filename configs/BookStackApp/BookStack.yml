@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-bookstack-db --network quickrun-bookstack-net -e MYSQL_ROOT_PASSWORD="bookstack" -e MYSQL_DATABASE="bookstackapp" -e MYSQL_USER="bookstack" -e MYSQL_PASSWORD="bookstack" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-bookstack-db --network quickrun-bookstack-net -e MYSQL_ROOT_PASSWORD=bookstack -e MYSQL_DATABASE=bookstackapp -e MYSQL_USER=bookstack -e MYSQL_PASSWORD=bookstack lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: bookstack
-    run: docker run --rm --name quickrun-bookstack --network quickrun-bookstack-net -p 80:80 -e DB_HOST="quickrun-bookstack-db" -e DB_PORT="3306" -e DB_DATABASE="bookstackapp" -e DB_USERNAME="bookstack" -e DB_PASSWORD="bookstack" lscr.io/linuxserver/bookstack:latest
+    run: docker run --rm --name quickrun-bookstack --network quickrun-bookstack-net -p 80:80 -e DB_HOST=quickrun-bookstack-db -e DB_PORT=3306 -e DB_DATABASE=bookstackapp -e DB_USERNAME=bookstack -e DB_PASSWORD=bookstack lscr.io/linuxserver/bookstack:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:80'}
     open: true

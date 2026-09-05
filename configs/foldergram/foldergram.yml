@@ -21,7 +21,7 @@ setup:
 
 tasks:
   - name: foldergram
-    run: docker run --rm --name quickrun-foldergram --network quickrun-foldergram-net -p 4141:4141 -e IMAGE_DETAIL_SOURCE="preview" -e DERIVATIVE_MODE="eager" ghcr.io/foldergram/foldergram:latest
+    run: docker run --rm --name quickrun-foldergram --network quickrun-foldergram-net -p 4141:4141 -e IMAGE_DETAIL_SOURCE=preview -e DERIVATIVE_MODE=eager ghcr.io/foldergram/foldergram:latest
     readyWhen: {http: 'http://localhost:4141'}
     open: true
 

@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-immich-db --network quickrun-immich-net -e POSTGRES_DB="immich" -e POSTGRES_USER="immich" -e POSTGRES_PASSWORD="immich" ghcr.io/immich-app/postgres:16-vectorchord0.3.0
+    run: docker run --rm --name quickrun-immich-db --network quickrun-immich-net -e POSTGRES_DB=immich -e POSTGRES_USER=immich -e POSTGRES_PASSWORD=immich ghcr.io/immich-app/postgres:16-vectorchord0.3.0
     readyWhen: {log: database system is ready to accept connections}
   - name: redis
     run: docker run --rm --name quickrun-immich-redis --network quickrun-immich-net -p 6379:6379 redis:7
@@ -31,7 +31,7 @@ tasks:
     run: docker run --rm --name quickrun-immich-ml --network quickrun-immich-net -p 3003:3003 ghcr.io/immich-app/immich-machine-learning:release
     readyWhen: {port: 3003}
   - name: immich
-    run: docker run --rm --name quickrun-immich --network quickrun-immich-net -p 2283:2283 -e DB_HOSTNAME="quickrun-immich-db" -e DB_USERNAME="immich" -e DB_PASSWORD="immich" -e DB_DATABASE_NAME="immich" -e REDIS_HOSTNAME="quickrun-immich-redis" ghcr.io/immich-app/immich-server:release
+    run: docker run --rm --name quickrun-immich --network quickrun-immich-net -p 2283:2283 -e DB_HOSTNAME=quickrun-immich-db -e DB_USERNAME=immich -e DB_PASSWORD=immich -e DB_DATABASE_NAME=immich -e REDIS_HOSTNAME=quickrun-immich-redis ghcr.io/immich-app/immich-server:release
     dependsOn: [db, redis, ml]
     readyWhen: {http: 'http://localhost:2283'}
     open: true

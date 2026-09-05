@@ -21,10 +21,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-dolibarr-db --network quickrun-dolibarr-net -e MYSQL_ROOT_PASSWORD="dolibarr" -e MYSQL_DATABASE="dolibarr" -e MYSQL_USER="dolibarr" -e MYSQL_PASSWORD="dolibarr" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-dolibarr-db --network quickrun-dolibarr-net -e MYSQL_ROOT_PASSWORD=dolibarr -e MYSQL_DATABASE=dolibarr -e MYSQL_USER=dolibarr -e MYSQL_PASSWORD=dolibarr lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: dolibarr
-    run: docker run --rm --name quickrun-dolibarr --network quickrun-dolibarr-net -p 80:80 -e DOLI_DB_HOST="quickrun-dolibarr-db" -e DOLI_DB_NAME="dolibarr" -e DOLI_DB_USER="dolibarr" -e DOLI_DB_PASSWORD="dolibarr" -e DOLI_ADMIN_LOGIN="admin" -e DOLI_INSTALL_AUTO="1" dolibarr/dolibarr:latest
+    run: docker run --rm --name quickrun-dolibarr --network quickrun-dolibarr-net -p 80:80 -e DOLI_DB_HOST=quickrun-dolibarr-db -e DOLI_DB_NAME=dolibarr -e DOLI_DB_USER=dolibarr -e DOLI_DB_PASSWORD=dolibarr -e DOLI_ADMIN_LOGIN=admin -e DOLI_INSTALL_AUTO=1 dolibarr/dolibarr:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:80'}
     open: true

@@ -28,10 +28,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-bitwarden-db --network quickrun-bitwarden-net -e MARIADB_USER="bitwarden" -e MARIADB_PASSWORD="bitwarden" -e MARIADB_DATABASE="bitwarden_vault" -e MARIADB_RANDOM_ROOT_PASSWORD="true" mariadb:11
+    run: docker run --rm --name quickrun-bitwarden-db --network quickrun-bitwarden-net -e MARIADB_USER=bitwarden -e MARIADB_PASSWORD=bitwarden -e MARIADB_DATABASE=bitwarden_vault -e MARIADB_RANDOM_ROOT_PASSWORD=true mariadb:11
     readyWhen: {log: ready for connections}
   - name: bitwarden
-    run: docker run --rm --name quickrun-bitwarden --network quickrun-bitwarden-net -p 8080:8080 -e BW_DB_PROVIDER="mysql" -e BW_DB_SERVER="quickrun-bitwarden-db" -e BW_DB_DATABASE="bitwarden_vault" -e BW_DB_USERNAME="bitwarden" -e BW_DB_PASSWORD="bitwarden" -e BW_ENABLE_ADMIN="true" ghcr.io/bitwarden/lite:latest
+    run: docker run --rm --name quickrun-bitwarden --network quickrun-bitwarden-net -p 8080:8080 -e BW_DB_PROVIDER=mysql -e BW_DB_SERVER=quickrun-bitwarden-db -e BW_DB_DATABASE=bitwarden_vault -e BW_DB_USERNAME=bitwarden -e BW_DB_PASSWORD=bitwarden -e BW_ENABLE_ADMIN=true ghcr.io/bitwarden/lite:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:8080'}
     open: true

@@ -42,8 +42,8 @@ tasks:
     # database behind is not what "try it" means here.
     run: >-
       docker run --rm --name quickrun-passbolt-db --network quickrun-passbolt-net
-      -e MYSQL_RANDOM_ROOT_PASSWORD="true" -e MYSQL_DATABASE="passbolt"
-      -e MYSQL_USER="passbolt" -e MYSQL_PASSWORD="passbolt"
+      -e MYSQL_RANDOM_ROOT_PASSWORD=true -e MYSQL_DATABASE=passbolt
+      -e MYSQL_USER=passbolt -e MYSQL_PASSWORD=passbolt
       mariadb:10.11
     readyWhen: {log: "ready for connections"}
 
@@ -52,17 +52,22 @@ tasks:
     # one that knows when the database is really usable: mariadb says "ready for connections" once
     # while initialising and once for real, and the first one is a lie for anything but the log.
     #
+    # Nothing here is quoted that does not have to be: a version of QuickRun before the quoting fix
+    # turns a quote into part of the value, and this config is served to whichever version somebody
+    # already has. An address with quotes in it is what makes passbolt write them into every asset
+    # URL, which the browser then cannot find - a white page and three 404s.
+    #
     # http rather than https on purpose. PASSBOLT_SSL_FORCE defaults to false, and the image's own
     # documentation allows a plain http APP_FULL_BASE_URL - which is what a machine with no
     # certificate for "localhost" can actually serve.
     run: >-
       docker run --rm --name quickrun-passbolt --network quickrun-passbolt-net
       -p ${inputs.port}:80
-      -e APP_FULL_BASE_URL="http://localhost:${inputs.port}"
-      -e DATASOURCES_DEFAULT_HOST="quickrun-passbolt-db"
-      -e DATASOURCES_DEFAULT_USERNAME="passbolt"
-      -e DATASOURCES_DEFAULT_PASSWORD="passbolt"
-      -e DATASOURCES_DEFAULT_DATABASE="passbolt"
+      -e APP_FULL_BASE_URL=http://localhost:${inputs.port}
+      -e DATASOURCES_DEFAULT_HOST=quickrun-passbolt-db
+      -e DATASOURCES_DEFAULT_USERNAME=passbolt
+      -e DATASOURCES_DEFAULT_PASSWORD=passbolt
+      -e DATASOURCES_DEFAULT_DATABASE=passbolt
       passbolt/passbolt:latest-ce
       /usr/bin/wait-for.sh -t 0 quickrun-passbolt-db:3306 -- /docker-entrypoint.sh
     dependsOn: [db]

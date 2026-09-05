@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-joomla-db --network quickrun-joomla-net -e MYSQL_ROOT_PASSWORD="joomla" -e MYSQL_DATABASE="joomla" -e MYSQL_USER="joomla" -e MYSQL_PASSWORD="joomla" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-joomla-db --network quickrun-joomla-net -e MYSQL_ROOT_PASSWORD=joomla -e MYSQL_DATABASE=joomla -e MYSQL_USER=joomla -e MYSQL_PASSWORD=joomla lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: joomla
-    run: docker run --rm --name quickrun-joomla --network quickrun-joomla-net -p 80:80 -e JOOMLA_DB_HOST="quickrun-joomla-db" -e JOOMLA_DB_NAME="joomla" -e JOOMLA_DB_USER="joomla" -e JOOMLA_DB_PASSWORD="joomla" -e JOOMLA_SITE_NAME="Joomla" -e JOOMLA_ADMIN_USER="Administrator" -e JOOMLA_ADMIN_USERNAME="admin" -e JOOMLA_ADMIN_EMAIL="admin@example.com" joomla:latest
+    run: docker run --rm --name quickrun-joomla --network quickrun-joomla-net -p 80:80 -e JOOMLA_DB_HOST=quickrun-joomla-db -e JOOMLA_DB_NAME=joomla -e JOOMLA_DB_USER=joomla -e JOOMLA_DB_PASSWORD=joomla -e JOOMLA_SITE_NAME=Joomla -e JOOMLA_ADMIN_USER=Administrator -e JOOMLA_ADMIN_USERNAME=admin -e JOOMLA_ADMIN_EMAIL=admin@example.com joomla:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:80'}
     open: true

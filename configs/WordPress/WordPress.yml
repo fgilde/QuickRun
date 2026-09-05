@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-wordpress-db --network quickrun-wordpress-net -e MYSQL_ROOT_PASSWORD="wordpress" -e MYSQL_DATABASE="wordpress" -e MYSQL_USER="wordpress" -e MYSQL_PASSWORD="wordpress" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-wordpress-db --network quickrun-wordpress-net -e MYSQL_ROOT_PASSWORD=wordpress -e MYSQL_DATABASE=wordpress -e MYSQL_USER=wordpress -e MYSQL_PASSWORD=wordpress lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: wordpress
-    run: docker run --rm --name quickrun-wordpress --network quickrun-wordpress-net -p 80:80 -e WORDPRESS_DB_HOST="quickrun-wordpress-db" -e WORDPRESS_DB_NAME="wordpress" -e WORDPRESS_DB_USER="wordpress" -e WORDPRESS_DB_PASSWORD="wordpress" wordpress:latest
+    run: docker run --rm --name quickrun-wordpress --network quickrun-wordpress-net -p 80:80 -e WORDPRESS_DB_HOST=quickrun-wordpress-db -e WORDPRESS_DB_NAME=wordpress -e WORDPRESS_DB_USER=wordpress -e WORDPRESS_DB_PASSWORD=wordpress wordpress:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:80'}
     open: true

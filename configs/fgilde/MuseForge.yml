@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: museforge
-    run: docker run --rm --name quickrun-museforge --network quickrun-museforge-net -p 7860:7860 -e HF_HOME="/data/huggingface" ghcr.io/fgilde/museforge:latest
+    run: docker run --rm --name quickrun-museforge --network quickrun-museforge-net -p 7860:7860 -e HF_HOME=/data/huggingface ghcr.io/fgilde/museforge:latest
     readyWhen: {http: 'http://localhost:7860'}
     open: true
 

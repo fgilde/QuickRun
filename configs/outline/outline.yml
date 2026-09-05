@@ -25,13 +25,13 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-outline-db --network quickrun-outline-net -e POSTGRES_DB="outline" -e POSTGRES_USER="outline" -e POSTGRES_PASSWORD="outline" postgres:16
+    run: docker run --rm --name quickrun-outline-db --network quickrun-outline-net -e POSTGRES_DB=outline -e POSTGRES_USER=outline -e POSTGRES_PASSWORD=outline postgres:16
     readyWhen: {log: database system is ready to accept connections}
   - name: redis
     run: docker run --rm --name quickrun-outline-redis --network quickrun-outline-net -p 6379:6379 redis:7
     readyWhen: {log: Ready to accept connections}
   - name: outline
-    run: docker run --rm --name quickrun-outline --network quickrun-outline-net -p 3000:3000 -e NODE_ENV="production" -e DATABASE_URL="postgres://outline:outline@quickrun-outline-db:5432/outline" -e PGSSLMODE="disable" -e REDIS_URL="redis://quickrun-outline-redis:6379" -e FORCE_HTTPS="false" docker.getoutline.com/outlinewiki/outline:latest
+    run: docker run --rm --name quickrun-outline --network quickrun-outline-net -p 3000:3000 -e NODE_ENV=production -e DATABASE_URL=postgres://outline:outline@quickrun-outline-db:5432/outline -e PGSSLMODE=disable -e REDIS_URL=redis://quickrun-outline-redis:6379 -e FORCE_HTTPS=false docker.getoutline.com/outlinewiki/outline:latest
     dependsOn: [db, redis]
     readyWhen: {http: 'http://localhost:3000'}
     open: true

@@ -23,10 +23,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-planka-db --network quickrun-planka-net -e POSTGRES_DB="planka" -e POSTGRES_USER="planka" -e POSTGRES_PASSWORD="planka" postgres:16
+    run: docker run --rm --name quickrun-planka-db --network quickrun-planka-net -e POSTGRES_DB=planka -e POSTGRES_USER=planka -e POSTGRES_PASSWORD=planka postgres:16
     readyWhen: {log: database system is ready to accept connections}
   - name: planka
-    run: docker run --rm --name quickrun-planka --network quickrun-planka-net -p 1337:1337 -e DATABASE_URL="postgresql://planka:planka@quickrun-planka-db/planka" -e DEFAULT_ADMIN_NAME="Admin" -e DEFAULT_ADMIN_USERNAME="admin" ghcr.io/plankanban/planka:latest
+    run: docker run --rm --name quickrun-planka --network quickrun-planka-net -p 1337:1337 -e DATABASE_URL=postgresql://planka:planka@quickrun-planka-db/planka -e DEFAULT_ADMIN_NAME=Admin -e DEFAULT_ADMIN_USERNAME=admin ghcr.io/plankanban/planka:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:1337'}
     open: true

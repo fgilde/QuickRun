@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-hedgedoc-db --network quickrun-hedgedoc-net -e POSTGRES_DB="hedgedoc" -e POSTGRES_USER="hedgedoc" -e POSTGRES_PASSWORD="hedgedoc" postgres:16
+    run: docker run --rm --name quickrun-hedgedoc-db --network quickrun-hedgedoc-net -e POSTGRES_DB=hedgedoc -e POSTGRES_USER=hedgedoc -e POSTGRES_PASSWORD=hedgedoc postgres:16
     readyWhen: {log: database system is ready to accept connections}
   - name: hedgedoc
-    run: docker run --rm --name quickrun-hedgedoc --network quickrun-hedgedoc-net -p 3000:3000 -e CMD_DB_URL="postgres://hedgedoc:hedgedoc@quickrun-hedgedoc-db:5432/hedgedoc" -e CMD_URL_ADDPORT="true" -e CMD_PROTOCOL_USESSL="false" -e CMD_ALLOW_ORIGIN="*" quay.io/hedgedoc/hedgedoc:latest
+    run: docker run --rm --name quickrun-hedgedoc --network quickrun-hedgedoc-net -p 3000:3000 -e CMD_DB_URL=postgres://hedgedoc:hedgedoc@quickrun-hedgedoc-db:5432/hedgedoc -e CMD_URL_ADDPORT=true -e CMD_PROTOCOL_USESSL=false -e CMD_ALLOW_ORIGIN="*" quay.io/hedgedoc/hedgedoc:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:3000'}
     open: true

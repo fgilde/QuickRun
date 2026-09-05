@@ -21,7 +21,7 @@ setup:
 
 tasks:
   - name: glances
-    run: docker run --rm --name quickrun-glances --network quickrun-glances-net -p 61208:61208 -e GLANCES_OPT="-w" nicolargo/glances:latest-full
+    run: docker run --rm --name quickrun-glances --network quickrun-glances-net -p 61208:61208 -e GLANCES_OPT=-w nicolargo/glances:latest-full
     readyWhen: {http: 'http://localhost:61208'}
     open: true
 

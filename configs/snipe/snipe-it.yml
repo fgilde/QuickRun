@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-snipe-it-db --network quickrun-snipe-it-net -e MYSQL_ROOT_PASSWORD="snipeit" -e MYSQL_DATABASE="snipeit" -e MYSQL_USER="snipeit" -e MYSQL_PASSWORD="snipeit" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-snipe-it-db --network quickrun-snipe-it-net -e MYSQL_ROOT_PASSWORD=snipeit -e MYSQL_DATABASE=snipeit -e MYSQL_USER=snipeit -e MYSQL_PASSWORD=snipeit lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: snipe-it
-    run: docker run --rm --name quickrun-snipe-it --network quickrun-snipe-it-net -p 80:80 -e MYSQL_PORT_3306_TCP_ADDR="quickrun-snipe-it-db" -e MYSQL_PORT_3306_TCP_PORT="3306" -e MYSQL_DATABASE="snipeit" -e MYSQL_USER="snipeit" -e MYSQL_PASSWORD="snipeit" -e APP_ENV="production" -e APP_DEBUG="false" -e PRIVATE_FILESYSTEM_DISK="local" -e PUBLIC_FILESYSTEM_DISK="local_public" snipe/snipe-it:latest
+    run: docker run --rm --name quickrun-snipe-it --network quickrun-snipe-it-net -p 80:80 -e MYSQL_PORT_3306_TCP_ADDR=quickrun-snipe-it-db -e MYSQL_PORT_3306_TCP_PORT=3306 -e MYSQL_DATABASE=snipeit -e MYSQL_USER=snipeit -e MYSQL_PASSWORD=snipeit -e APP_ENV=production -e APP_DEBUG=false -e PRIVATE_FILESYSTEM_DISK=local -e PUBLIC_FILESYSTEM_DISK=local_public snipe/snipe-it:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:80'}
     open: true

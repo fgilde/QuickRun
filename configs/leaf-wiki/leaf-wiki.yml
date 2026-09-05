@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: leafwiki
-    run: docker run --rm --name quickrun-leafwiki --network quickrun-leafwiki-net -p 8080:8080 -e LEAFWIKI_ALLOW_INSECURE="true" ghcr.io/perber/leafwiki:latest
+    run: docker run --rm --name quickrun-leafwiki --network quickrun-leafwiki-net -p 8080:8080 -e LEAFWIKI_ALLOW_INSECURE=true ghcr.io/perber/leafwiki:latest
     readyWhen: {http: 'http://localhost:8080'}
     open: true
 

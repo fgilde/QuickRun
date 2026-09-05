@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: maestro
-    run: docker run --rm --name quickrun-maestro --network quickrun-maestro-net -p 7860:7860 -e HF_HOME="/data/huggingface" ghcr.io/fgilde/maestro:latest
+    run: docker run --rm --name quickrun-maestro --network quickrun-maestro-net -p 7860:7860 -e HF_HOME=/data/huggingface ghcr.io/fgilde/maestro:latest
     readyWhen: {http: 'http://localhost:7860'}
     open: true
 

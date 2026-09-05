@@ -23,7 +23,7 @@ setup:
 
 tasks:
   - name: lx-family-planner
-    run: docker run --rm --name quickrun-lx-family-planner --network quickrun-lx-family-planner-net -p 3001:3001 -e NODE_ENV="production" -e PORT="3001" -e TZ="Europe/Berlin" -e SESSION_COOKIE_SECURE="auto" -e REGISTRATION_MODE="first-family" -e DATABASE_FILE="/app/data/family_planner.sqlite" -e LEGACY_DATABASE_FILE="/app/data/family_db.json" ghcr.io/laxxx-lab/lx-family-planner:latest
+    run: docker run --rm --name quickrun-lx-family-planner --network quickrun-lx-family-planner-net -p 3001:3001 -e NODE_ENV=production -e PORT=3001 -e TZ=Europe/Berlin -e SESSION_COOKIE_SECURE=auto -e REGISTRATION_MODE=first-family -e DATABASE_FILE=/app/data/family_planner.sqlite -e LEGACY_DATABASE_FILE=/app/data/family_db.json ghcr.io/laxxx-lab/lx-family-planner:latest
     readyWhen: {http: 'http://localhost:3001'}
     open: true
 

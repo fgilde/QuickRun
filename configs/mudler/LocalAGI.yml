@@ -25,7 +25,7 @@ tasks:
     run: docker run --rm --name quickrun-localagi-llm --network quickrun-localagi-net -p 8080:8080 localai/localai:latest
     readyWhen: {port: 8080}
   - name: localagi
-    run: docker run --rm --name quickrun-localagi --network quickrun-localagi-net -p 3000:3000 -e LOCALAGI_MODEL="gpt-4" -e LOCALAGI_LLM_API_URL="http://quickrun-localagi-llm:8080" quay.io/mudler/localagi:latest
+    run: docker run --rm --name quickrun-localagi --network quickrun-localagi-net -p 3000:3000 -e LOCALAGI_MODEL=gpt-4 -e LOCALAGI_LLM_API_URL=http://quickrun-localagi-llm:8080 quay.io/mudler/localagi:latest
     dependsOn: [llm]
     readyWhen: {http: 'http://localhost:3000'}
     open: true

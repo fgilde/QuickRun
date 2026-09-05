@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: electrumx
-    run: docker run --rm --name quickrun-electrumx --network quickrun-electrumx-net -p 50001:50001 -e COIN="Bitcoin" -e NET="mainnet" -e SERVICES="tcp://0.0.0.0:50001" lukechilds/electrumx:latest
+    run: docker run --rm --name quickrun-electrumx --network quickrun-electrumx-net -p 50001:50001 -e COIN=Bitcoin -e NET=mainnet -e SERVICES=tcp://0.0.0.0:50001 lukechilds/electrumx:latest
     readyWhen: {http: 'http://localhost:50001'}
     open: true
 

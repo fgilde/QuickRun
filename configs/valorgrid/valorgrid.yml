@@ -24,7 +24,7 @@ setup:
 
 tasks:
   - name: valorgrid
-    run: docker run --rm --name quickrun-valorgrid --network quickrun-valorgrid-net -p 1325:1325 -e HOST="0.0.0.0" -e PORT="1325" -e PORTFOLIO_DB_PATH="/data/portfolio.sqlite" -e VALORGRID_BACKUP_DIR="/data/backups" ghcr.io/aivm23/valorgrid:v3.33.1
+    run: docker run --rm --name quickrun-valorgrid --network quickrun-valorgrid-net -p 1325:1325 -e HOST=0.0.0.0 -e PORT=1325 -e PORTFOLIO_DB_PATH=/data/portfolio.sqlite -e VALORGRID_BACKUP_DIR=/data/backups ghcr.io/aivm23/valorgrid:v3.33.1
     readyWhen: {http: 'http://localhost:1325'}
     open: true
 

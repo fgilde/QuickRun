@@ -24,7 +24,7 @@ setup:
 
 tasks:
   - name: influxdb
-    run: docker run --rm --name quickrun-influxdb --network quickrun-influxdb-net -p 8086:8086 -e DOCKER_INFLUXDB_INIT_MODE="setup" -e DOCKER_INFLUXDB_INIT_ORG="aspireui" -e DOCKER_INFLUXDB_INIT_BUCKET="default" influxdb:2
+    run: docker run --rm --name quickrun-influxdb --network quickrun-influxdb-net -p 8086:8086 -e DOCKER_INFLUXDB_INIT_MODE=setup -e DOCKER_INFLUXDB_INIT_ORG=aspireui -e DOCKER_INFLUXDB_INIT_BUCKET=default influxdb:2
     readyWhen: {http: 'http://localhost:8086'}
     open: true
 

@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: vikunja
-    run: docker run --rm --name quickrun-vikunja --network quickrun-vikunja-net -p 3456:3456 -e VIKUNJA_CORS_ENABLE="false" vikunja/vikunja:latest
+    run: docker run --rm --name quickrun-vikunja --network quickrun-vikunja-net -p 3456:3456 -e VIKUNJA_CORS_ENABLE=false vikunja/vikunja:latest
     readyWhen: {http: 'http://localhost:3456'}
     open: true
 

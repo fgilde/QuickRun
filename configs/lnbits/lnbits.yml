@@ -24,7 +24,7 @@ setup:
 
 tasks:
   - name: lnbits
-    run: docker run --rm --name quickrun-lnbits --network quickrun-lnbits-net -p 5000:5000 -e LNBITS_DATA_FOLDER="/app/data" -e LNBITS_BACKEND_WALLET_CLASS="VoidWallet" -e HOST="0.0.0.0" -e PORT="5000" lnbits/lnbits:latest
+    run: docker run --rm --name quickrun-lnbits --network quickrun-lnbits-net -p 5000:5000 -e LNBITS_DATA_FOLDER=/app/data -e LNBITS_BACKEND_WALLET_CLASS=VoidWallet -e HOST=0.0.0.0 -e PORT=5000 lnbits/lnbits:latest
     readyWhen: {http: 'http://localhost:5000'}
     open: true
 

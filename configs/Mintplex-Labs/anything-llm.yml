@@ -21,7 +21,7 @@ setup:
 
 tasks:
   - name: anythingllm
-    run: docker run --rm --name quickrun-anythingllm --network quickrun-anythingllm-net -p 3001:3001 -e STORAGE_DIR="/app/server/storage" mintplexlabs/anythingllm:latest
+    run: docker run --rm --name quickrun-anythingllm --network quickrun-anythingllm-net -p 3001:3001 -e STORAGE_DIR=/app/server/storage mintplexlabs/anythingllm:latest
     readyWhen: {http: 'http://localhost:3001'}
     open: true
 

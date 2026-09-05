@@ -21,7 +21,7 @@ setup:
 
 tasks:
   - name: electrs
-    run: docker run --rm --name quickrun-electrs --network quickrun-electrs-net -p 50001:50001 -e ELECTRS_ELECTRUM_RPC_ADDR="0.0.0.0:50001" getumbrel/electrs:v0.11.0
+    run: docker run --rm --name quickrun-electrs --network quickrun-electrs-net -p 50001:50001 -e ELECTRS_ELECTRUM_RPC_ADDR=0.0.0.0:50001 getumbrel/electrs:v0.11.0
     readyWhen: {http: 'http://localhost:50001'}
     open: true
 

@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: phpmyadmin
-    run: docker run --rm --name quickrun-phpmyadmin --network quickrun-phpmyadmin-net -p 80:80 -e PMA_ARBITRARY="1" -e UPLOAD_LIMIT="256M" phpmyadmin:latest
+    run: docker run --rm --name quickrun-phpmyadmin --network quickrun-phpmyadmin-net -p 80:80 -e PMA_ARBITRARY=1 -e UPLOAD_LIMIT=256M phpmyadmin:latest
     readyWhen: {http: 'http://localhost:80'}
     open: true
 

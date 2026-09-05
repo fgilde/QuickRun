@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: joinstr
-    run: docker run --rm --name quickrun-joinstr --network quickrun-joinstr-net -p 5000:5000 -e JOINSTR_MANAGED="1" -e JOINSTR_WALLET="joinstr" -e JOINSTR_DATA_DIR="/app/data" ghcr.io/1440000bytes/joinstr-web:0.1.1
+    run: docker run --rm --name quickrun-joinstr --network quickrun-joinstr-net -p 5000:5000 -e JOINSTR_MANAGED=1 -e JOINSTR_WALLET=joinstr -e JOINSTR_DATA_DIR=/app/data ghcr.io/1440000bytes/joinstr-web:0.1.1
     readyWhen: {http: 'http://localhost:5000'}
     open: true
 

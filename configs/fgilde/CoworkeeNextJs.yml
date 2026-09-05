@@ -26,10 +26,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-coworkee-db --network quickrun-coworkee-net -e POSTGRES_USER="coworkee" -e POSTGRES_PASSWORD="coworkee" -e POSTGRES_DB="coworkee" postgres:16
+    run: docker run --rm --name quickrun-coworkee-db --network quickrun-coworkee-net -e POSTGRES_USER=coworkee -e POSTGRES_PASSWORD=coworkee -e POSTGRES_DB=coworkee postgres:16
     readyWhen: {log: database system is ready to accept connections}
   - name: coworkee
-    run: docker run --rm --name quickrun-coworkee --network quickrun-coworkee-net -p 3000:3000 -e NODE_ENV="production" -e AUTH_TRUST_HOST="true" -e DATABASE_URL="postgresql://coworkee:coworkee@quickrun-coworkee-db:5432/coworkee?schema=public" ghcr.io/fgilde/coworkeenextjs:latest
+    run: docker run --rm --name quickrun-coworkee --network quickrun-coworkee-net -p 3000:3000 -e NODE_ENV=production -e AUTH_TRUST_HOST=true -e DATABASE_URL="postgresql://coworkee:coworkee@quickrun-coworkee-db:5432/coworkee?schema=public" ghcr.io/fgilde/coworkeenextjs:latest
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:3000'}
     open: true

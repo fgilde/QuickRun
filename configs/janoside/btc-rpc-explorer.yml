@@ -21,7 +21,7 @@ setup:
 
 tasks:
   - name: btc-rpc-explorer
-    run: docker run --rm --name quickrun-btc-rpc-explorer --network quickrun-btc-rpc-explorer-net -p 3002:3002 -e BTCEXP_HOST="0.0.0.0" -e BTCEXP_PORT="3002" -e BTCEXP_BITCOIND_PORT="8332" getumbrel/btc-rpc-explorer:v3.5.1
+    run: docker run --rm --name quickrun-btc-rpc-explorer --network quickrun-btc-rpc-explorer-net -p 3002:3002 -e BTCEXP_HOST=0.0.0.0 -e BTCEXP_PORT=3002 -e BTCEXP_BITCOIND_PORT=8332 getumbrel/btc-rpc-explorer:v3.5.1
     readyWhen: {http: 'http://localhost:3002'}
     open: true
 

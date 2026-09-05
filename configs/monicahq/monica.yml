@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-monica-db --network quickrun-monica-net -e MYSQL_ROOT_PASSWORD="monica" -e MYSQL_DATABASE="monica" -e MYSQL_USER="monica" -e MYSQL_PASSWORD="monica" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-monica-db --network quickrun-monica-net -e MYSQL_ROOT_PASSWORD=monica -e MYSQL_DATABASE=monica -e MYSQL_USER=monica -e MYSQL_PASSWORD=monica lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: monica
-    run: docker run --rm --name quickrun-monica --network quickrun-monica-net -p 80:80 -e DB_HOST="quickrun-monica-db" -e DB_PORT="3306" -e DB_DATABASE="monica" -e DB_USERNAME="monica" -e DB_PASSWORD="monica" monica:apache
+    run: docker run --rm --name quickrun-monica --network quickrun-monica-net -p 80:80 -e DB_HOST=quickrun-monica-db -e DB_PORT=3306 -e DB_DATABASE=monica -e DB_USERNAME=monica -e DB_PASSWORD=monica monica:apache
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:80'}
     open: true

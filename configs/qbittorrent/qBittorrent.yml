@@ -25,7 +25,7 @@ setup:
 
 tasks:
   - name: qbittorrent
-    run: docker run --rm --name quickrun-qbittorrent --network quickrun-qbittorrent-net -p 8080:8080 -e WEBUI_PORT="8080" lscr.io/linuxserver/qbittorrent:latest
+    run: docker run --rm --name quickrun-qbittorrent --network quickrun-qbittorrent-net -p 8080:8080 -e WEBUI_PORT=8080 lscr.io/linuxserver/qbittorrent:latest
     readyWhen: {http: 'http://localhost:8080'}
     open: true
 

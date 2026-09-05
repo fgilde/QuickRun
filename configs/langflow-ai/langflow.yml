@@ -24,7 +24,7 @@ setup:
 
 tasks:
   - name: langflow
-    run: docker run --rm --name quickrun-langflow --network quickrun-langflow-net -p 7860:7860 -e LANGFLOW_AUTO_LOGIN="false" langflowai/langflow:latest
+    run: docker run --rm --name quickrun-langflow --network quickrun-langflow-net -p 7860:7860 -e LANGFLOW_AUTO_LOGIN=false langflowai/langflow:latest
     readyWhen: {http: 'http://localhost:7860'}
     open: true
 

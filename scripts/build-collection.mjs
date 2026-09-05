@@ -90,11 +90,30 @@ function dockerRun(app, { name, image, port, env }) {
 
   if (port) parts.push(`-p ${port}:${port}`);
 
-  for (const [key, value] of env ?? [])
-    parts.push(`-e ${key}=${JSON.stringify(String(value))}`);
+  for (const [key, value] of env ?? []) parts.push(`-e ${key}=${shellValue(value)}`);
 
   parts.push(image);
   return parts.join(' ');
+}
+
+/**
+ * An environment value as it goes on a command line: quoted only where it has to be.
+ *
+ * These used to be quoted always, and a version of QuickRun that handed cmd.exe an escaped argument
+ * list turned the quotes into part of the value - a database whose password was "passbolt", quotes
+ * and all, and an application looking for a host whose name had punctuation in it. That is fixed in
+ * the tool, but these configs are served to whatever version somebody already has installed, so the
+ * fewer quotes they carry the fewer machines they can break on.
+ *
+ * Anything a shell would read as more than text still gets them, because being unquoted there is a
+ * command that does something else entirely.
+ */
+function shellValue(value) {
+  const text = String(value ?? '');
+
+  return /^[A-Za-z0-9_.:/@=+-]+$/.test(text) && text.length > 0
+    ? text
+    : JSON.stringify(text);
 }
 
 /** Companion hostnames: the catalogue writes ${key}, and the container is named after it. */

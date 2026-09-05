@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-piwigo-db --network quickrun-piwigo-net -e MYSQL_ROOT_PASSWORD="piwigo" -e MYSQL_DATABASE="piwigo" -e MYSQL_USER="piwigo" -e MYSQL_PASSWORD="piwigo" lscr.io/linuxserver/mariadb:latest
+    run: docker run --rm --name quickrun-piwigo-db --network quickrun-piwigo-net -e MYSQL_ROOT_PASSWORD=piwigo -e MYSQL_DATABASE=piwigo -e MYSQL_USER=piwigo -e MYSQL_PASSWORD=piwigo lscr.io/linuxserver/mariadb:latest
     readyWhen: {log: ready for connections}
   - name: piwigo
     run: docker run --rm --name quickrun-piwigo --network quickrun-piwigo-net -p 80:80 lscr.io/linuxserver/piwigo:latest

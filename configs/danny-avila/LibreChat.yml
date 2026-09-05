@@ -25,10 +25,10 @@ tasks:
     run: docker run --rm --name quickrun-librechat-mongo --network quickrun-librechat-net -p 27017:27017 mongo:7
     readyWhen: {log: Waiting for connections}
   - name: meili
-    run: docker run --rm --name quickrun-librechat-meili --network quickrun-librechat-net -p 7700:7700 -e MEILI_NO_ANALYTICS="true" -e MEILI_MASTER_KEY="aspireui-dev-master-key" getmeili/meilisearch:latest
+    run: docker run --rm --name quickrun-librechat-meili --network quickrun-librechat-net -p 7700:7700 -e MEILI_NO_ANALYTICS=true -e MEILI_MASTER_KEY=aspireui-dev-master-key getmeili/meilisearch:latest
     readyWhen: {port: 7700}
   - name: librechat
-    run: docker run --rm --name quickrun-librechat --network quickrun-librechat-net -p 3080:3080 -e HOST="0.0.0.0" -e MONGO_URI="mongodb://quickrun-librechat-mongo:27017/LibreChat" -e MEILI_HOST="http://quickrun-librechat-meili:7700" -e MEILI_MASTER_KEY="aspireui-dev-master-key" -e JWT_SECRET="aspireui-dev-jwt-secret-change-me" -e JWT_REFRESH_SECRET="aspireui-dev-jwt-refresh-secret-change-me" -e CREDS_KEY="f34be427ebb29de8d88c107a715460196853c907c3f28e1a52a1d1f5973e9d0e" -e CREDS_IV="e2341419ec3dd3d19b13a1a87fafcbfb" -e ALLOW_REGISTRATION="true" -e ALLOW_EMAIL_LOGIN="true" ghcr.io/danny-avila/librechat:latest
+    run: docker run --rm --name quickrun-librechat --network quickrun-librechat-net -p 3080:3080 -e HOST=0.0.0.0 -e MONGO_URI=mongodb://quickrun-librechat-mongo:27017/LibreChat -e MEILI_HOST=http://quickrun-librechat-meili:7700 -e MEILI_MASTER_KEY=aspireui-dev-master-key -e JWT_SECRET=aspireui-dev-jwt-secret-change-me -e JWT_REFRESH_SECRET=aspireui-dev-jwt-refresh-secret-change-me -e CREDS_KEY=f34be427ebb29de8d88c107a715460196853c907c3f28e1a52a1d1f5973e9d0e -e CREDS_IV=e2341419ec3dd3d19b13a1a87fafcbfb -e ALLOW_REGISTRATION=true -e ALLOW_EMAIL_LOGIN=true ghcr.io/danny-avila/librechat:latest
     dependsOn: [mongo, meili]
     readyWhen: {http: 'http://localhost:3080'}
     open: true

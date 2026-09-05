@@ -24,7 +24,7 @@ setup:
 
 tasks:
   - name: librephotos
-    run: docker run --rm --name quickrun-librephotos --network quickrun-librephotos-net -p 8001:8001 -e SERVE_FRONTEND="true" -e DB_BACKEND="sqlite" reallibrephotos/librephotos-unified:latest
+    run: docker run --rm --name quickrun-librephotos --network quickrun-librephotos-net -p 8001:8001 -e SERVE_FRONTEND=true -e DB_BACKEND=sqlite reallibrephotos/librephotos-unified:latest
     readyWhen: {http: 'http://localhost:8001'}
     open: true
 

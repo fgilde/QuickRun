@@ -22,10 +22,10 @@ setup:
 
 tasks:
   - name: db
-    run: docker run --rm --name quickrun-ghost-db --network quickrun-ghost-net -e MYSQL_ROOT_PASSWORD="ghost" -e MYSQL_DATABASE="ghost" -e MYSQL_USER="ghost" -e MYSQL_PASSWORD="ghost" mysql:8
+    run: docker run --rm --name quickrun-ghost-db --network quickrun-ghost-net -e MYSQL_ROOT_PASSWORD=ghost -e MYSQL_DATABASE=ghost -e MYSQL_USER=ghost -e MYSQL_PASSWORD=ghost mysql:8
     readyWhen: {log: ready for connections}
   - name: ghost
-    run: docker run --rm --name quickrun-ghost --network quickrun-ghost-net -p 2368:2368 -e database__client="mysql" -e database__connection__host="quickrun-ghost-db" -e database__connection__user="ghost" -e database__connection__password="ghost" -e database__connection__database="ghost" ghost:5-alpine
+    run: docker run --rm --name quickrun-ghost --network quickrun-ghost-net -p 2368:2368 -e database__client=mysql -e database__connection__host=quickrun-ghost-db -e database__connection__user=ghost -e database__connection__password=ghost -e database__connection__database=ghost ghost:5-alpine
     dependsOn: [db]
     readyWhen: {http: 'http://localhost:2368'}
     open: true

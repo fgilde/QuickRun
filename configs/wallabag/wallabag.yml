@@ -22,7 +22,7 @@ setup:
 
 tasks:
   - name: wallabag
-    run: docker run --rm --name quickrun-wallabag --network quickrun-wallabag-net -p 80:80 -e SYMFONY__ENV__DATABASE_DRIVER="pdo_sqlite" -e SYMFONY__ENV__DATABASE_PATH="/var/www/wallabag/data/db/wallabag.sqlite" -e SYMFONY__ENV__MAILER_DSN="smtp://127.0.0.1" -e SYMFONY__ENV__FROM_EMAIL="wallabag@example.com" -e POPULATE_DATABASE="true" wallabag/wallabag:latest
+    run: docker run --rm --name quickrun-wallabag --network quickrun-wallabag-net -p 80:80 -e SYMFONY__ENV__DATABASE_DRIVER=pdo_sqlite -e SYMFONY__ENV__DATABASE_PATH=/var/www/wallabag/data/db/wallabag.sqlite -e SYMFONY__ENV__MAILER_DSN=smtp://127.0.0.1 -e SYMFONY__ENV__FROM_EMAIL=wallabag@example.com -e POPULATE_DATABASE=true wallabag/wallabag:latest
     readyWhen: {http: 'http://localhost:80'}
     open: true
 

@@ -23,7 +23,7 @@ setup:
 
 tasks:
   - name: hermes-agent
-    run: docker run --rm --name quickrun-hermes-agent --network quickrun-hermes-agent-net -p 18789:18789 -e HERMES_DASHBOARD="1" -e HERMES_DASHBOARD_PORT="18789" -e HERMES_UMBREL_APP_PROXY_AUTH="1" ghcr.io/getumbrel/hermes-agent-umbrel:v2026.7.20
+    run: docker run --rm --name quickrun-hermes-agent --network quickrun-hermes-agent-net -p 18789:18789 -e HERMES_DASHBOARD=1 -e HERMES_DASHBOARD_PORT=18789 -e HERMES_UMBREL_APP_PROXY_AUTH=1 ghcr.io/getumbrel/hermes-agent-umbrel:v2026.7.20
     readyWhen: {http: 'http://localhost:18789'}
     open: true
 

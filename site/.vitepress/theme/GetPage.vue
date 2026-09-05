@@ -149,15 +149,17 @@ onMounted(async () => {
   mine.value = detectOs();
   myBrowser.value = currentBrowser();
 
-  // From the release's own manifest rather than GitHub's API. The API is rate-limited for anyone
-  // not sending a token, and a shared address reaches that limit without doing anything unusual -
-  // it answers 403 and the version simply stopped appearing here, which is how this page came to
-  // show no version at all while a release was sitting there. The manifest is a plain file from the
-  // same release, and it carries the version as a number rather than a tag.
+  // This site's own copy of the release manifest, which every release updates here alongside the
+  // download links. Two other sources were wrong for this: GitHub's API is rate-limited for anyone
+  // not sending a token, and once a shared address reaches that limit it answers 403 and the
+  // version simply stopped appearing - which is how this page came to show none at all while a
+  // release was sitting there. Reading the manifest from github.com instead fails differently and
+  // just as reliably: the download it redirects to sends no Access-Control-Allow-Origin, so a page
+  // may not read it. Same origin has neither problem.
   //
   // Still a nicety, not a dependency: no network, no version chip, everything else works.
   try {
-    const answer = await fetch('https://github.com/fgilde/QuickRun/releases/latest/download/quickrun.json');
+    const answer = await fetch(withBase('/quickrun.json'), { cache: 'no-cache' });
     if (answer.ok) {
       const manifest = await answer.json();
       version.value = manifest.version ? `v${manifest.version}` : '';

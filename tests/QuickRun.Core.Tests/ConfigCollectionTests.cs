@@ -92,9 +92,52 @@ public class ConfigCollectionTests : IDisposable
         // Older than the cache window, and the network unreachable: what is on disk was still
         // written for this repository, which beats guessing from file names.
         var cached = Directory.EnumerateFiles(_cache).Single();
-        File.SetLastWriteTimeUtc(cached, DateTime.UtcNow - ConfigCollection.CacheFor - TimeSpan.FromHours(1));
+        File.SetLastWriteTimeUtc(cached, DateTime.UtcNow - ConfigCollection.TrustFor - TimeSpan.FromHours(1));
 
         Assert.Contains("Cached", ConfigCollection.For("acme/app", _cache, _ => null));
+    }
+
+    /// <summary>
+    /// A corrected config reaches the next run, not the next day.
+    /// <para>
+    /// This is the one that bit: passbolt was fixed, deployed, and the run after it still started
+    /// the broken copy out of this cache, because a cached answer counted as current for a day. A
+    /// config nobody can correct within a day is a config that cannot be corrected.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void A_config_that_changed_is_picked_up_rather_than_waited_out()
+    {
+        ConfigCollection.For("acme/app", _cache, _ => "name: The old one\ntasks: []\n");
+
+        // Half an hour, written out rather than derived from the window: a test that ages the copy
+        // by "the window plus a bit" moves with the window and would pass at a day just as happily,
+        // which is the setting that caused this. Half an hour is the claim - a config corrected
+        // while somebody was at lunch is the one their next run starts.
+        var cached = Directory.EnumerateFiles(_cache).Single();
+        File.SetLastWriteTimeUtc(cached, DateTime.UtcNow - TimeSpan.FromMinutes(30));
+
+        var answer = ConfigCollection.For("acme/app", _cache, _ => "name: The corrected one\ntasks: []\n");
+
+        Assert.Contains("The corrected one", answer);
+
+        // And it is what the next run starts from, without asking again.
+        Assert.Contains("The corrected one", ConfigCollection.For("acme/app", _cache, _ => null));
+    }
+
+    /// <summary>
+    /// Within the window nothing is asked, which is what keeps a run off the network.
+    /// </summary>
+    [Fact]
+    public void A_fresh_copy_is_used_without_asking()
+    {
+        ConfigCollection.For("acme/app", _cache, _ => "name: Cached\ntasks: []\n");
+
+        var asked = false;
+        var answer = ConfigCollection.For("acme/app", _cache, _ => { asked = true; return "name: Other"; });
+
+        Assert.Contains("Cached", answer);
+        Assert.False(asked, "it went to the network for a copy it had just written");
     }
 
     [Fact]

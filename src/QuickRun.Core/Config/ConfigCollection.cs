@@ -25,13 +25,21 @@ public static class ConfigCollection
     public const string BaseUrl = "https://quickrun.org/configs";
 
     /// <summary>
-    /// How long a cached answer counts as current.
+    /// How long a cached answer is used without asking whether it is still the current one.
     /// <para>
-    /// A day: these configs change when somebody improves one, which is not often, and a run must
-    /// never wait on the network for something it already has.
+    /// It was a day, and a day is how long a fixed config took to reach anybody: passbolt was
+    /// corrected, deployed, and the next run still started the broken one out of this cache. These
+    /// configs are served to strangers and fixed when somebody finds a fault, so a fix that arrives
+    /// tomorrow is not a fix.
+    /// </para>
+    /// <para>
+    /// Minutes, and past them the question is asked conditionally - "has this changed since the
+    /// copy I have" - which costs an empty 304 and no download. What is kept is the part that
+    /// mattered: a run never waits long on the network, and a machine that cannot reach it uses the
+    /// copy it already has for as long as that lasts.
     /// </para>
     /// </summary>
-    public static readonly TimeSpan CacheFor = TimeSpan.FromHours(24);
+    public static readonly TimeSpan TrustFor = TimeSpan.FromMinutes(5);
 
     /// <summary>Short, because a run is waiting on it and the detector is a fine answer.</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(4);
@@ -50,9 +58,14 @@ public static class ConfigCollection
 
         var cached = CachePath(cacheDir, path);
 
-        if (cached is not null && Fresh(cached)) return Read(cached);
+        if (cached is not null && Trusted(cached)) return Read(cached);
 
-        fetch ??= Download;
+        // The copy's own date is what the question is asked with: the server answers 304 and sends
+        // nothing when it still holds the same file. A null from that is indistinguishable from
+        // being offline, and both mean the same thing here - keep what we have.
+        var since = cached is not null ? Written(cached) : null;
+
+        fetch ??= url => Download(url, since);
         var text = fetch($"{BaseUrl}/{path}.yml");
 
         if (text is null)
@@ -115,14 +128,18 @@ public static class ConfigCollection
     private static string CachePath(string cacheDir, string path) =>
         Path.Combine(cacheDir, path.Replace('/', '_') + ".yml");
 
-    private static bool Fresh(string file)
+    /// <summary>Whether the copy is recent enough to use without asking about it at all.</summary>
+    private static bool Trusted(string file) =>
+        Written(file) is { } written && DateTimeOffset.UtcNow - written < TrustFor;
+
+    /// <summary>When the cached copy was written, or null when there is none to ask about.</summary>
+    private static DateTimeOffset? Written(string file)
     {
         try
         {
-            return File.Exists(file)
-                   && DateTime.UtcNow - File.GetLastWriteTimeUtc(file) < CacheFor;
+            return File.Exists(file) ? new DateTimeOffset(File.GetLastWriteTimeUtc(file), TimeSpan.Zero) : null;
         }
-        catch (IOException) { return false; }
+        catch (IOException) { return null; }
     }
 
     private static string? Read(string file)
@@ -148,7 +165,11 @@ public static class ConfigCollection
         }
     }
 
-    private static string? Download(string url)
+    /// <param name="since">
+    /// When the copy on disk was written, so the server can answer "unchanged" instead of sending
+    /// the file again. Null when there is no copy, which asks for it outright.
+    /// </param>
+    private static string? Download(string url, DateTimeOffset? since)
     {
         try
         {
@@ -157,7 +178,13 @@ public static class ConfigCollection
             using var handler = new SocketsHttpHandler { UseProxy = false };
             using var client = new HttpClient(handler) { Timeout = Timeout };
 
-            var response = client.GetAsync(url).GetAwaiter().GetResult();
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (since is { } written) request.Headers.IfModifiedSince = written;
+
+            var response = client.SendAsync(request).GetAwaiter().GetResult();
+
+            // 304 among them: nothing came back because nothing changed, and the caller keeps the
+            // copy it has.
             if (!response.IsSuccessStatusCode) return null;
 
             var text = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();

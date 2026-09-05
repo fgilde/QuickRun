@@ -230,7 +230,13 @@ public static class CommandRunner
             psi.StandardErrorEncoding = Encoding.Latin1;
         }
 
-        foreach (var a in args) psi.ArgumentList.Add(a);
+        // cmd.exe is handed its line whole; everything else gets an argument list, which is the
+        // safer form because .NET does the quoting. See ShellCommand.RawCommandLine for why cmd is
+        // the exception - in short, it does not read \" as a quote and passes it on.
+        var list = args as IReadOnlyList<string> ?? args.ToList();
+
+        if (ShellCommand.RawCommandLine(file, list) is { } raw) psi.Arguments = raw;
+        else foreach (var a in list) psi.ArgumentList.Add(a);
 
         psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
         if (env is not null)

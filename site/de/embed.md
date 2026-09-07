@@ -37,6 +37,14 @@ Rechner läuft, öffnet sich sein Fenster.
 4. **Nicht da** — der Button geht mit dem Repository auf [quickrun.org/run](/de/run), wo der Download
    für diesen Rechner steht. Der Klick geht unterwegs nicht verloren.
 
+Zwischen 1 und 2 fragt womöglich der Browser selbst nach. Aktuelle Chrome-Versionen behandeln es
+als Zugriff aufs lokale Netz, wenn eine öffentliche Seite `127.0.0.1` erreichen will, und fragen den
+Leser beim ersten Mal um Erlaubnis. Wer sie verweigert — oder wessen Browser das für ihn tut —, gibt
+der Seite keine Möglichkeit mehr zu erkennen, ob QuickRun da ist; der Klick nimmt dann Weg 4, und
+die Run-Seite übergibt trotzdem per `quickrun://`. Diese Erlaubnis kostet also höchstens das
+nahtlose Fenster, nie den Lauf. Gefragt wird ausschließlich `/api/ping`, und das antwortet mit einer
+Version und sonst nichts.
+
 In allen vier Fällen kommt auf der anderen Seite dasselbe an: ein Plan, der auf einen Menschen
 wartet — die Befehle, der Ref, der aufgelöste Commit, die Herkunft der Config. **Es läuft nichts,
 bevor es in QuickRuns eigenem Fenster bestätigt wurde** — und genau deshalb gibt es hier keine

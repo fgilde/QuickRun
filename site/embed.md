@@ -36,6 +36,13 @@ if QuickRun is on this machine.
 4. **Not there** — the button goes to [quickrun.org/run](/run) with the repository, which offers the
    download for that machine. The press is not lost on the way.
 
+Between 1 and 2 the browser may ask something of its own. Current Chrome treats a public page
+reaching `127.0.0.1` as local network access and asks the reader for permission the first time; a
+reader who declines - or a browser that declines for them - leaves the page unable to tell whether
+QuickRun is there, and the click takes route 4, where the run page hands over through `quickrun://`
+anyway. So the worst that permission costs is the seamless window, never the run. All the page ever
+asks for is `/api/ping`, which answers with a version and nothing else.
+
 In every one of those, what arrives on the other side is a plan waiting for a person: the commands,
 the ref, the resolved commit, the config it came from. **Nothing runs until it is confirmed in
 QuickRun's own window** — and that is why there is no component here that draws a plan or a log. One

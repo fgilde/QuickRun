@@ -38,6 +38,11 @@ German readers can be sent to `/de/run?repo=…`, which is the same page in Germ
 5. If nothing answers the ping, the button follows `quickrun://run?repo=…` instead, which starts
    QuickRun when it is installed, and the download is offered next to it for when it is not.
 
+Step 2 can be refused, and not only by a firewall: current Chrome asks the reader whether a public
+page may reach an address on their own machine. Declined, the page cannot tell whether QuickRun is
+there and goes straight to step 5 - which is the route that works without asking anything of the
+browser. One prompt instead of none; the badge still lands where it should.
+
 ## Why the badge does not link `quickrun://` directly
 
 It cannot. GitHub strips link schemes it does not know from a rendered README, so a

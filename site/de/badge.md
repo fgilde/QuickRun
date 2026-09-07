@@ -39,6 +39,12 @@ Für englischsprachige Leser führt `…/run?repo=…` ohne `de/` auf dieselbe S
 5. Antwortet nichts, folgt der Button stattdessen `quickrun://run?repo=…` — das startet QuickRun,
    wenn es installiert ist — und daneben steht der Download für den Fall, dass es das nicht ist.
 
+Schritt 2 kann verweigert werden, und nicht nur von einer Firewall: aktuelle Chrome-Versionen
+fragen den Leser, ob eine öffentliche Seite eine Adresse auf seinem eigenen Rechner erreichen darf.
+Wird das abgelehnt, kann die Seite nicht erkennen, ob QuickRun da ist, und geht direkt zu Schritt 5
+— dem Weg, der ohne jede Rückfrage an den Browser funktioniert. Eine Rückfrage statt keiner; das
+Badge landet trotzdem dort, wo es soll.
+
 ## Warum das Badge nicht direkt auf `quickrun://` zeigt
 
 Es kann nicht. GitHub entfernt beim Rendern eines README alle Link-Schemata, die es nicht kennt —

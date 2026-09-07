@@ -35,6 +35,16 @@ Clicking Run does not start anything. QuickRun checks the repository out, builds
 extension opens a window listing the repository, ref, resolved commit and the **exact commands**
 that will run. Only the button in that window starts them.
 
+One window per plan. A second repository handed over while the first is still on screen gets its own
+window rather than replacing what is there — a run you started, with its log and its **Stop**, is
+not something a later click should push out of the way. Handing the same plan over again raises the
+window it already has, and five open at once is the ceiling: past that the oldest takes the new plan,
+which is the one least likely to still be being read.
+
+While it checks the repository out there is nothing to show yet, so the window shows the mark and
+what it is doing. If that ends in a reason rather than a plan — no config, a branch that is not
+there — the reason is what stays on screen. It used to be an empty window.
+
 The window also shows the `description` from the config when it has one, the folder the repository
 was checked out into, and — once a task reports one — the address it is listening on, as a link.
 

@@ -89,19 +89,34 @@ function files(where) {
   return found;
 }
 
+/**
+ * Addresses the pages workflow puts on the site rather than files committed here.
+ *
+ * Listed rather than looked for: they are not in site/public until that workflow copies them in, so
+ * looking would fail on a clean checkout - which is exactly what CI is. The value says where each
+ * one comes from, so a rename breaks the note instead of quietly leaving a dead address.
+ */
+const BUILT = {
+  'quickrun.schema.json': 'schema/quickrun.schema.json',
+  configs: 'configs',
+};
+
 /** Whether the site in this repository serves that path. */
 function served(path) {
   const clean = path.replace(/^\/+|\/+$/g, '');
 
   if (clean === '') return true;
 
-  // A page, in either language, or a file under public/ - which is how badge.svg, the schema and
-  // the collected configs are served.
-  return existsSync(`site/${clean}.md`)
-    || existsSync(`site/${clean}/index.md`)
-    || existsSync(`site/public/${clean}`)
-    // A collected config is written by the build, from the configs directory in this repository.
-    || (clean.startsWith('configs/') && existsSync(`configs/${clean.slice('configs/'.length)}`));
+  // A page, in either language, or a file under public/ - which is how badge.svg and the logos
+  // are served.
+  if (existsSync(`site/${clean}.md`) || existsSync(`site/${clean}/index.md`)
+      || existsSync(`site/public/${clean}`)) return true;
+
+  // Something the pages workflow copies in, checked at its source in this repository.
+  const [first, ...rest] = clean.split('/');
+  if (BUILT[first]) return existsSync([BUILT[first], ...rest].join('/'));
+
+  return false;
 }
 
 const linked = new Map();

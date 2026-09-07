@@ -620,7 +620,21 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
         if (task.ReadyWhen is not { Http: { } address }) return;
 
         var url = Interpolator.Expand(address, options.Context);
-        var status = await Readiness.HttpStatusAsync(url).WaitAsync(PreflightBudget, ct);
+
+        int? status;
+
+        try
+        {
+            status = await Readiness.HttpStatusAsync(url).WaitAsync(PreflightBudget, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // A warning is not worth ending a run over. This threw out of the task and out of
+            // ExecuteAsync above it - a task that was ready, warned about by a check that ran out of
+            // time, reported as a cancelled run. Seen on a slow macOS runner, where the request took
+            // longer than the budget more often than anywhere else.
+            return;
+        }
 
         if (status is not >= 400) return;
 

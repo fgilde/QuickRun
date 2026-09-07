@@ -35,6 +35,17 @@ Ein Klick auf Run startet nichts. QuickRun checkt das Repository aus, baut den P
 Erweiterung öffnet ein Fenster mit Repository, Ref, aufgelöstem Commit und den **exakten Befehlen**,
 die laufen werden. Erst der Button in diesem Fenster startet sie.
 
+Ein Fenster pro Plan. Wird ein zweites Repository übergeben, während das erste noch auf dem Schirm
+ist, bekommt es sein eigenes Fenster statt das vorhandene zu überschreiben — ein Lauf, den du
+gestartet hast, mit Log und **Stop**, soll nicht durch einen späteren Klick verschwinden. Dieselbe
+Übergabe noch einmal holt das Fenster nach vorn, das sie schon hat, und bei fünf offenen Fenstern
+ist Schluss: darüber nimmt das älteste den neuen Plan, weil es am wenigsten wahrscheinlich noch
+gelesen wird.
+
+Während des Auscheckens gibt es noch nichts zu zeigen, also zeigt das Fenster die Marke und was es
+gerade tut. Endet das in einem Grund statt in einem Plan — keine Config, ein Branch, den es nicht
+gibt —, bleibt dieser Grund stehen. Vorher war das ein leeres Fenster.
+
 Das Fenster zeigt außerdem die `description` aus der Config, wenn es eine gibt, das Verzeichnis, in
 das ausgecheckt wurde, und — sobald ein Task eine meldet — die Adresse, auf der es läuft, als Link.
 

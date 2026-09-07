@@ -57,6 +57,14 @@ jobs:
         shell: bash
         run: node scripts/drive-confirm.mjs extension/test/fixtures/plan.json
 
+      # The embeddable button, pressed in a real browser against a fake daemon. Every branch of a
+      # click is a security decision - the window, the scheme, or the download page - and none of
+      # them is visible in the file.
+      - name: The web components work
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: node scripts/drive-components.mjs
+
       # And QuickRun's own window: every tab has to open, and it has to say where it is listening.
       - name: The window works
         if: matrix.os == 'ubuntu-latest'

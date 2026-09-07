@@ -9,7 +9,8 @@
   <a href="https://quickrun.org/">Documentation (English)</a> ·
   <a href="https://quickrun.org/de/">Dokumentation (Deutsch)</a> ·
   <a href="samples/">Example configs</a> ·
-  <a href="https://quickrun.org/badge">README badge</a>
+  <a href="https://quickrun.org/badge">README badge</a> ·
+  <a href="https://quickrun.org/embed">Embeddable button</a>
 </p>
 
 ---
@@ -165,6 +166,26 @@ badge cannot link `quickrun://` itself.
 
 The link may carry `repo`, `ref` and `pr` and nothing else — no command, no config, no token, no
 local path. Details: [README badge](https://quickrun.org/badge).
+
+## A button on your own page
+
+Where scripts do run, there is a real element instead of an image in a link:
+
+```html
+<script type="module" src="https://quickrun.org/components.js"></script>
+
+<quickrun-btn repo="owner/repo" run-cfg="ci/demo.quickrun.yml">Run the demo</quickrun-btn>
+```
+
+A click opens QuickRun's window with the plan for that repository. It is stylable through custom
+properties, `::part()` or not at all (`unstyled`), it can put the mark left, right or nowhere, and it
+tells the page around it what happened — `quickrun-run` can even be cancelled to ask something
+first. `run-cfg` names a config: the word `collection`, a path inside the repository, or an https
+address QuickRun fetches itself. Never a command, and nothing runs until it is confirmed in
+QuickRun's own window.
+
+There is a builder for it, with a live preview and the snippet to copy:
+[embed a button](https://quickrun.org/embed).
 
 ## Updating
 

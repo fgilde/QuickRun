@@ -6,6 +6,7 @@ import './m3.css';
 
 import BrandLayout from './BrandLayout.vue';
 import DownloadHero from './DownloadHero.vue';
+import EmbedPlayground from './EmbedPlayground.vue';
 import ExtensionCards from './ExtensionCards.vue';
 import FaqPage from './FaqPage.vue';
 import Gallery from './Gallery.vue';
@@ -39,6 +40,7 @@ export default {
   enhanceApp({ app }) {
     // Used from both language trees, so these are registered globally rather than imported per page.
     app.component('DownloadHero', DownloadHero);
+    app.component('EmbedPlayground', EmbedPlayground);
     app.component('ExtensionCards', ExtensionCards);
     app.component('LandingPage', LandingPage);
     app.component('GetPage', GetPage);

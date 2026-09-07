@@ -12,6 +12,11 @@ const repo = ref('');
 const reference = ref('');
 const pr = ref('');
 
+// A config the link names: "collection", a path inside the repository, or an https address. It
+// travels on to QuickRun with everything else - a button on somebody's page can send people here
+// with one, and dropping it on the way would run the wrong thing.
+const named = ref('');
+
 // null while asking, true when QuickRun answered on loopback, false when it did not.
 const running = ref(null);
 const pressed = ref(false);
@@ -22,6 +27,7 @@ const carried = computed(() => {
   const query = new URLSearchParams({ repo: repo.value });
   if (reference.value) query.set('ref', reference.value);
   if (pr.value) query.set('pr', pr.value);
+  if (named.value) query.set('config', named.value);
   return query.toString();
 });
 
@@ -54,6 +60,8 @@ const t = computed(() => (de.value
         + 'Webseite genauso aus wie gar nicht installiert. Der Versuch klärt es.',
       run: 'In QuickRun öffnen',
       configAsking: 'Wird nachgesehen, welche Config greift…',
+      configNamed: 'Dieser Link nennt eine Config — QuickRun liest sie selbst und zeigt sie im '
+        + 'Fenster, bevor irgendetwas läuft:',
       configRepository: 'Dieses Repository bringt eine quickrun.yml mit — sie hat Vorrang.',
       configCollection: 'Das Repository bringt keine mit, aber QuickRun hält eine dafür bereit.',
       configNone: 'Weder das Repository noch die Sammlung haben eine Config. QuickRun sieht sich beim '
@@ -89,6 +97,8 @@ const t = computed(() => (de.value
         + 'web page as not installed at all. Opening it settles that.',
       run: 'Open in QuickRun',
       configAsking: 'Looking up which config applies…',
+      configNamed: 'This link names a config - QuickRun reads it itself and shows it in the window '
+        + 'before anything runs:',
       configRepository: 'This repository ships a quickrun.yml - it takes precedence.',
       configCollection: 'The repository ships none, and QuickRun keeps one for it.',
       configNone: 'Neither the repository nor the collection has a config. QuickRun reads the files '
@@ -123,6 +133,7 @@ onMounted(async () => {
   repo.value = query.get('repo') ?? '';
   reference.value = query.get('ref') ?? '';
   pr.value = query.get('pr') ?? '';
+  named.value = query.get('config') ?? '';
 
   running.value = await isRunning();
 
@@ -130,7 +141,10 @@ onMounted(async () => {
   // one out of the collection. What QuickRun would fall back to after those - another launcher's
   // scripts, or reading the files - is not something a web page can know, and a config saved on that
   // machine is nobody's business but its owner's, so both are said as what they are: unknown yet.
-  if (repo.value) findConfig();
+  // With a config named in the link there is nothing to look up: that one wins, and the window
+  // shows where it came from.
+  if (named.value) configState.value = 'named';
+  else if (repo.value) findConfig();
 
   // ?executeQuickRun=true - the same parameter the extension reads on a GitHub page, so one link
   // works in both places. It hands the repository over; the plan and the decision are still on the
@@ -262,7 +276,9 @@ async function go({ automatic }) {
   // Where the reader trusts this site, QuickRun opens its own window and this page stays put. A
   // refusal here is the normal answer anywhere else, and costs one request.
   if (running.value
-      && await present({ repo: repo.value, ref: reference.value, pr: pr.value })) return;
+      && await present({
+        repo: repo.value, ref: reference.value, pr: pr.value, config: named.value || null,
+      })) return;
 
   if (running.value && !automatic) window.open(target.value, '_blank', 'noopener');
   else location.href = target.value;
@@ -310,9 +326,14 @@ async function copy() {
         <div class="qr-run-config">
           <p class="m3-body qr-run-config-line">
             {{ configState === 'asking' ? t.configAsking
+              : configState === 'named' ? t.configNamed
               : configState === 'none' ? t.configNone
               : configState === 'unknown' ? t.configUnknown
               : config.origin === 'repository' ? t.configRepository : t.configCollection }}
+          </p>
+
+          <p v-if="configState === 'named'" class="m3-body qr-run-config-line">
+            <code class="m3-code">{{ named }}</code>
           </p>
 
           <template v-if="configState === 'found'">

@@ -52,13 +52,18 @@ export async function answering(port = DEFAULT_PORT) {
  * repository", and QuickRun fetches it itself. The commands never travel in a URL - a link that
  * could carry commands would be a link that can put commands in front of somebody.
  */
-export function carry({ repo, ref = null, pr = null, file = null, fromCollection = false }) {
+export function carry({ repo, ref = null, pr = null, file = null, fromCollection = false, config = null }) {
   if (file) return `file=${encodeURIComponent(file)}`;
 
   const parts = [`repo=${encodeURIComponent(repo)}`];
   if (ref) parts.push(`ref=${encodeURIComponent(ref)}`);
   if (pr) parts.push(`pr=${encodeURIComponent(pr)}`);
-  if (fromCollection) parts.push('config=collection');
+
+  // A named config is still a name, not commands: a path inside the repository, an https address,
+  // or the keyword for the one QuickRun keeps. fromCollection is that keyword, spelled as a flag.
+  const named = config || (fromCollection ? 'collection' : null);
+  if (named) parts.push(`config=${encodeURIComponent(named)}`);
+
   return parts.join('&');
 }
 

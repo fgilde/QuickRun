@@ -3,6 +3,9 @@
 A badge in your README that runs your project. No extension needed on the other side — whoever
 clicks it either lands in QuickRun or lands on the download page.
 
+On your own page, where scripts do run, there is a real button instead: see
+[embed a button](/embed).
+
 [![QuickRun](https://quickrun.org/badge.svg)](/run?repo=fgilde/QuickRun)
 
 ## The snippet

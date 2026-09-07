@@ -14,6 +14,16 @@ export default defineConfig({
   lastUpdated: true,
   ignoreDeadLinks: false,
 
+  // quickrun-btn and quickrun-status are custom elements, not Vue components: without this, Vue
+  // looks for a component of that name and warns on every page that shows a live button.
+  vue: {
+    template: {
+      compilerOptions: {
+        isCustomElement: (tag) => tag.startsWith('quickrun-'),
+      },
+    },
+  },
+
   head: [
     ['link', { rel: 'icon', href: '/icon.png' }],
     ['meta', { name: 'theme-color', content: '#1f883d' }],
@@ -32,6 +42,7 @@ export default defineConfig({
           { text: 'Collection', link: '/collection' },
           { text: 'First run', link: '/install' },
           { text: 'Config reference', link: '/config' },
+          { text: 'Embed', link: '/embed' },
           { text: 'Security', link: '/security' },
         ],
         sidebar: [
@@ -57,6 +68,7 @@ export default defineConfig({
               { text: 'CLI', link: '/cli' },
               { text: 'Browser extension', link: '/extension' },
               { text: 'README badge', link: '/badge' },
+              { text: 'Embed a button', link: '/embed' },
               { text: 'Security', link: '/security' },
               { text: 'Privacy', link: '/privacy' },
             ],
@@ -78,6 +90,7 @@ export default defineConfig({
           { text: 'Sammlung', link: '/de/collection' },
           { text: 'Erster Start', link: '/de/install' },
           { text: 'Config-Referenz', link: '/de/config' },
+          { text: 'Einbinden', link: '/de/embed' },
           { text: 'Sicherheit', link: '/de/security' },
         ],
         sidebar: [
@@ -103,6 +116,7 @@ export default defineConfig({
               { text: 'CLI', link: '/de/cli' },
               { text: 'Browser-Erweiterung', link: '/de/extension' },
               { text: 'README-Badge', link: '/de/badge' },
+              { text: 'Button einbinden', link: '/de/embed' },
               { text: 'Sicherheit', link: '/de/security' },
               { text: 'Datenschutz', link: '/de/privacy' },
             ],

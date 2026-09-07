@@ -3,6 +3,9 @@
 Ein Badge im README, das dein Projekt startet. Auf der anderen Seite ist keine Erweiterung nötig —
 wer klickt, landet entweder in QuickRun oder auf der Download-Seite.
 
+Auf der eigenen Seite, wo Skripte laufen, gibt es stattdessen einen echten Button:
+siehe [Button einbinden](/de/embed).
+
 [![QuickRun](https://quickrun.org/badge.svg)](/de/run?repo=fgilde/QuickRun)
 
 ## Die Zeile

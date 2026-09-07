@@ -158,6 +158,11 @@ public sealed class DashboardWindow : Window
         var shell = new ContentControl();
         _header.Content = Header();
 
+        // Closing is the page's to ask for in a confirmation window: it knows when the plan has
+        // been answered, and an answered window with nothing in it is what Cancel used to leave
+        // standing. The whole interface has no business closing itself, so only this shell may.
+        var mayClose = shellName == "confirm";
+
         var browser = EmbeddedBrowser.TryCreate(PageUrl(_listenerUrl, hash, shellName), reason =>
             Dispatcher.UIThread.Post(() =>
             {
@@ -167,7 +172,8 @@ public sealed class DashboardWindow : Window
                 shell.Content = NativeLayout();
                 _timer.Start();
                 Refresh();
-            }), PageBackground());
+            }), PageBackground(),
+            mayClose ? () => Dispatcher.UIThread.Post(Close) : null);
 
         // The page has its own header with the same logo and version in it. Two of them, one above
         // the other, is what made the window look wrong.

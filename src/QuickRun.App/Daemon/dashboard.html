@@ -1180,6 +1180,12 @@ function renderPlan(run, panel = starter.plan) {
 
   panel.querySelector('[data-cancel]').addEventListener('click', async () => {
     await api(`/api/dashboard/runs/${run.id}/cancel`, { method: 'POST' }).catch(() => null);
+
+    // A window opened on this plan has nothing left to show once the answer is no, and leaving it
+    // standing empty is worse than either outcome. Everywhere else the panel simply goes and the
+    // rest of the interface is still there to use.
+    if (confirming()) { window.close(); return; }
+
     panel.hidden = true;
     say('cancelled - nothing ran');
     refresh();
@@ -1343,7 +1349,12 @@ function renderRuns(runs) {
       cards.set(run.id, entry);
     }
 
-    target.append(entry.root);
+    // Not a card that is being shown somewhere else: append() moves an element, so this line used
+    // to reach into the confirmation window and the config builder on every poll and pull their
+    // card back into this list - which in the window is hidden, so the log, the progress and the
+    // Stop simply vanished a second after Run was pressed. Where a card is mounted, it stays.
+    if (!entry.mounted) target.append(entry.root);
+
     updateCard(entry, run);
   }
 
@@ -1381,6 +1392,11 @@ function mountRun(id, host) {
     entry = buildCard({ id });
     cards.set(id, entry);
   }
+
+  // Marked so the run list leaves it alone. It is the same card object either way - the state poll
+  // and the event stream keep it up to date wherever it hangs - and what this decides is only who
+  // may move it.
+  entry.mounted = true;
 
   host.append(entry.root);
   return entry;

@@ -42,12 +42,17 @@ public static class EmbeddedBrowser
     /// is a white flash on every resize of a dark window - the one thing that makes a hosted page
     /// look like a web page rather than a program.
     /// </param>
-    public static Control? TryCreate(string url, Action<string> onFailure, uint background)
+    /// <param name="onCloseRequested">
+    /// Called when the page asks for its window to close, which is how a confirmation window that
+    /// has been answered gets out of the way - the browser extension's window does exactly this.
+    /// </param>
+    public static Control? TryCreate(string url, Action<string> onFailure, uint background,
+        Action? onCloseRequested = null)
     {
         if (!Available()) return null;
 
         return OperatingSystem.IsWindows()
-            ? Windows(url, onFailure, background)
+            ? Windows(url, onFailure, background, onCloseRequested)
             : Elsewhere(url, onFailure);
     }
 
@@ -94,9 +99,10 @@ public static class EmbeddedBrowser
     }
 
     [SupportedOSPlatform("windows")]
-    private static Control? Windows(string url, Action<string> onFailure, uint background)
+    private static Control? Windows(string url, Action<string> onFailure, uint background,
+        Action? onCloseRequested = null)
     {
-        try { return new WebView2Host(url, onFailure, background); }
+        try { return new WebView2Host(url, onFailure, background, onCloseRequested); }
         catch (Exception e) when (e is DllNotFoundException or TypeInitializationException
                                      or PlatformNotSupportedException)
         {
@@ -137,6 +143,9 @@ internal sealed class WebView2Host : NativeControlHost
     private readonly Action<string> _onFailure;
     private readonly uint _background;
 
+    /// <summary>What to do when the page asks for its window to close. Null where nothing may.</summary>
+    private readonly Action? _onCloseRequested;
+
     private CoreWebView2Controller? _controller;
     private Window? _window;
     private nint _child;
@@ -150,11 +159,13 @@ internal sealed class WebView2Host : NativeControlHost
         Dispatcher.UIThread.Post(() => _controller?.CoreWebView2.Navigate(url));
     }
 
-    public WebView2Host(string url, Action<string> onFailure, uint background)
+    public WebView2Host(string url, Action<string> onFailure, uint background,
+        Action? onCloseRequested = null)
     {
         _url = url;
         _onFailure = onFailure;
         _background = background;
+        _onCloseRequested = onCloseRequested;
 
         // The control's size in device pixels is what WebView2 wants, and Avalonia reports it in
         // layout units - so the client rectangle of the child window is the honest source.
@@ -264,6 +275,12 @@ internal sealed class WebView2Host : NativeControlHost
                     e.Handled = true;
                     UiCommand.Launch(e.Uri);
                 };
+
+                // window.close() from the page. A confirmation window that has been answered has
+                // nothing left to show, and the page is the only thing that knows the answer was
+                // given - the extension's window closes itself the same way. Without this the page
+                // asks and nothing happens, which is how Cancel left an empty window standing.
+                controller.CoreWebView2.WindowCloseRequested += (_, _) => _onCloseRequested?.Invoke();
 
                 Resize();
                 controller.CoreWebView2.Navigate(_url);

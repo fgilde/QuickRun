@@ -160,6 +160,49 @@ public class DashboardTests
         Assert.Contains("panel === builder.plan || confirming()", html);
     }
 
+    /// <summary>
+    /// A card shown in a window is not pulled back into the run list.
+    /// <para>
+    /// append() moves an element, so the poll that rebuilds the list reached into the confirmation
+    /// window and took its card - with the log, the progress and the Stop on it - about a second
+    /// after Run was pressed. The window then stood empty while the run went on behind it. The
+    /// config builder had the same hole and nobody had noticed.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void A_card_mounted_in_a_window_stays_there()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("if (!entry.mounted) target.append(entry.root);", html);
+        Assert.Contains("entry.mounted = true;", html);
+
+        // The unconditional move is what did it, and it must not come back.
+        Assert.DoesNotContain("\n    target.append(entry.root);", html);
+    }
+
+    /// <summary>
+    /// Cancel closes the window it was asked in - and only that window.
+    /// <para>
+    /// An answered plan has nothing left to show, and leaving the window standing empty is worse
+    /// than either answer. The whole interface has no business closing itself, which is why this is
+    /// behind the confirmation shell rather than in the handler for everybody.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Cancel_closes_a_confirmation_window()
+    {
+        var html = new Dashboard().Render(9876);
+
+        Assert.Contains("if (confirming()) { window.close(); return; }", html);
+
+        // And it cancels first: closing a window that left a prepared run behind would leave that
+        // run on the daemon's list for ever.
+        var cancel = html[html.IndexOf("[data-cancel]", StringComparison.Ordinal)..];
+        Assert.True(cancel.IndexOf("/cancel`", StringComparison.Ordinal)
+            < cancel.IndexOf("window.close()", StringComparison.Ordinal));
+    }
+
     /// <summary>Per-task state and the address each task reports, as a link.</summary>
     [Fact]
     public void The_page_shows_what_each_task_is_doing()

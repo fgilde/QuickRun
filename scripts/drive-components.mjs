@@ -85,6 +85,64 @@ const PAGE = `<!doctype html>
       return true;
     };
 
+    window.__putOther = async (tag, attributes, inner = '') => {
+      const stage = document.getElementById('stage');
+      stage.textContent = '';
+
+      const frame = document.createElement('iframe');
+      frame.src = '/frame.html';
+      frame.width = '820';
+      frame.height = '260';
+      frame.style.border = '0';
+
+      const loaded = new Promise((done) => frame.addEventListener('load', done, { once: true }));
+      stage.append(frame);
+      await loaded;
+
+      window.__frame = frame;
+      const inside = frame.contentDocument;
+      await frame.contentWindow.customElements.whenDefined(tag);
+
+      for (const type of ['quickrun-status', 'quickrun-run', 'quickrun-handover', 'quickrun-config'])
+        inside.addEventListener(type, record);
+
+      const element = inside.createElement(tag);
+      for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+      if (inner) element.innerHTML = inner;
+
+      inside.body.append(element);
+      return true;
+    };
+
+    /** What one of the other elements ended up being, from the outside and from its shadow. */
+    window.__read = (tag) => {
+      const host = window.__frame.contentDocument.querySelector(tag);
+      const root = host.shadowRoot;
+      const view = window.__frame.contentWindow;
+
+      const shown = (name) => {
+        const slot = root.querySelector('slot[name="' + name + '"]');
+        return slot ? view.getComputedStyle(slot).display !== 'none' : null;
+      };
+
+      return {
+        state: host.getAttribute('state'),
+        hidden: host.hidden,
+        running: host.dataset.running !== undefined,
+        href: root.querySelector('a')?.getAttribute('href') ?? null,
+        image: root.querySelector('img')?.getAttribute('src') ?? null,
+        label: root.querySelector('[part="label"]')?.textContent ?? null,
+        from: root.querySelector('[part="from"]')?.textContent ?? null,
+        config: root.querySelector('[part="config"]')?.textContent ?? null,
+        // The one thing that must never be true of somebody else's file.
+        markupInside: Boolean(root.querySelector('[part="config"] b')),
+        slots: { asking: shown('asking'), running: shown('running'), missing: shown('missing') },
+      };
+    };
+
+    window.__clickLink = () => window.__frame.contentDocument
+      .querySelector('quickrun-badge').shadowRoot.querySelector('a').click();
+
     window.__press = () => window.__frame.contentDocument
       .querySelector('quickrun-btn').shadowRoot.querySelector('[part="button"]').click();
 
@@ -120,6 +178,16 @@ const server = createServer((request, response) => {
   if (url.pathname === '/components.js') {
     response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' })
       .end(readFileSync(COMPONENTS));
+    return;
+  }
+
+  // A published config, for the element that shows one. The markup in it is the point: it has to
+  // arrive as text on the page, not as elements.
+  if (url.pathname === '/published.yml') {
+    response.writeHead(200, {
+      'content-type': 'text/yaml',
+      'access-control-allow-origin': '*',
+    }).end('name: Demo\ntasks:\n  - run: echo <b>hi</b>\n');
     return;
   }
 
@@ -187,7 +255,7 @@ const browser = spawn(chrome, [
   // Page.frameRequestedNavigation reports before anything loads - and a navigation that actually
   // succeeded would unload the page along with everything the click was supposed to have recorded.
   // Only that host, or the test page itself would be redirected too.
-  '--host-resolver-rules=MAP quickrun.org 127.0.0.1:1',
+  '--host-resolver-rules=MAP quickrun.org 127.0.0.1:1,MAP raw.githubusercontent.com 127.0.0.1:1',
   `http://127.0.0.1:${port}/page.html`,
 ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -296,6 +364,28 @@ async function press(attributes,
     asked: [...asked],
   };
 }
+
+/** One of the other elements: put it on the page, let it settle, and read what it became. */
+async function shows(tag, attributes, { inner = '', shows: answer = { shown: true }, soak = 700 } = {}) {
+  answer_(answer);
+
+  await evaluate('window.__seen = []');
+  await evaluate(`window.__putOther(${JSON.stringify(tag)}, ${JSON.stringify(attributes)}, ${JSON.stringify(inner)})`);
+  await wait(soak);
+
+  wanted = [];
+  asked.length = 0;
+
+  return {
+    read: JSON.parse(await evaluate(`JSON.stringify(window.__read(${JSON.stringify(tag)}))`)),
+    seen: JSON.parse(await evaluate('JSON.stringify(window.__seen)')),
+  };
+}
+
+function answer_(value) { answer = value; }
+
+let lastSeen = '[]';
+const fs_seen = () => lastSeen;
 
 const checks = [];
 const check = (what, run) => {
@@ -420,6 +510,82 @@ const named = await press({ repo: 'acme/app', label: 'Try the demo', port: Strin
 
 check('the label attribute is what the button says', () => {
   assert.equal(named.look.label, 'Try the demo');
+});
+
+// ---- the other five elements -------------------------------------------------------------
+
+const gateOn = await shows('quickrun-gate', { port: String(port) },
+  { inner: '<p slot="running">it is here</p><p slot="missing">get it first</p>' });
+
+check('the gate shows the running half when QuickRun answers', () => {
+  assert.equal(gateOn.read.state, 'running');
+  assert.equal(gateOn.read.slots.running, true);
+  assert.equal(gateOn.read.slots.missing, false);
+});
+
+const gateOff = await shows('quickrun-gate', { port: String(NOTHING) },
+  { inner: '<p slot="running">it is here</p><p slot="missing">get it first</p>', soak: 2500 });
+
+check('and the other half when nothing does', () => {
+  assert.equal(gateOff.read.state, 'missing');
+  assert.equal(gateOff.read.slots.running, false);
+  assert.equal(gateOff.read.slots.missing, true);
+});
+
+const get = await shows('quickrun-get', { port: String(NOTHING) }, { soak: 2500 });
+
+check('the download button points at the download page, never at a release asset', () => {
+  assert.equal(get.read.href, 'https://quickrun.org/download');
+  assert.match(get.read.label, /Get QuickRun for /);
+  assert.equal(get.read.hidden, false);
+});
+
+const gotAlready = await shows('quickrun-get',
+  { port: String(port), 'only-when-missing': '' });
+
+check('and it takes itself away for a reader who already has QuickRun', () => {
+  assert.equal(gotAlready.read.running, true);
+  assert.equal(gotAlready.read.hidden, true);
+});
+
+const badge = await shows('quickrun-badge', { repo: 'acme/app', port: String(port) });
+
+check('the badge is a link to the run page, with the badge image', () => {
+  assert.equal(badge.read.href, 'https://quickrun.org/run?repo=acme%2Fapp');
+  assert.equal(badge.read.image, 'https://quickrun.org/badge.svg');
+});
+
+const badgeRun = await shows('quickrun-badge',
+  { repo: 'acme/app', mode: 'run', port: String(port) });
+
+wanted = [];
+asked.length = 0;
+await evaluate('window.__clickLink()');
+await wait(700);
+lastSeen = await evaluate('JSON.stringify(window.__seen)');
+
+check('and mode="run" hands over instead of following the link', () => {
+  const seen = JSON.parse(fs_seen());
+  assert.equal(seen.find((e) => e.type === 'quickrun-handover')?.detail.how, 'window');
+  assert.equal(asked.length, 1);
+  assert.deepEqual(wanted, [], 'it followed the link as well');
+  assert.equal(badgeRun.read.href, 'https://quickrun.org/run?repo=acme%2Fapp',
+    'the link underneath still has to work for a middle click');
+});
+
+const published = await shows('quickrun-config',
+  { repo: 'acme/app', 'run-cfg': `http://127.0.0.1:${port}/published.yml` });
+
+check('the config element shows the file, as text and never as markup', () => {
+  assert.match(published.read.from, /published at/);
+  assert.match(published.read.config, /echo <b>hi<\/b>/);
+  assert.equal(published.read.markupInside, false, 'somebody else\'s file became elements');
+});
+
+const noConfig = await shows('quickrun-config', { repo: 'acme/nothing-here' }, { soak: 7000 });
+
+check('and says so when there is none, rather than throwing into the page', () => {
+  assert.match(noConfig.read.from, /neither/);
 });
 
 const shotAt = process.argv.indexOf('--screenshot');

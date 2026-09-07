@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using QuickRun.App.Daemon;
@@ -16,16 +17,31 @@ public static class AppWindows
     private static DashboardWindow? _dashboard;
 
     /// <summary>
-    /// The window a handed-over repository opens in: one plan, read once and answered.
+    /// The windows handed-over repositories have opened: one plan each, read once and answered.
     /// <para>
     /// Its own window rather than a tab in the big one, because that is what a hand-over is - the
     /// browser extension has always opened exactly this, and a plan arriving from quickrun.org or a
     /// quickrun:// link deserves the same thing rather than the whole interface with a panel
-    /// somewhere in it. Kept as one: a second hand-over points this window at the new plan instead
-    /// of stacking another.
+    /// somewhere in it.
+    /// </para>
+    /// <para>
+    /// One per target rather than one in total. There used to be a single window, and a second
+    /// hand-over pointed it at the new plan - which meant a run somebody had started went off
+    /// screen, log and Stop with it, and stopping it meant finding the run in the main window. So
+    /// the same target raises the window it already has, and a different one gets its own.
     /// </para>
     /// </summary>
-    private static DashboardWindow? _confirm;
+    private static readonly Dictionary<string, DashboardWindow> _confirm = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// How many plans may be waiting in their own windows at once.
+    /// <para>
+    /// A trusted site may ask for a window without anybody clicking, so "one per target" needs a
+    /// ceiling or a page in a loop is a screen full of windows. Past it the oldest is reused, which
+    /// is the window least likely to still be being read.
+    /// </para>
+    /// </summary>
+    private const int MostConfirmWindows = 5;
 
     /// <param name="hash">
     /// What to show once it is open - the dashboard's own <c>#run?repo=...</c>, when a link named a
@@ -45,11 +61,25 @@ public static class AppWindows
 
         Dispatcher.UIThread.Post(() =>
         {
-            if (_confirm is { } existing)
+            // The same plan again: the window showing it is the answer, not a second one beside it.
+            if (_confirm.TryGetValue(hash, out var existing))
             {
                 existing.Show();
                 existing.Activate();
-                existing.GoTo(hash);
+                return;
+            }
+
+            // At the ceiling the oldest window takes this plan instead - the one whose plan has been
+            // on screen longest, and least likely to still be being read.
+            if (_confirm.Count >= MostConfirmWindows)
+            {
+                var (oldestHash, oldest) = _confirm.First();
+                _confirm.Remove(oldestHash);
+                _confirm[hash] = oldest;
+
+                oldest.Show();
+                oldest.Activate();
+                oldest.GoTo(hash);
                 return;
             }
 
@@ -62,10 +92,24 @@ public static class AppWindows
                 Height = 720,
             };
 
-            window.Closed += (_, _) => _confirm = null;
-            _confirm = window;
+            // Stacked exactly on top of each other, two waiting plans look like one, and the second
+            // one is the only one anybody can see.
+            window.Opened += (_, _) => Offset(window, _confirm.Count - 1);
+
+            window.Closed += (_, _) => _confirm.Remove(hash);
+            _confirm[hash] = window;
             window.Show();
         });
+    }
+
+    /// <summary>Moves a window clear of the ones already open, so both are findable.</summary>
+    private static void Offset(Window window, int already)
+    {
+        if (already <= 0) return;
+
+        var step = 30 * Math.Min(already, MostConfirmWindows);
+        window.Position = window.Position.WithX(window.Position.X + step)
+            .WithY(window.Position.Y + step);
     }
 
     public static void Show(RunRegistry runs, WorkspaceStore store, string listenerUrl, string hash = "") =>

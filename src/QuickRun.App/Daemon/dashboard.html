@@ -92,6 +92,65 @@ body[data-shell="confirm"] #runs > .card {
 }
 
 body[data-shell="confirm"] main { padding: 16px 18px 18px; }
+
+/*
+ * What a confirmation window shows before it has anything to show.
+ *
+ * A window opened on a repository has to check it out and build the plan first, and that is
+ * seconds - during which the window was empty and the one status line the page has is hidden in
+ * this shell, so a failure at that moment was an empty window with no explanation. This covers
+ * both: the wait, and the reason there is nothing.
+ */
+#preparing { position: fixed; inset: 0; display: none; z-index: 5; }
+
+body[data-shell="confirm"] #preparing:not([hidden]) {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 22px; padding: 32px; background: var(--bg);
+}
+
+#preparing .mark { width: 116px; height: 116px; }
+#preparing .ring { fill: none; stroke: var(--line); stroke-width: 5; }
+
+#preparing .sweep {
+  fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 90 260; transform-origin: 60px 60px;
+  animation: sweep 1.35s cubic-bezier(.65, .12, .35, .9) infinite;
+}
+
+#preparing .play {
+  fill: var(--accent); transform-origin: 60px 60px;
+  animation: beat 1.35s ease-in-out infinite;
+}
+
+/* The three it leaves behind, so the mark reads as going somewhere rather than sitting there. */
+#preparing .trail { fill: var(--accent); animation: trail 1.35s ease-out infinite; }
+#preparing .trail:nth-of-type(2) { animation-delay: .12s; }
+#preparing .trail:nth-of-type(3) { animation-delay: .24s; }
+
+@keyframes sweep { to { transform: rotate(360deg); } }
+@keyframes beat {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.12); }
+}
+@keyframes trail {
+  0% { opacity: .55; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(13px); }
+}
+
+/* Failed: the animation stops, because something still moving reads as still working. */
+#preparing[data-failed] .sweep { animation: none; stroke: var(--danger); }
+#preparing[data-failed] .play { animation: none; fill: var(--danger); }
+#preparing[data-failed] .trail { display: none; }
+
+#preparing .said { margin: 0; text-align: center; max-width: 46ch; }
+#preparing .repo { font-weight: 600; overflow-wrap: anywhere; }
+#preparing .why { color: var(--danger); }
+
+/* An animation nobody asked for is not worth a headache: the state is in the text either way. */
+@media (prefers-reduced-motion: reduce) {
+  #preparing .sweep, #preparing .play, #preparing .trail { animation: none; }
+  #preparing .trail { opacity: .35; }
+}
 ul.plain > li + li { margin-top: 8px; }
 .name { font-weight: 600; overflow-wrap: anywhere; }
 code, .mono {
@@ -515,6 +574,21 @@ quickrun --help                every command and flag</pre>
   </section>
 </main>
 
+<!-- Shown only in the confirmation window, where the wait is visible and the status line is not. -->
+<div id="preparing" hidden>
+  <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
+    <circle class="ring" cx="60" cy="60" r="50"/>
+    <circle class="sweep" cx="60" cy="60" r="50"/>
+    <path class="trail" d="M36 40 L52 60 L36 80 Z"/>
+    <path class="trail" d="M36 40 L52 60 L36 80 Z"/>
+    <path class="trail" d="M36 40 L52 60 L36 80 Z"/>
+    <path class="play" d="M48 38 L82 60 L48 82 Z"/>
+  </svg>
+  <p class="said"><span id="preparingRepo" class="repo"></span><br><span id="preparingWhat"></span></p>
+  <p id="preparingWhy" class="said why" hidden></p>
+  <button id="preparingClose" class="action" type="button" hidden>Close</button>
+</div>
+
 <script>
 const TOKEN = '{{TOKEN}}';
 const streams = new Map();
@@ -622,6 +696,9 @@ async function showPrepared(id) {
 async function prefillRun(repo, ref, pr, { fromCollection = false, config = null } = {}) {
   document.querySelector('nav button[data-tab="runs"]')?.click();
 
+  // From here to the plan is a checkout, and this window has nothing else in it meanwhile.
+  preparing('looking this repository up…', { repo });
+
   // Arriving from a badge, the first question is "is this already going?" - and preparing a second
   // run of the same branch silently was the wrong answer to it. If one is live, that card is what
   // this link is about.
@@ -674,6 +751,9 @@ async function showLiveRun(repo, ref, pr) {
 
   const [label] = RUN_STATES[wanted.state] ?? [wanted.state];
   say(`${wanted.displayName} is already here - ${label}`);
+
+  // This link is answered: the run it is about is on screen, so nothing is being prepared.
+  preparing(null);
   return true;
 }
 
@@ -733,6 +813,47 @@ try { starter.repo.value = localStorage.getItem('quickrun.repo') ?? ''; } catch 
 function say(message) {
   starter.state.textContent = message ?? '';
 }
+
+/**
+ * The waiting state of a confirmation window.
+ *
+ * That window has to check the repository out and build the plan before it has anything to show,
+ * which is seconds of nothing - and the page's own status line is one of the things this shell
+ * takes away, so a failure in that moment left an empty window with no explanation at all. This is
+ * both: what it is doing, and why there is nothing if it stopped.
+ *
+ * A no-op in the full interface, which has the status line, the form and the list all visible.
+ *
+ * @param what What it is doing, or null to take the overlay away.
+ * @param why  A failure to show instead, with the animation stopped.
+ */
+function preparing(what, { repo = null, why = null } = {}) {
+  const panel = document.getElementById('preparing');
+  if (!panel || document.body.dataset.shell !== 'confirm') return;
+
+  if (what === null && why === null) {
+    panel.hidden = true;
+    return;
+  }
+
+  if (repo !== null) document.getElementById('preparingRepo').textContent = repo;
+
+  document.getElementById('preparingWhat').textContent = what ?? '';
+
+  const line = document.getElementById('preparingWhy');
+  line.textContent = why ?? '';
+  line.hidden = why === null;
+
+  // Nothing left to wait for, so the only thing left to offer is the way out.
+  document.getElementById('preparingClose').hidden = why === null;
+
+  if (why === null) delete panel.dataset.failed;
+  else panel.dataset.failed = '1';
+
+  panel.hidden = false;
+}
+
+document.getElementById('preparingClose').addEventListener('click', () => window.close());
 
 /**
  * Whether what was typed names a place on this machine rather than a repository.
@@ -1100,6 +1221,8 @@ function originLine(run) {
 }
 
 function renderPlan(run, panel = starter.plan) {
+  preparing(null);
+
   const waiting = run.state === 'awaitingInput';
 
   panel.hidden = false;
@@ -1216,9 +1339,12 @@ async function prepareRun({ fromCollection = false, config = null } = {}) {
 
   starter.prepare.disabled = true;
   starter.plan.hidden = true;
-  say(folder
+  const doing = folder
     ? (starter.copy.checked ? 'copying and building the plan…' : 'reading the folder…')
-    : 'checking out and building the plan…');
+    : 'checking out and building the plan…';
+
+  say(doing);
+  preparing(doing, { repo: target });
 
   try {
     // One field, two shapes of request. The daemon decides for itself as well - it can look and see
@@ -1254,6 +1380,7 @@ async function prepareRun({ fromCollection = false, config = null } = {}) {
       say('this repository asks for a few values first');
     } else {
       say(failure.message);
+      preparing(null, { why: failure.message });
     }
   } finally {
     starter.prepare.disabled = false;
@@ -2684,7 +2811,9 @@ document.getElementById('runFile').addEventListener('click', async () => {
  */
 async function runConfigFile(path, { fromLink, repo = null }) {
   starter.plan.hidden = true;
-  say(fromLink ? `reading the config this link named…` : 'reading the config…');
+  const doing = fromLink ? 'reading the config this link named…' : 'reading the config…';
+  say(doing);
+  preparing(doing, { repo: path });
 
   try {
     const answer = await api('/api/dashboard/file', {
@@ -2698,11 +2827,13 @@ async function runConfigFile(path, { fromLink, repo = null }) {
   } catch (failure) {
     // A config with no repository in it is a question, not a failure: the window can ask.
     if (failure.needsRepository) {
+      preparing(null);
       askForRepository(path, fromLink, failure.message);
       return;
     }
 
     say(failure.message);
+    preparing(null, { why: failure.message });
   }
 }
 

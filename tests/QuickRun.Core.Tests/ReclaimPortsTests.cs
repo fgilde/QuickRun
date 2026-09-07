@@ -106,9 +106,41 @@ public class ReclaimPortsTests
             $"the stop killed the process holding port {port}, which this run did not open");
 
         // And it still accepts, so it was not merely left as a zombie.
-        using var client = new TcpClient();
-        await client.ConnectAsync(IPAddress.Loopback, port);
-        Assert.True(client.Connected, $"the stop closed port {port}, which it did not open");
+        //
+        // Retried, because "connection reset by peer" is a normal answer here rather than a
+        // finding: the readiness check knocked on this port several times a second while it was
+        // waiting, and a macOS runner sends RST when the accept queue is full. A closed port
+        // answers "connection refused" every time, which is the thing being tested for.
+        Assert.True(await Accepts(port, tries: 4),
+            $"the stop closed port {port}, which it did not open");
+    }
+
+    /// <summary>Whether something is still listening there, given a few attempts.</summary>
+    private static async Task<bool> Accepts(int port, int tries)
+    {
+        for (var attempt = 1; attempt <= tries; attempt++)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                await client.ConnectAsync(IPAddress.Loopback, port);
+
+                if (client.Connected) return true;
+            }
+            catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionRefused)
+            {
+                // Nothing there at all, which is the failure this test is about. No point retrying.
+                return false;
+            }
+            catch (SocketException)
+            {
+                // Reset, or the queue was full: something is there, it just did not get to us.
+            }
+
+            await System.Threading.Tasks.Task.Delay(200 * attempt);
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -130,7 +162,9 @@ public class ReclaimPortsTests
         // between finding a free one and something else taking it.
         start.ArgumentList.Add("-e");
         start.ArgumentList.Add(
-            "const s=require('net').createServer();"
+            // The connection handler matters: a server that never accepts fills its backlog while
+            // the readiness check knocks, and macOS answers a full queue with RST.
+            "const s=require('net').createServer(c=>c.resume());"
             + "s.listen(0,'127.0.0.1',()=>console.log(s.address().port));"
             + "setTimeout(()=>process.exit(0),120000);");
 

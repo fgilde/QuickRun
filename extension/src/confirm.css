@@ -162,6 +162,26 @@ footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .folder { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .path { flex: 1; min-width: 0; }
 
+/* The config behind the plan: read, not edited - editing one is QuickRun's own builder. */
+#configDialog {
+  width: min(680px, 92vw); max-height: 84vh; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--fg);
+}
+
+#configDialog::backdrop { background: #0008; }
+
+#configDialog .dialog-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+#configDialog .grow { flex: 1; }
+#configWhere { display: block; margin-bottom: 8px; overflow-wrap: anywhere; }
+
+#configBody {
+  margin: 0; padding: 10px 12px; max-height: 60vh; overflow: auto;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px; line-height: 1.5;
+}
+
 button.linkish {
   flex: 0 0 auto;
   padding: 2px 8px;

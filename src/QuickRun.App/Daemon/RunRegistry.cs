@@ -85,6 +85,16 @@ public sealed record RunSummary(
     /// </summary>
     string? OriginDetail = null,
     /// <summary>
+    /// The config itself, as it was read.
+    /// <para>
+    /// The commands are already here; this is the file they came out of, which is the difference
+    /// between trusting a list and reading the thing that produced it. Shown on request in the
+    /// window - it goes only where a run summary goes, which is this machine's own window, its
+    /// extension and its command line, never a web page.
+    /// </para>
+    /// </summary>
+    string? ConfigText = null,
+    /// <summary>
     /// Tools this run needs, the machine does not have, and QuickRun would install before starting
     /// - said before anyone approves anything, because installing a runtime is a change to the
     /// machine and nobody should find out about it from the log.
@@ -397,6 +407,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Values = Safe(preparation),
                     Origin = preparation.Origin.ToString().ToLowerInvariant(),
                     OriginDetail = preparation.OriginDetail,
+                    ConfigText = preparation.ConfigText,
                     Provisions = provisions,
                     Tasks = preparation.Config?.Tasks
                         .Select(t => new RunTaskStatus(t.Name, "waiting", t.OpenUrl))

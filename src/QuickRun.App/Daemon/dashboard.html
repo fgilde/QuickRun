@@ -93,6 +93,25 @@ body[data-shell="confirm"] #runs > .card {
 
 body[data-shell="confirm"] main { padding: 16px 18px 18px; }
 
+/* The config behind a plan, read in place rather than hunted for on disk. */
+#configDialog {
+  width: min(860px, 92vw); max-height: 86vh; padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel); color: var(--fg);
+}
+
+#configDialog::backdrop { background: #0008; }
+
+.dialog-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.dialog-where { display: block; margin-bottom: 10px; overflow-wrap: anywhere; }
+
+.dialog-config {
+  margin: 0; padding: 12px 14px; max-height: 62vh; overflow: auto;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px; line-height: 1.55;
+}
+
 /*
  * What a confirmation window shows before it has anything to show.
  *
@@ -574,6 +593,19 @@ quickrun --help                every command and flag</pre>
   </section>
 </main>
 
+<!-- The config a plan came out of: its path, and the file. Opened from the View button beside the
+     origin line, in this window and in the confirmation window alike. -->
+<dialog id="configDialog">
+  <div class="dialog-head">
+    <strong id="configName" class="name grow"></strong>
+    <button id="configCopy" class="action" type="button">Copy</button>
+    <button id="configToBuilder" class="action" type="button">Open in the config builder</button>
+    <button id="configClose" class="action" type="button">Close</button>
+  </div>
+  <code id="configWhere" class="mono dialog-where"></code>
+  <pre id="configBody" class="dialog-config"></pre>
+</dialog>
+
 <!-- Shown only in the confirmation window, where the wait is visible and the status line is not. -->
 <div id="preparing" hidden>
   <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
@@ -854,6 +886,37 @@ function preparing(what, { repo = null, why = null } = {}) {
 }
 
 document.getElementById('preparingClose').addEventListener('click', () => window.close());
+
+// Delegated, because a plan is redrawn on every poll and a listener bound to a button would be
+// thrown away with it.
+document.addEventListener('click', (event) => {
+  const view = event.target.closest?.('[data-view]');
+  if (!view) return;
+
+  const run = drawn.get(view.dataset.view);
+  if (run) showConfig(run);
+});
+
+document.getElementById('configToBuilder').addEventListener('click', (event) => {
+  const run = drawn.get(event.currentTarget.dataset.run);
+  if (run) editConfig(run);
+});
+
+document.getElementById('configCopy').addEventListener('click', async (event) => {
+  const run = drawn.get(event.currentTarget.dataset.run);
+  if (!run?.configText) return;
+
+  try {
+    await navigator.clipboard.writeText(run.configText);
+    event.currentTarget.textContent = 'Copied';
+    setTimeout(() => { event.currentTarget.textContent = 'Copy'; }, 1500);
+  } catch {
+    // A window without clipboard permission is not a failure worth a line of its own.
+  }
+});
+
+document.getElementById('configClose')
+  .addEventListener('click', () => document.getElementById('configDialog').close());
 
 /**
  * Whether what was typed names a place on this machine rather than a repository.
@@ -1208,10 +1271,19 @@ function originLine(run) {
   const [what, detail] = ORIGINS[run.origin] ?? ORIGINS.repository;
   const guessed = run.origin === 'detected' || run.origin === 'collection';
 
-  // The address, when there is one. A config from a third place is the case where "where did this
-  // come from" cannot be answered by the origin alone, and it is the case where it matters most.
-  const where = run.originDetail
-    ? `<div class="row"><code class="grow mono">${escapeHtml(run.originDetail)}</code></div>`
+  // The file itself, by its full path or its address, and a way to read it. "The repository's
+  // quickrun.yml" says which of six sources this was; it does not say which file, and a config
+  // saved on this machine, one out of the collection and one the detector wrote all produce a plan
+  // that looks the same. Whoever is about to approve these commands may want to see the thing they
+  // came out of.
+  const view = run.configText
+    ? `<button class="action" type="button" data-view="${run.id}">View</button>`
+    : '';
+
+  const where = run.originDetail || run.configText
+    ? `<div class="row">${run.originDetail
+        ? `<code class="grow mono">${escapeHtml(run.originDetail)}</code>`
+        : '<span class="muted grow">no file - QuickRun wrote this config itself</span>'}${view}</div>`
     : '';
 
   return `<div class="row"><span class="muted grow">from ${escapeHtml(what)}${
@@ -1220,8 +1292,60 @@ function originLine(run) {
     }</div>${where}`;
 }
 
+/**
+ * The config a run is about to use, in a dialog: where it is, and what is in it.
+ *
+ * The text is a file from a repository, so it is written with textContent. The commands in the plan
+ * above already went through escapeHtml for the same reason - this is the same rule for the whole
+ * file at once.
+ */
+function showConfig(run) {
+  const dialog = document.getElementById('configDialog');
+
+  document.getElementById('configWhere').textContent =
+    run.originDetail ?? 'QuickRun wrote this config itself - there is no file';
+  document.getElementById('configBody').textContent = run.configText ?? '';
+  document.getElementById('configName').textContent = run.displayName;
+
+  // Only worth offering where the repository is known: the builder loads a checkout to test against.
+  const toBuilder = document.getElementById('configToBuilder');
+  toBuilder.hidden = !run.repo;
+  toBuilder.dataset.run = run.id;
+
+  document.getElementById('configCopy').dataset.run = run.id;
+
+  dialog.showModal();
+}
+
+/** Takes a config into the builder, in this window, to be poked at. */
+async function editConfig(run) {
+  document.getElementById('configDialog').close();
+
+  // A confirmation window has no tabs - it is one plan, read once and answered. Wanting to edit the
+  // config is the point at which it stops being that, so it becomes the whole interface instead of
+  // opening a second window on the same machine.
+  delete document.body.dataset.shell;
+
+  document.querySelector('nav button[data-tab="builder"]')?.click();
+
+  if (run.repo) builder.repo.value = run.repo;
+  if (run.ref) builder.ref.value = run.ref;
+
+  // The editor is three megabytes and loads when this tab is first opened, so the text goes in
+  // after it is there - or into the plain text area, which is what bootEditor falls back to.
+  await bootEditor();
+  setConfigText(run.configText ?? '');
+
+  builderSay(`this is the config ${run.displayName} was about to run - it is yours to change here, `
+    + 'and nothing is saved until you save it');
+}
+
+/** The runs this page has drawn, by id, so a button can ask about the one it belongs to. */
+const drawn = new Map();
+
 function renderPlan(run, panel = starter.plan) {
   preparing(null);
+  drawn.set(run.id, run);
 
   const waiting = run.state === 'awaitingInput';
 

@@ -10,7 +10,7 @@
 //
 //   node scripts/check-pages.mjs
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 
 /** The pages, and the placeholders the server fills in before a browser ever sees them. */
 const PAGES = [
@@ -58,4 +58,79 @@ for (const [path, placeholders] of PAGES) {
   else console.log(`ok       ${path}`);
 }
 
-process.exit(broken === 0 ? 0 : 1);
+/*
+ * And the addresses the app hands out.
+ *
+ * A run with no config ends in one line and one link, and that link was
+ * https://quickrun.org/docs/config - which has never been a page. Nobody notices, because the one
+ * person who follows it is the one person already stuck. Checked against the site in this
+ * repository rather than over the network: it is the same commit that publishes both.
+ */
+const SEARCH = ['src', 'extension/src', 'README.md'];
+
+/** Every file worth reading for links: source, pages, docs. */
+function files(where) {
+  if (statSync(where).isFile()) return [where];
+
+  const found = [];
+
+  for (const entry of readdirSync(where, { withFileTypes: true })) {
+    const path = `${where}/${entry.name}`;
+
+    if (entry.isDirectory()) {
+      if (['bin', 'obj', 'node_modules', 'dist', 'monaco'].includes(entry.name)) continue;
+      found.push(...files(path));
+      continue;
+    }
+
+    if (/\.(cs|js|mjs|html|css|md)$/.test(entry.name)) found.push(path);
+  }
+
+  return found;
+}
+
+/** Whether the site in this repository serves that path. */
+function served(path) {
+  const clean = path.replace(/^\/+|\/+$/g, '');
+
+  if (clean === '') return true;
+
+  // A page, in either language, or a file under public/ - which is how badge.svg, the schema and
+  // the collected configs are served.
+  return existsSync(`site/${clean}.md`)
+    || existsSync(`site/${clean}/index.md`)
+    || existsSync(`site/public/${clean}`)
+    // A collected config is written by the build, from the configs directory in this repository.
+    || (clean.startsWith('configs/') && existsSync(`configs/${clean.slice('configs/'.length)}`));
+}
+
+const linked = new Map();
+
+for (const where of SEARCH) {
+  if (!existsSync(where)) continue;
+
+  for (const file of files(where)) {
+    const text = readFileSync(file, 'utf8');
+
+    for (const [, path] of text.matchAll(/https:\/\/quickrun\.org\/([A-Za-z0-9./_-]*)/g)) {
+      // A trailing dot or slash is punctuation in a sentence, not part of the address.
+      const clean = path.replace(/[.]$/, '');
+      if (!linked.has(clean)) linked.set(clean, file);
+    }
+  }
+}
+
+let dead = 0;
+
+for (const [path, file] of [...linked].sort()) {
+  if (served(path)) continue;
+
+  console.error(`DEAD     https://quickrun.org/${path} (in ${file})`);
+  dead++;
+}
+
+console.log(dead === 0
+  ? `ok       ${linked.size} addresses on quickrun.org, all of them pages this site has`
+  : `${dead} of ${linked.size} addresses do not exist`);
+
+process.exit(broken === 0 && dead === 0 ? 0 : 1);

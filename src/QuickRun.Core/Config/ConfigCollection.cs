@@ -128,6 +128,22 @@ public static class ConfigCollection
     private static string CachePath(string cacheDir, string path) =>
         Path.Combine(cacheDir, path.Replace('/', '_') + ".yml");
 
+    /// <summary>
+    /// The file a collected config is read from on this machine, or null for a repository the
+    /// collection is not keyed on.
+    /// <para>
+    /// So the window can name the file it actually used. "from QuickRun's collection" is a source,
+    /// not an answer to "which file is this" - and somebody deciding whether to approve these
+    /// commands is entitled to open it.
+    /// </para>
+    /// </summary>
+    public static string? FileFor(string? repo, string cacheDir) =>
+        RepoPath(repo) is { } path ? CachePath(cacheDir, path) : null;
+
+    /// <summary>The address that file came from, which is the other half of the same question.</summary>
+    public static string? UrlFor(string? repo) =>
+        RepoPath(repo) is { } path ? $"{BaseUrl}/{path}.yml" : null;
+
     /// <summary>Whether the copy is recent enough to use without asking about it at all.</summary>
     private static bool Trusted(string file) =>
         Written(file) is { } written && DateTimeOffset.UtcNow - written < TrustFor;

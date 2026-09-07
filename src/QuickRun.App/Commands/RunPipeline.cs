@@ -82,12 +82,43 @@ public sealed record RunPreparation(
     /// </summary>
     string? WorkspaceId = null,
     /// <summary>
-    /// Where exactly the config came from, when <see cref="Origin"/> alone does not say it: the
-    /// address a published config was read from. Every other origin is this machine or the
-    /// repository being run; "from an address" is not something a reader can weigh, and the address
-    /// is.
+    /// The file this config was read from - a full path on this machine, or the address it was
+    /// published at. Null only where there is no file: a config handed in as text, or one QuickRun
+    /// worked out by reading the repository.
     /// </summary>
-    string? OriginDetail = null);
+    string? OriginDetail = null,
+    /// <summary>
+    /// The config as it was read, for the window to show and the builder to take over. The commands
+    /// are already on screen; this is the file they came out of, which is the difference between
+    /// trusting a list and reading the thing that produced it.
+    /// </summary>
+    string? ConfigText = null);
+
+/// <summary>
+/// What reading the config chain came up with.
+/// <para>
+/// <see cref="Source"/> and <see cref="Text"/> are what the confirmation window shows: the file
+/// that was actually read, by its full path or its address, and its contents. "The repository's
+/// quickrun.yml" is an origin, not an answer to "which file is this" - and a config saved on this
+/// machine, one out of the collection and one the detector wrote all look the same in a plan.
+/// </para>
+/// </summary>
+/// <param name="Source">
+/// The file or address it was read from, or null when there is nothing to point at - a config
+/// handed in as text, or one QuickRun worked out by reading the files.
+/// </param>
+/// <param name="Text">
+/// The config as it was read, so the window can show it and the builder can take it over. Null only
+/// where there is no text - a launcher's scripts, which are not YAML at all.
+/// </param>
+internal sealed record Loaded(
+    RunConfig? Config,
+    string? Error,
+    IReadOnlyList<Candidate> Others,
+    IReadOnlyList<string> Notes,
+    ConfigOrigin Origin,
+    string? Source = null,
+    string? Text = null);
 
 /// <summary>Where a run's instructions came from.</summary>
 public enum ConfigOrigin
@@ -135,7 +166,11 @@ public enum ConfigOrigin
 /// </summary>
 public static class RunPipeline
 {
-    private const string ConfigDocs = "https://quickrun.org/docs/config";
+    /// <summary>
+    /// Where somebody with no config goes next. Checked against the site: it said /docs/config,
+    /// which is a 404 - the one line a reader follows when QuickRun has nothing to run.
+    /// </summary>
+    private const string ConfigDocs = "https://quickrun.org/config";
 
     /// <param name="collectInputs">
     /// How to fill in missing values. The CLI passes a console prompt; --yes and tests pass a
@@ -214,7 +249,8 @@ public static class RunPipeline
                 // Not a dead end: the caller may be a window that can ask for the missing values.
                 // The config travels with the failure, so whoever asked knows which fields to show.
                 return new(1, null, config, workspace, values,
-                    string.Join("\n", errors.Select(e => e.Message)), Empty, loaded.Notes, loaded.Origin);
+                    string.Join("\n", errors.Select(e => e.Message)), Empty, loaded.Notes,
+                    loaded.Origin, OriginDetail: loaded.Source, ConfigText: loaded.Text);
         }
 
         var context = new InterpolationContext(values, workspace, RepoName(repo), reference);
@@ -235,11 +271,11 @@ public static class RunPipeline
             notes.Count == 0 ? loaded.Notes : notes.Concat(loaded.Notes).ToList(), loaded.Origin,
             LocalFolder: args.LocalPath is not null && !args.Copy ? workspace : null,
             WorkspaceId: workspaceId,
-            // Only an address is worth naming: it is the one origin that is neither this machine
-            // nor the repository being run.
-            OriginDetail: loaded.Origin == ConfigOrigin.Url
-                ? ConfigReference.Read(args.ConfigPath).Value
-                : null);
+            // Which file this actually was, whatever kind it was: the window names it and can show
+            // it. It used to be filled in only for an address, which left the common case - "the
+            // repository's quickrun.yml" - as the one plan nobody could check.
+            OriginDetail: loaded.Source,
+            ConfigText: loaded.Text);
     }
 
     /// <summary>Marks the workspace of a copied folder, so it is not the one for running in place.</summary>
@@ -434,8 +470,7 @@ public static class RunPipeline
     /// internal so the order of the chain can be tested for what it is - an order - rather than
     /// through a checkout of something.
     /// </remarks>
-    internal static (RunConfig? Config, string? Error, IReadOnlyList<Candidate> Others,
-        IReadOnlyList<string> Notes, ConfigOrigin Origin) LoadConfig(
+    internal static Loaded LoadConfig(
         string root, RunArgs args, string repo, ConfigOverrides overrides,
         string collectionCache, List<string> notes)
     {
@@ -445,13 +480,13 @@ public static class RunPipeline
         {
             try
             {
-                return (ConfigParser.Parse(supplied, OSKinds.Current), null, Empty,
+                return new(ConfigParser.Parse(supplied, OSKinds.Current), null, Empty,
                     new[] { "using the config you supplied, not the one in the repository" },
-                    ConfigOrigin.Supplied);
+                    ConfigOrigin.Supplied, Text: supplied);
             }
             catch (ConfigException e)
             {
-                return (null, $"the config you supplied: {e.Message}", Empty, NoNotes, ConfigOrigin.Supplied);
+                return new(null, $"the config you supplied: {e.Message}", Empty, NoNotes, ConfigOrigin.Supplied);
             }
         }
 
@@ -463,16 +498,17 @@ public static class RunPipeline
         {
             var (text, error) = RemoteConfig.ReadAsync(remote.Value).GetAwaiter().GetResult();
 
-            if (error is not null) return (null, error, Empty, NoNotes, ConfigOrigin.Url);
+            if (error is not null) return new(null, error, Empty, NoNotes, ConfigOrigin.Url);
 
             try
             {
-                return (ConfigParser.Parse(text!, OSKinds.Current), null, Empty,
-                    new[] { $"using the config published at {remote.Value}" }, ConfigOrigin.Url);
+                return new(ConfigParser.Parse(text!, OSKinds.Current), null, Empty,
+                    new[] { $"using the config published at {remote.Value}" }, ConfigOrigin.Url,
+                    Source: remote.Value, Text: text);
             }
             catch (ConfigException e)
             {
-                return (null, $"{remote.Value}: {e.Message}", Empty, NoNotes, ConfigOrigin.Url);
+                return new(null, $"{remote.Value}: {e.Message}", Empty, NoNotes, ConfigOrigin.Url);
             }
         }
 
@@ -487,19 +523,22 @@ public static class RunPipeline
             // config of their own, which is a different thing from a name arriving over HTTP.
             if (!Path.IsPathRooted(explicitPath)
                 && !Path.GetFullPath(file).StartsWith(Path.GetFullPath(root), StringComparison.Ordinal))
-                return (null, $"config '{explicitPath}' is outside {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
+                return new(null, $"config '{explicitPath}' is outside {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
 
             if (!File.Exists(file))
-                return (null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
+                return new(null, $"config '{explicitPath}' does not exist in {repo}", Empty, NoNotes, ConfigOrigin.Explicit);
 
             try
             {
-                return (ConfigParser.Parse(File.ReadAllText(file), OSKinds.Current), null, Empty,
-                    new[] { $"using {explicitPath}, which you named" }, ConfigOrigin.Explicit);
+                var named_ = File.ReadAllText(file);
+
+                return new(ConfigParser.Parse(named_, OSKinds.Current), null, Empty,
+                    new[] { $"using {explicitPath}, which you named" }, ConfigOrigin.Explicit,
+                    Source: Path.GetFullPath(file), Text: named_);
             }
             catch (ConfigException e)
             {
-                return (null, $"{Path.GetFileName(file)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Explicit);
+                return new(null, $"{Path.GetFileName(file)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Explicit);
             }
         }
 
@@ -508,13 +547,13 @@ public static class RunPipeline
         if (args.FromCollection && args.LocalPath is null)
         {
             if (ConfigCollection.For(repo, collectionCache) is not { } asked)
-                return (null,
+                return new(null,
                     $"QuickRun keeps no config for {repo} - nothing to run from the collection",
                     Empty, NoNotes, ConfigOrigin.Collection);
 
             try
             {
-                return (ConfigParser.Parse(asked, OSKinds.Current), null, Empty,
+                return new(ConfigParser.Parse(asked, OSKinds.Current), null, Empty,
                     new[]
                     {
                         ConfigParser.FindConfigFile(root) is null
@@ -522,11 +561,12 @@ public static class RunPipeline
                             : "using the config from QuickRun's collection, as asked - not the "
                               + "quickrun.yml this repository ships",
                     },
-                    ConfigOrigin.Collection);
+                    ConfigOrigin.Collection,
+                    Source: ConfigCollection.FileFor(repo, collectionCache), Text: asked);
             }
             catch (ConfigException e)
             {
-                return (null, $"the collected config for {repo}: {e.Message}", Empty, NoNotes,
+                return new(null, $"the collected config for {repo}: {e.Message}", Empty, NoNotes,
                     ConfigOrigin.Collection);
             }
         }
@@ -539,10 +579,14 @@ public static class RunPipeline
                 ? "using your local config for this repository"
                 : "using your local config for this repository, not the quickrun.yml it ships";
 
-            try { return (ConfigParser.Parse(mine, OSKinds.Current), null, Empty, new[] { note }, ConfigOrigin.Local); }
+            try
+            {
+                return new(ConfigParser.Parse(mine, OSKinds.Current), null, Empty, new[] { note },
+                    ConfigOrigin.Local, Source: overrides.PathFor(repo), Text: mine);
+            }
             catch (ConfigException e)
             {
-                return (null, $"your local config for {repo}: {e.Message}", Empty, NoNotes, ConfigOrigin.Local);
+                return new(null, $"your local config for {repo}: {e.Message}", Empty, NoNotes, ConfigOrigin.Local);
             }
         }
 
@@ -550,12 +594,14 @@ public static class RunPipeline
         {
             try
             {
-                return (ConfigParser.Parse(File.ReadAllText(own), OSKinds.Current), null, Empty, NoNotes,
-                    ConfigOrigin.Repository);
+                var text_ = File.ReadAllText(own);
+
+                return new(ConfigParser.Parse(text_, OSKinds.Current), null, Empty, NoNotes,
+                    ConfigOrigin.Repository, Source: Path.GetFullPath(own), Text: text_);
             }
             catch (ConfigException e)
             {
-                return (null, $"{Path.GetFileName(own)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Repository);
+                return new(null, $"{Path.GetFileName(own)}: {e.Message}", Empty, NoNotes, ConfigOrigin.Repository);
             }
         }
 
@@ -573,13 +619,14 @@ public static class RunPipeline
         {
             try
             {
-                return (ConfigParser.Parse(curated, OSKinds.Current), null, Empty,
+                return new(ConfigParser.Parse(curated, OSKinds.Current), null, Empty,
                     new[]
                     {
                         "using a config from QuickRun's collection - this repository ships none, and "
                         + "this one was written for it rather than guessed",
                     },
-                    ConfigOrigin.Collection);
+                    ConfigOrigin.Collection,
+                    Source: ConfigCollection.FileFor(repo, collectionCache), Text: curated);
             }
             catch (ConfigException e)
             {
@@ -592,7 +639,7 @@ public static class RunPipeline
         // A repository written for another launcher says how to start itself, which beats anything
         // guessing from file names: Pinokio's own scripts come before the detector.
         if (Pinokio.Load(root, OSKinds.Current) is { } foreign)
-            return (foreign.Config, null, Empty,
+            return new(foreign.Config, null, Empty,
                 foreign.Notes.Prepend($"no quickrun.yml - running this repository from its {foreign.Kind} scripts").ToList(),
                 ConfigOrigin.Foreign);
 
@@ -601,8 +648,9 @@ public static class RunPipeline
         if (candidates.Count > 0)
         {
             var yaml = Detector.ToYaml(candidates[0], RepoName(repo));
-            return (ConfigParser.Parse(yaml, OSKinds.Current), null, candidates.Skip(1).ToList(),
-                new[] { $"no quickrun.yml - detected {candidates[0].Label}" }, ConfigOrigin.Detected);
+            return new(ConfigParser.Parse(yaml, OSKinds.Current), null, candidates.Skip(1).ToList(),
+                new[] { $"no quickrun.yml - detected {candidates[0].Label}" }, ConfigOrigin.Detected,
+                Text: yaml);
         }
 
         // A Pinokio repository whose scripts are JavaScript functions is a real case, and "nothing
@@ -611,7 +659,7 @@ public static class RunPipeline
             ? " (its Pinokio scripts build their steps in JavaScript, which QuickRun cannot read)"
             : "";
 
-        return (null,
+        return new(null,
             $"no quickrun.yml, no run script and nothing detectable in {repo}{pinokio} - see {ConfigDocs}",
             Empty, NoNotes, ConfigOrigin.Detected);
     }

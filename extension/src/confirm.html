@@ -24,6 +24,16 @@
     <dt>Instructions</dt><dd id="origin"></dd>
   </dl>
 
+  <!-- The config this plan came out of. Opened from "View the config" on the origin line. -->
+  <dialog id="configDialog">
+    <div class="dialog-head">
+      <strong class="grow">The config behind this plan</strong>
+      <button id="configClose" type="button">Close</button>
+    </div>
+    <code id="configWhere" class="path"></code>
+    <pre id="configBody"></pre>
+  </dialog>
+
   <section id="review">
     <section id="inputSection" hidden>
       <h2>This repository asks for</h2>

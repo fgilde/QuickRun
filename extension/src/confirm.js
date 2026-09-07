@@ -231,9 +231,9 @@ function showOrigin(run) {
     cell.append(note);
   }
 
-  // The address itself, when the config came from one. It is the only origin that is neither this
-  // machine nor the repository being run, so "published elsewhere" without saying where is not
-  // something a reader can weigh - and this is the line they weigh it on.
+  // The file itself: its full path on this machine, or the address it was published at. Which of
+  // six sources this was does not say which file it was, and a config saved here, one out of the
+  // collection and one QuickRun wrote all produce a plan that reads the same.
   if (run.originDetail) {
     const where = document.createElement('code');
     where.className = 'path';
@@ -242,10 +242,42 @@ function showOrigin(run) {
     cell.append(document.createElement('br'), where);
   }
 
+  // And what is in it. The commands are below already; this is the file they came out of, which is
+  // the difference between trusting a list and reading the thing that produced it.
+  if (run.configText) {
+    const view = document.createElement('button');
+    view.type = 'button';
+    view.className = 'linkish';
+    view.textContent = 'View the config';
+    view.addEventListener('click', () => showConfig(run));
+
+    cell.append(document.createElement('br'), view);
+  }
+
   // Guessed commands are the case where reading the list below actually matters. A config from
   // somewhere else deserves the same attention for a different reason.
   cell.classList.toggle('origin--guessed', run.origin === 'detected' || run.origin === 'url');
 }
+
+/**
+ * The config behind this plan, in a dialog.
+ *
+ * textContent, and a <pre>: this is a file out of somebody's repository, and the whole window is
+ * built on never letting that become markup. There is no editing here - the builder is in QuickRun
+ * itself, which is where a config gets changed.
+ */
+function showConfig(run) {
+  const dialog = document.getElementById('configDialog');
+
+  document.getElementById('configWhere').textContent =
+    run.originDetail ?? 'QuickRun wrote this config itself - there is no file';
+  document.getElementById('configBody').textContent = run.configText ?? '';
+
+  dialog.showModal();
+}
+
+document.getElementById('configClose')
+  .addEventListener('click', () => document.getElementById('configDialog').close());
 
 /** The form the config asks for, and the button that applies it. */
 function renderInputs(run) {

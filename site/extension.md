@@ -38,6 +38,15 @@ that will run. Only the button in that window starts them.
 The window also shows the `description` from the config when it has one, the folder the repository
 was checked out into, and — once a task reports one — the address it is listening on, as a link.
 
+And the config itself. Under the source it names the **file the plan came out of** by its full path —
+the `quickrun.yml` in the checkout, the config you saved for that repository, QuickRun's collected
+copy on your disk, or the address a published one was read from — with a **View** button beside it
+that shows the file. Which of the sources was used does not say which file it was, and the four
+produce plans that read exactly the same; the commands are the answer to *what will run*, and the
+file is the answer to *who wrote this*. In QuickRun's own window that dialog also has **Open in the
+config builder**, which takes the config into the [builder](/builder) in that window, repository and
+ref filled in, nothing saved until you save it.
+
 If the config declares [inputs](/config#inputs), the window asks for them before there is anything
 to approve: labels, descriptions, defaults, a dropdown for a `select`, a checkbox for a `bool`, a
 masked field for a `password`. A changed value applies itself a moment later and the command list is

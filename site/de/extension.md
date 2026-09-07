@@ -144,6 +144,15 @@ Das Bestätigungsfenster nennt bei jedem Lauf die Quelle, damit klar ist, welche
 vorliegt: die `quickrun.yml` des Repositories, eine Konfiguration, die du selbst dafür gespeichert
 hast, die Skripte eines anderen Launchers, oder QuickRuns eigene Lesart der Dateien.
 
+Dazu nennt es die **Datei, aus der der Plan kommt**, mit vollem Pfad — die `quickrun.yml` im
+Checkout, deine eigene Konfiguration für dieses Repository, QuickRuns Kopie aus der Sammlung auf
+deiner Platte, oder die Adresse, von der eine veröffentlichte gelesen wurde — und daneben einen
+**View**-Knopf, der die Datei zeigt. Welche der Quellen es war, sagt nicht, welche Datei es war, und
+alle vier erzeugen Pläne, die sich gleich lesen: die Befehle beantworten *was läuft*, die Datei
+beantwortet *wer das geschrieben hat*. In QuickRuns eigenem Fenster hat dieser Dialog außerdem
+**Open in the config builder** — damit landet die Konfiguration im [Builder](/de/builder) dieses
+Fensters, Repository und Ref schon eingetragen, und gespeichert wird nichts, bis du speicherst.
+
 Einen Pull Request zu starten heißt, den Branch zu starten, aus dem er kommt — geholt als
 `refs/pull/<n>/head`. Das funktioniert auch bei Pull Requests aus Forks, und genau das macht der
 Button auf einer PR-Seite.

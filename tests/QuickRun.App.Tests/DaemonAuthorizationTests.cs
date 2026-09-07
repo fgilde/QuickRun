@@ -121,6 +121,51 @@ public class DaemonAuthorizationTests
         Assert.DoesNotContain("config", RunTarget.FromQuery(other));
     }
 
+    /// <summary>
+    /// The other two kinds of reference survive it too, and nothing else does.
+    /// <para>
+    /// This is the seam a button on somebody's page hangs on: /api/show turns the query into the
+    /// address of QuickRun's own window, and a config dropped here means the window prepares the
+    /// repository's own config instead - a button that says "run the demo" and runs something else.
+    /// It cannot be seen from either end, which is why it is pinned down here.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("ci/demo.quickrun.yml", "config=ci%2Fdemo.quickrun.yml")]
+    [InlineData("https://acme.com/quickrun/demo.yml", "config=https%3A%2F%2Facme.com%2Fquickrun%2Fdemo.yml")]
+    public void ANamedConfigSurvivesTheHandover(string asked, string carried)
+    {
+        var query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            ["repo"] = "acme/app",
+            ["config"] = asked,
+        });
+
+        Assert.Contains(carried, RunTarget.FromQuery(query));
+    }
+
+    /// <summary>What a link may not name, however it is spelled.</summary>
+    [Theory]
+    [InlineData("http://acme.com/demo.yml")]          // anything on the way could replace it
+    [InlineData("https://192.168.0.5/demo.yml")]      // the daemon is not a scanner
+    [InlineData("C:/dev/secrets/quickrun.yml")]       // a path on the reader's own disk
+    [InlineData("~/secrets.yml")]
+    [InlineData("../../etc/passwd.yml")]
+    [InlineData("docker run --rm evil")]              // never commands, whatever the field says
+    public void AnythingElseInThatFieldIsDropped(string asked)
+    {
+        var query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            ["repo"] = "acme/app",
+            ["config"] = asked,
+        });
+
+        var carried = RunTarget.FromQuery(query);
+
+        Assert.NotNull(carried);
+        Assert.DoesNotContain("config", carried);
+    }
+
     [Theory]
     [InlineData("chrome-extension://gemnfgcfaacphpmbaipjejmohdkhkfda")]
     [InlineData("moz-extension://4f2c8a1e-0000-0000-0000-000000000000")]

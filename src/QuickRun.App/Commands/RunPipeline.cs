@@ -80,7 +80,14 @@ public sealed record RunPreparation(
     /// that wrong, so recording the outcome wrote over a different workspace's note.
     /// </para>
     /// </summary>
-    string? WorkspaceId = null);
+    string? WorkspaceId = null,
+    /// <summary>
+    /// Where exactly the config came from, when <see cref="Origin"/> alone does not say it: the
+    /// address a published config was read from. Every other origin is this machine or the
+    /// repository being run; "from an address" is not something a reader can weigh, and the address
+    /// is.
+    /// </summary>
+    string? OriginDetail = null);
 
 /// <summary>Where a run's instructions came from.</summary>
 public enum ConfigOrigin
@@ -102,6 +109,17 @@ public enum ConfigOrigin
 
     /// <summary>A file named with --config.</summary>
     Explicit,
+
+    /// <summary>
+    /// A config published at an address, which a link or an embedded button named.
+    /// <para>
+    /// Its own value because the window has to say so. Every other origin is something on this
+    /// machine or in the repository being run; this one came from a third place, and a reader
+    /// deciding whether to approve these commands needs to see that rather than "the repository's
+    /// quickrun.yml".
+    /// </para>
+    /// </summary>
+    Url,
 
     /// <summary>Scripts written for another launcher. Pinokio, so far.</summary>
     Foreign,
@@ -216,7 +234,12 @@ public static class RunPipeline
         return new(0, plan, config, workspace, values, null, loaded.Others,
             notes.Count == 0 ? loaded.Notes : notes.Concat(loaded.Notes).ToList(), loaded.Origin,
             LocalFolder: args.LocalPath is not null && !args.Copy ? workspace : null,
-            WorkspaceId: workspaceId);
+            WorkspaceId: workspaceId,
+            // Only an address is worth naming: it is the one origin that is neither this machine
+            // nor the repository being run.
+            OriginDetail: loaded.Origin == ConfigOrigin.Url
+                ? ConfigReference.Read(args.ConfigPath).Value
+                : null);
     }
 
     /// <summary>Marks the workspace of a copied folder, so it is not the one for running in place.</summary>
@@ -429,6 +452,27 @@ public static class RunPipeline
             catch (ConfigException e)
             {
                 return (null, $"the config you supplied: {e.Message}", Empty, NoNotes, ConfigOrigin.Supplied);
+            }
+        }
+
+        // A config published at an address, which is what an embedded button may name. Fetched by
+        // QuickRun rather than carried in the link: what runs is a file somebody can read, and the
+        // window says where it came from before anything is approved.
+        if (explicitPath is { } named && ConfigReference.Read(named) is
+            { Kind: ConfigReferenceKind.Remote } remote)
+        {
+            var (text, error) = RemoteConfig.ReadAsync(remote.Value).GetAwaiter().GetResult();
+
+            if (error is not null) return (null, error, Empty, NoNotes, ConfigOrigin.Url);
+
+            try
+            {
+                return (ConfigParser.Parse(text!, OSKinds.Current), null, Empty,
+                    new[] { $"using the config published at {remote.Value}" }, ConfigOrigin.Url);
+            }
+            catch (ConfigException e)
+            {
+                return (null, $"{remote.Value}: {e.Message}", Empty, NoNotes, ConfigOrigin.Url);
             }
         }
 

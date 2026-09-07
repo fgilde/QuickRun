@@ -78,6 +78,13 @@ public sealed record RunSummary(
     /// </summary>
     string Origin = "repository",
     /// <summary>
+    /// Where exactly, when the origin alone does not say it: the address a published config was
+    /// read from. Every other origin is this machine or the repository being run, and naming it
+    /// adds nothing - this one came from a third place, and "from an address" is not something
+    /// anybody can weigh.
+    /// </summary>
+    string? OriginDetail = null,
+    /// <summary>
     /// Tools this run needs, the machine does not have, and QuickRun would install before starting
     /// - said before anyone approves anything, because installing a runtime is a change to the
     /// machine and nobody should find out about it from the log.
@@ -389,6 +396,7 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
                     Inputs = preparation.Config?.Inputs,
                     Values = Safe(preparation),
                     Origin = preparation.Origin.ToString().ToLowerInvariant(),
+                    OriginDetail = preparation.OriginDetail,
                     Provisions = provisions,
                     Tasks = preparation.Config?.Tasks
                         .Select(t => new RunTaskStatus(t.Name, "waiting", t.OpenUrl))

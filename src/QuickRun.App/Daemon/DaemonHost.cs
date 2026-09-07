@@ -1053,10 +1053,13 @@ public static class DaemonHost
 
             // A config may be named here - a repository can hold more than one - but only as a file
             // inside that repository.
-            if (!string.IsNullOrWhiteSpace(request.Config) && !ConfigInsideRepository(request.Config))
+            if (!string.IsNullOrWhiteSpace(request.Config)
+                && !ConfigReference.Read(request.Config).Usable)
                 return Results.BadRequest(new
                 {
-                    error = "a config has to be a .yml file inside the repository, named relative to its root",
+                    error = "a config has to be \"collection\", a .yml file inside the repository named "
+                        + "relative to its root, or an https address that is not on this machine or its "
+                        + "network",
                 });
 
             var args = new RunArgs(
@@ -1210,22 +1213,14 @@ public static class DaemonHost
     /// anchored nowhere, no step upwards, and a config's own extension.
     /// </para>
     /// </summary>
-    internal static bool ConfigInsideRepository(string? value)
-    {
-        var path = (value ?? "").Trim();
-        if (path.Length == 0) return false;
-        if (path.Length > 200) return false;
-
-        if (path.Any(c => char.IsControl(c))) return false;
-        if (Path.IsPathRooted(path) || PointsAtThisMachine(path)) return false;
-        if (path.Contains("://", StringComparison.Ordinal)) return false;
-
-        var segments = path.Split('/', '\\');
-        if (segments.Any(s => s.Length == 0 || s is "." or "..")) return false;
-
-        return path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)
-               || path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase);
-    }
+    /// <remarks>
+    /// The rules live in <see cref="ConfigReference"/> now, because three parts of QuickRun have to
+    /// agree on them: this endpoint, the parser for a quickrun:// link, and the pipeline that
+    /// finally reads the file. A second opinion in any of them would be a way in. Kept under this
+    /// name so the tests describing this endpoint go on describing it.
+    /// </remarks>
+    internal static bool ConfigInsideRepository(string? value) =>
+        ConfigReference.Read(value).Kind == ConfigReferenceKind.InsideRepository;
 
     internal static bool Authorized(HttpContext context)
     {

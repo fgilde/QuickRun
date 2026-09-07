@@ -582,7 +582,15 @@ function openTabFromHash() {
       return;
     }
 
-    if (repo) prefillRun(repo, wanted.get('ref'), wanted.get('pr'));
+    // Anything else in `config` is a file: named inside the repository, or published at an address.
+    // The name travels, never the commands - QuickRun reads the file itself, which is what makes an
+    // embedded button on somebody else's page no more dangerous than a repository with that file
+    // in it.
+    if (repo) {
+      prefillRun(repo, wanted.get('ref'), wanted.get('pr'), { config: wanted.get('config') });
+      return;
+    }
+
     return;
   }
 
@@ -611,7 +619,7 @@ async function showPrepared(id) {
 }
 
 /** Fills the run form from a link and prepares the plan, leaving the decision on screen. */
-async function prefillRun(repo, ref, pr, { fromCollection = false } = {}) {
+async function prefillRun(repo, ref, pr, { fromCollection = false, config = null } = {}) {
   document.querySelector('nav button[data-tab="runs"]')?.click();
 
   // Arriving from a badge, the first question is "is this already going?" - and preparing a second
@@ -630,7 +638,7 @@ async function prefillRun(repo, ref, pr, { fromCollection = false } = {}) {
 
   if (pr) starter.pr.value = pr;
 
-  prepareRun({ fromCollection });
+  prepareRun({ fromCollection, config });
 }
 
 /**
@@ -1072,15 +1080,23 @@ const ORIGINS = {
   foreign: ["this repository's Pinokio scripts", 'written for another launcher, read by QuickRun'],
   detected: ['QuickRun, from reading the repository',
     'there is no config here, so these commands are a considered guess'],
+  url: ['a config published elsewhere', "not this repository's own - read from the address below"],
 };
 
 function originLine(run) {
   const [what, detail] = ORIGINS[run.origin] ?? ORIGINS.repository;
   const guessed = run.origin === 'detected' || run.origin === 'collection';
 
+  // The address, when there is one. A config from a third place is the case where "where did this
+  // come from" cannot be answered by the origin alone, and it is the case where it matters most.
+  const where = run.originDetail
+    ? `<div class="row"><code class="grow mono">${escapeHtml(run.originDetail)}</code></div>`
+    : '';
+
   return `<div class="row"><span class="muted grow">from ${escapeHtml(what)}${
     detail ? ' - ' + escapeHtml(detail) : ''}</span>${
-    guessed ? pill(run.origin === 'collection' ? 'collected' : 'guessed', 'warn') : ''}</div>`;
+    guessed ? pill(run.origin === 'collection' ? 'collected' : 'guessed', 'warn') : ''
+    }</div>${where}`;
 }
 
 function renderPlan(run, panel = starter.plan) {
@@ -1192,7 +1208,7 @@ function renderPlan(run, panel = starter.plan) {
   });
 }
 
-async function prepareRun({ fromCollection = false } = {}) {
+async function prepareRun({ fromCollection = false, config = null } = {}) {
   const target = starter.repo.value.trim();
   if (!target) { say('a repository or a folder is needed'); return; }
 
@@ -1224,6 +1240,10 @@ async function prepareRun({ fromCollection = false } = {}) {
           inputs: parseInputs(starter.inputs.value),
           fresh: starter.fresh.checked,
           fromCollection,
+          // A config the link named: a path inside the repository, or an address QuickRun fetches
+          // itself. The daemon checks it again - it arrived from a web address - and the window
+          // says where it came from before anything is approved.
+          config,
         }),
     }));
     say('');

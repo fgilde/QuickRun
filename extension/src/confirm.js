@@ -214,6 +214,7 @@ const ORIGINS = {
     'this repository ships none, so this one was written for it rather than guessed'],
   foreign: ["this repository's Pinokio scripts", 'written for another launcher, read by QuickRun'],
   detected: ['QuickRun, from reading the repository', 'there is no config here, so these commands are a considered guess'],
+  url: ['a config published elsewhere', "not this repository's own"],
 };
 
 function showOrigin(run) {
@@ -230,8 +231,20 @@ function showOrigin(run) {
     cell.append(note);
   }
 
-  // Guessed commands are the case where reading the list below actually matters.
-  cell.classList.toggle('origin--guessed', run.origin === 'detected');
+  // The address itself, when the config came from one. It is the only origin that is neither this
+  // machine nor the repository being run, so "published elsewhere" without saying where is not
+  // something a reader can weigh - and this is the line they weigh it on.
+  if (run.originDetail) {
+    const where = document.createElement('code');
+    where.className = 'path';
+    where.textContent = run.originDetail;
+
+    cell.append(document.createElement('br'), where);
+  }
+
+  // Guessed commands are the case where reading the list below actually matters. A config from
+  // somewhere else deserves the same attention for a different reason.
+  cell.classList.toggle('origin--guessed', run.origin === 'detected' || run.origin === 'url');
 }
 
 /** The form the config asks for, and the button that applies it. */

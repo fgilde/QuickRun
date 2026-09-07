@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Microsoft.AspNetCore.Http;
+using QuickRun.Core.Config;
 using QuickRun.Core.Git;
 using QuickRun.App.Daemon;
 using Spectre.Console.Cli;
@@ -217,11 +218,13 @@ internal static class RunTarget
         if (int.TryParse(query("pr"), out var pr) && pr > 0)
             carried.Add($"pr={pr}");
 
-        // Which config was asked for. A name, not a config: "the one QuickRun keeps for this
-        // repository", which QuickRun then fetches itself. Without carrying it, a link that says
-        // "run it with our config" would open the window on the repository's own.
-        if (string.Equals(query("config"), "collection", StringComparison.OrdinalIgnoreCase))
-            carried.Add("config=collection");
+        // Which config was asked for - a name, never a config. "collection" for the one QuickRun
+        // keeps, a path inside the repository, or an address QuickRun fetches itself; the rules are
+        // ConfigReference's, so a link, this endpoint and the pipeline cannot disagree about them.
+        // Commands never travel here: what arrives is the name of a file somebody can read in the
+        // window before approving it.
+        if (ConfigReference.Read(query("config")) is { Usable: true } config)
+            carried.Add($"config={Uri.EscapeDataString(config.Value)}");
 
         return string.Join('&', carried);
     }

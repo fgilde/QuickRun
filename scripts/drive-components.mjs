@@ -269,7 +269,8 @@ for (let attempt = 0; ; attempt += 1) {
 }
 
 /** One case: a new frame with a button in it, pressed, and what came of that. */
-async function press(attributes, { stop = false, shows = { shown: true }, settle = 700 } = {}) {
+async function press(attributes,
+  { stop = false, shows = { shown: true }, settle = 700, soak = 500 } = {}) {
   answer = shows;
 
   await evaluate(`window.__stop = ${stop}; window.__seen = []`);
@@ -277,7 +278,7 @@ async function press(attributes, { stop = false, shows = { shown: true }, settle
 
   // The ping has to have answered before the press, or the status event and data-running are
   // simply not there yet - which is a race, not a finding.
-  await wait(500);
+  await wait(soak);
 
   const look = JSON.parse(await evaluate('JSON.stringify(window.__look())'));
 
@@ -290,10 +291,6 @@ async function press(attributes, { stop = false, shows = { shown: true }, settle
 
   return {
     look,
-    // What the button looks like once the click is over. Reachable only while the frame is still
-    // there, which it is not after a click that navigated - hence the null.
-    after: JSON.parse(await evaluate(
-      "(() => { try { return JSON.stringify(window.__look()); } catch { return 'null'; } })()")),
     seen: JSON.parse(await evaluate('JSON.stringify(window.__seen)')),
     wanted: [...wanted],
     asked: [...asked],
@@ -358,8 +355,10 @@ check('a site that is not trusted falls back to the scheme', () => {
 // 3. Nothing listening: the run page, carrying the repository so the press is not lost.
 // Long enough for the ping to give up: with nothing listening the answer is a timeout, and that
 // wait is part of the case rather than something to be raced.
+// Both waits are the ping giving up: before the press so the button's own state is settled, after
+// it because that is when the run page is asked for. Reading either sooner is a race, not a check.
 const missing = await press({ repo: 'acme/app', ref: 'preview', port: String(NOTHING) },
-  { settle: 3000 });
+  { soak: 2500, settle: 3000 });
 
 check('without QuickRun the press lands on the run page, not nowhere', () => {
   const to = missing.wanted.find((url) => url.startsWith('https://quickrun.org/run'));
@@ -369,8 +368,8 @@ check('without QuickRun the press lands on the run page, not nowhere', () => {
   assert.match(to, /executeQuickRun=true/);
 });
 
-check('and the host says QuickRun is not there, once the ping has given up', () => {
-  assert.equal(missing.after.running, false);
+check('and the host says QuickRun is not there', () => {
+  assert.equal(missing.look.running, false);
 });
 
 // 4. A page that wants its own question in front of the hand-over.

@@ -34,6 +34,16 @@
     <pre id="configBody"></pre>
   </dialog>
 
+  <!-- Every error line of this run, including the ones the log block has already dropped. -->
+  <dialog id="problemDialog">
+    <div class="dialog-head">
+      <strong class="grow">The lines that went wrong</strong>
+      <button id="problemCopy" type="button">Copy</button>
+      <button id="problemClose" type="button">Close</button>
+    </div>
+    <pre id="problemBody"></pre>
+  </dialog>
+
   <section id="review">
     <section id="inputSection" hidden>
       <h2>This repository asks for</h2>
@@ -84,6 +94,9 @@
     <div class="bar"><div id="fill"></div></div>
 
     <div class="log-tools">
+      <!-- Which severities to show. Built by the page, because which of them exist depends on the
+           run - a log with no warnings has no business offering a warnings filter. -->
+      <span id="levels" class="levels"></span>
       <input id="filter" type="search" placeholder="Filter the log" aria-label="Filter the log">
       <span id="filterCount" class="muted"></span>
       <button id="copyLog" type="button" class="linkish">Copy</button>

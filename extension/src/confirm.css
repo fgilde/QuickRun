@@ -266,7 +266,44 @@ button.linkish {
   overflow-wrap: anywhere;
 }
 
-#log .err { color: var(--warn-line); }
+/*
+ * What a line is, in colour - and muted for the ordinary ones, because if everything is coloured
+ * nothing is. The severity is decided by QuickRun and travels on the event, so this window and
+ * QuickRun's own paint the same line the same way.
+ */
+#log .fatal, #problemBody .fatal { color: var(--bad-line, #f85149); font-weight: 600; }
+#log .error, #problemBody .error { color: var(--bad-line, #f85149); }
+#log .warn, #problemBody .warn { color: var(--warn-line); }
+
+/* The count above the log is a button now: it is the one question that number raises. */
+.errors { cursor: pointer; }
+
+.levels { display: inline-flex; gap: 4px; }
+
+.levels button {
+  padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer;
+}
+
+.levels button[aria-pressed="true"] { border-color: var(--accent); color: var(--fg); font-weight: 600; }
+.levels button:hover { color: var(--fg); }
+
+#problemDialog {
+  width: min(680px, 92vw); max-height: 84vh; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--fg);
+}
+
+#problemDialog::backdrop { background: #0008; }
+#problemDialog .dialog-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+#problemDialog .grow { flex: 1; }
+
+#problemBody {
+  margin: 0; padding: 10px 12px; max-height: 64vh; overflow: auto;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px; line-height: 1.5; white-space: pre-wrap;
+}
 #log .meta { color: var(--muted); }
 
 button {

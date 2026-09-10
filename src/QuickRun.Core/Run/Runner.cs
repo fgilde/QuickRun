@@ -28,7 +28,18 @@ public enum RunEventKind
 /// <see cref="RunEventKind.Progress"/> events, so consumers can render a bar and a log from the
 /// same ordered stream.
 /// </summary>
-public sealed record RunEvent(RunEventKind Kind, string? Task, string Text, RunProgress? Progress = null);
+/// <param name="Severity">
+/// How bad the line is, as far as reading it can tell. Decided by whoever raises the event rather
+/// than by whoever draws it: the same log appears in QuickRun's window, the extension's window and
+/// the command line, and three heuristics would disagree in front of one run.
+/// <para>
+/// Null means nobody has looked yet, which is not the same as Info - a line deliberately marked
+/// ordinary, like the echo of the command about to run, must not be read again downstream and
+/// turned red by a word inside somebody's command.
+/// </para>
+/// </param>
+public sealed record RunEvent(RunEventKind Kind, string? Task, string Text,
+    RunProgress? Progress = null, LogSeverity? Severity = null);
 
 public sealed record RunOutcome(bool Ok, string? Error);
 
@@ -279,7 +290,7 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
     private async Task<int> RunStepAsync(Step step, string phase, RunOptions options, CancellationToken ct)
     {
         var command = Interpolator.Expand(step.Run, options.Context);
-        Emit(RunEventKind.Info, phase, $"$ {command}");
+        EchoCommand(RunEventKind.Info, phase, command);
 
         var spec = new ProcessSpec(command, ResolveCwd(options.Workspace, step.Cwd, options.Context),
             EnvironmentFor(null, options));
@@ -309,7 +320,7 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
         for (var attempt = 1; attempt <= MaxRestarts; attempt++)
         {
             var command = Interpolator.Expand(task.Run, options.Context);
-            Emit(RunEventKind.TaskStarted, task.Name, $"$ {command}");
+            EchoCommand(RunEventKind.TaskStarted, task.Name, command);
             StartedTask(task);
 
             var spec = new ProcessSpec(command, ResolveCwd(options.Workspace, task.Cwd, options.Context),
@@ -787,8 +798,35 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
     // ---- reporting ----------------------------------------------------------
 
-    private void Emit(RunEventKind kind, string? task, string text) =>
-        onEvent(new RunEvent(kind, task, Redact(text, _options)));
+    private void Emit(RunEventKind kind, string? task, string text,
+        LogSeverity? severity = null)
+    {
+        var line = Redact(text, _options);
+
+        // Everything the caller ever sees comes through here, so this is the one place a severity
+        // can be worked out without anybody being able to skip it. Failed is an error whatever the
+        // words are; a line from standard error is read rather than assumed - see LogSeverities.
+        var level = severity ?? kind switch
+        {
+            RunEventKind.Failed => LogSeverity.Error,
+            RunEventKind.Error => LogSeverities.Of(line, fromErrorStream: true),
+            _ => LogSeverities.Of(line),
+        };
+
+        onEvent(new RunEvent(kind, task, line, Severity: level));
+    }
+
+    /// <summary>
+    /// The command about to run, echoed - QuickRun's own line, never read for severity.
+    /// <para>
+    /// It contains the command, and a command contains whatever the config author wrote: a path
+    /// through <c>error.log</c>, a <c>--fail-fast</c>, a container named <c>warn</c>. Reading it
+    /// like output paints the one line that is definitely not a problem, and painting the wrong
+    /// lines is how a reader learns to ignore the colour.
+    /// </para>
+    /// </summary>
+    private void EchoCommand(RunEventKind kind, string? task, string command) =>
+        Emit(kind, task, $"$ {command}", LogSeverity.Info);
 
     private static string Redact(string text, RunOptions? options) =>
         options is null ? text : Interpolator.Redact(text, options.Secrets);

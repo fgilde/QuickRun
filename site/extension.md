@@ -88,6 +88,30 @@ progress counters, every setup step, and everything the repository's own command
 on the page shows only a percentage and a coarse phase — a toolbar button is no place for a hundred
 lines of build output.
 
+### Finding the lines that matter
+
+QuickRun reads every line as it arrives and says how bad it is, and the window shows that: errors in
+red, warnings in amber, everything else as it is. **If everything is coloured, nothing is** — so a
+line only counts when it says something went wrong, and the lines that merely contain the word do
+not: `0 Error(s)` at the end of a build, `found 0 vulnerabilities`, `compiling ErrorPage.tsx`, and
+the echo of the command itself, which contains whatever the config author wrote.
+
+Above the log:
+
+- **Everything / N error lines / N warnings** — filters the log to that kind. The chips appear only
+  when there is something of that kind to show.
+- **Show them** — every error line of the run in one dialog, ready to copy. Including the ones the
+  log block has already dropped: it keeps the last few hundred lines because a restore prints
+  thousands, and the error from minute one is usually the one you are looking for.
+
+In the extension's window the count in the banner does the same thing: **3 error lines** is a button
+now, and pressing it answers the question it raises.
+
+Standard error is not treated as an error: docker, git, npm and every progress bar write their
+ordinary output there, and counting all of it is how "17 error lines" ends up above a run that
+worked perfectly. An unrecognised line from that stream is a warning, which is what it honestly is —
+not the normal output, and not necessarily a problem.
+
 Once the run starts, every task gets a line of its own: what it is doing - *starting*, *ready*,
 *exited* - the address it reported, as a link, and the process id of what it started. For a desktop
 application that pid is the whole handle you have on it, and it is what a task with

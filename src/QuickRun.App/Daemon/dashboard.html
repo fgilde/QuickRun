@@ -93,14 +93,43 @@ body[data-shell="confirm"] #runs > .card {
 
 body[data-shell="confirm"] main { padding: 16px 18px 18px; }
 
+/*
+ * A log with the bad lines findable.
+ *
+ * "3 error lines" above a few hundred lines of build output is a number nobody can act on: the one
+ * question it raises - which three? - was the one thing the window could not answer. So the lines
+ * carry what they are, the bar filters to them, and the count opens all of them at once, including
+ * the ones that have already scrolled out of the block.
+ *
+ * Muted for info rather than coloured: if everything is coloured, nothing is.
+ */
+.log-bar { display: flex; align-items: center; gap: 6px; margin: 10px 0 6px; flex-wrap: wrap; }
+
+.log-bar button {
+  padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--bg); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer;
+}
+
+.log-bar button[aria-pressed="true"] { border-color: var(--accent); color: var(--fg); font-weight: 600; }
+.log-bar button:hover { color: var(--fg); }
+.log-bar .count { border-style: dashed; }
+
+pre[data-log] .fatal { color: var(--danger); font-weight: 600; }
+pre[data-log] .error { color: var(--danger); }
+pre[data-log] .warn { color: var(--warn); }
+
 /* The config behind a plan, read in place rather than hunted for on disk. */
-#configDialog {
+#configDialog, #problemDialog {
   width: min(860px, 92vw); max-height: 86vh; padding: 16px 18px;
   border: 1px solid var(--line); border-radius: 12px;
   background: var(--panel); color: var(--fg);
 }
 
-#configDialog::backdrop { background: #0008; }
+#configDialog::backdrop, #problemDialog::backdrop { background: #0008; }
+
+#problemBody .fatal { color: var(--danger); font-weight: 600; }
+#problemBody .error { color: var(--danger); }
+#problemBody .warn { color: var(--warn); }
 
 .dialog-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .dialog-where { display: block; margin-bottom: 10px; overflow-wrap: anywhere; }
@@ -606,6 +635,16 @@ quickrun --help                every command and flag</pre>
   <pre id="configBody" class="dialog-config"></pre>
 </dialog>
 
+<!-- Every error line of one run, including the ones the log block has already dropped. -->
+<dialog id="problemDialog">
+  <div class="dialog-head">
+    <strong id="problemName" class="name grow"></strong>
+    <button id="problemCopy" class="action" type="button">Copy</button>
+    <button id="problemClose" class="action" type="button">Close</button>
+  </div>
+  <pre id="problemBody" class="dialog-config"></pre>
+</dialog>
+
 <!-- Shown only in the confirmation window, where the wait is visible and the status line is not. -->
 <div id="preparing" hidden>
   <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
@@ -917,6 +956,19 @@ document.getElementById('configCopy').addEventListener('click', async (event) =>
 
 document.getElementById('configClose')
   .addEventListener('click', () => document.getElementById('configDialog').close());
+
+document.getElementById('problemClose')
+  .addEventListener('click', () => document.getElementById('problemDialog').close());
+
+document.getElementById('problemCopy').addEventListener('click', async (event) => {
+  try {
+    await navigator.clipboard.writeText(document.getElementById('problemBody').textContent);
+    event.currentTarget.textContent = 'Copied';
+    setTimeout(() => { event.currentTarget.textContent = 'Copy'; }, 1500);
+  } catch {
+    // A window without clipboard permission is not worth a line of its own.
+  }
+});
 
 /**
  * Whether what was typed names a place on this machine rather than a repository.
@@ -1698,6 +1750,7 @@ function buildCard(run) {
     <div class="row" data-address hidden></div>
     <div class="row" data-workspace hidden></div>
     <div class="row" data-error hidden></div>
+    <div class="log-bar" data-logbar hidden></div>
     <pre data-log hidden></pre>`;
 
   return {
@@ -1716,11 +1769,103 @@ function buildCard(run) {
     address: root.querySelector('[data-address]'),
     workspace: root.querySelector('[data-workspace]'),
     error: root.querySelector('[data-error]'),
+    logbar: root.querySelector('[data-logbar]'),
     log: root.querySelector('[data-log]'),
     pending: [],
     lines: 0,
+
+    /**
+     * Every line worth finding again, kept apart from the block that shows them.
+     *
+     * The block holds the last few hundred lines because a restore prints thousands and the DOM is
+     * what gives out first - so the error from minute one is gone by minute three, which is exactly
+     * the line somebody is looking for. These are kept as text, which costs nothing next to a log.
+     */
+    problems: [],
+    counts: { fatal: 0, error: 0, warn: 0, info: 0 },
+    level: 'all',
     shown: {},
   };
+}
+
+/** How many of each, and which chips are worth showing at all. */
+function renderLogBar(entry) {
+  const { counts } = entry;
+  const bad = counts.fatal + counts.error;
+
+  // Rebuilt only when what it says has changed: this is called on every batch of log lines, and
+  // replacing the buttons a few times a second is how a click lands on a button that is already
+  // gone.
+  const state = `${bad}/${counts.warn}/${entry.level}`;
+  if (entry.shown.logbar === state) return;
+  entry.shown.logbar = state;
+
+  const chips = [
+    ['all', 'Everything'],
+    ['bad', bad === 1 ? '1 error line' : `${bad} error lines`, bad === 0],
+    ['warn', counts.warn === 1 ? '1 warning' : `${counts.warn} warnings`, counts.warn === 0],
+  ];
+
+  entry.logbar.textContent = '';
+
+  for (const [level, label, skip] of chips) {
+    if (skip) continue;
+
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.dataset.level = level;
+    chip.textContent = label;
+    chip.setAttribute('aria-pressed', String(entry.level === level));
+    chip.addEventListener('click', () => filterLog(entry, level));
+    entry.logbar.append(chip);
+  }
+
+  // The whole list of them, even the ones the block has dropped. This is the question the count
+  // used to raise and not answer: which lines?
+  if (bad > 0) {
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'count';
+    open.textContent = 'Show them';
+    open.addEventListener('click', () => showProblems(entry));
+    entry.logbar.append(open);
+  }
+
+  entry.logbar.hidden = entry.logbar.children.length < 2;
+}
+
+/** Shows one severity, or everything. */
+function filterLog(entry, level) {
+  entry.level = level;
+
+  for (const line of entry.log.children) {
+    const what = line.className || 'info';
+    line.hidden = level === 'all' ? false
+      : level === 'bad' ? !(what === 'error' || what === 'fatal')
+      : what !== level;
+  }
+
+  renderLogBar(entry);
+}
+
+/** Every error line of this run, in a dialog, whatever the log block still holds. */
+function showProblems(entry) {
+  const dialog = document.getElementById('problemDialog');
+  const body = document.getElementById('problemBody');
+
+  document.getElementById('problemName').textContent = entry.name.textContent;
+  body.textContent = '';
+
+  for (const [severity, line] of entry.problems) {
+    const span = document.createElement('span');
+    span.className = severity;
+    // textContent: a log line is whatever the repository's commands printed.
+    span.textContent = `${line}\n`;
+    body.append(span);
+  }
+
+  document.getElementById('problemCopy').dataset.run = entry.root.dataset.run ?? '';
+  dialog.showModal();
 }
 
 /** Everything that can change, written only when it actually did. */
@@ -1935,7 +2080,8 @@ function follow(run) {
       return;
     }
 
-    appendLog(entry, `${event.task ? `[${event.task}] ` : ''}${event.text}`);
+    appendLog(entry, `${event.task ? `[${event.task}] ` : ''}${event.text}`,
+      event.severity ?? 'info');
 
     if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') {
       source.close();
@@ -1947,8 +2093,11 @@ function follow(run) {
   source.onerror = () => { source.close(); streams.delete(run.id); };
 }
 
-function appendLog(entry, line) {
-  entry.pending.push(line);
+/** The most error lines kept for the dialog. Enough to read; not a second copy of the log. */
+const PROBLEM_LINES = 400;
+
+function appendLog(entry, line, severity = 'info') {
+  entry.pending.push([line, severity]);
   if (entry.flushing) return;
 
   entry.flushing = true;
@@ -1964,9 +2113,31 @@ function flushLog(entry) {
 
   const atBottom = entry.log.scrollHeight - entry.log.scrollTop - entry.log.clientHeight < 40;
 
-  // One text node per line, so trimming is removing nodes rather than rewriting a string.
-  for (const line of lines) entry.log.append(document.createTextNode(`${line}\n`));
+  for (const [line, severity] of lines) {
+    // One element per line rather than a text node: it carries what the line is, which is what a
+    // colour and a filter both read. textContent, because this is output from somebody's commands.
+    const span = document.createElement('span');
+    if (severity !== 'info') span.className = severity;
+    span.textContent = `${line}\n`;
+
+    if (entry.level !== 'all') {
+      span.hidden = entry.level === 'bad'
+        ? !(severity === 'error' || severity === 'fatal')
+        : severity !== entry.level;
+    }
+
+    entry.log.append(span);
+
+    entry.counts[severity] = (entry.counts[severity] ?? 0) + 1;
+
+    if (severity === 'error' || severity === 'fatal') {
+      entry.problems.push([severity, line]);
+      if (entry.problems.length > PROBLEM_LINES) entry.problems.shift();
+    }
+  }
+
   entry.lines += lines.length;
+  renderLogBar(entry);
 
   while (entry.lines > LOG_LINES && entry.log.firstChild) {
     entry.log.firstChild.remove();

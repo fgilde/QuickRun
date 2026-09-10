@@ -81,6 +81,30 @@ echten Fortschrittszählern, jeder Setup-Schritt und alles, was die Befehle des 
 ausgeben. Der Button auf der Seite zeigt nur Prozent und eine grobe Phase — ein Toolbar-Button ist
 kein Ort für hundert Zeilen Build-Ausgabe.
 
+### Die Zeilen finden, auf die es ankommt
+
+QuickRun liest jede Zeile beim Eintreffen und stuft sie ein, und das Fenster zeigt das: Fehler rot,
+Warnungen gelb, alles andere normal. **Wenn alles bunt ist, ist nichts bunt** — eine Zeile zählt
+also nur, wenn sie sagt, dass etwas schiefging, und die Zeilen, die das Wort bloß enthalten, zählen
+nicht: `0 Error(s)` am Ende eines Builds, `found 0 vulnerabilities`, `compiling ErrorPage.tsx` und
+das Echo des Befehls selbst, in dem steht, was der Config-Autor geschrieben hat.
+
+Über dem Log:
+
+- **Everything / N error lines / N warnings** — filtert das Log auf diese Art. Die Chips erscheinen
+  nur, wenn es davon überhaupt etwas gibt.
+- **Show them** — alle Fehlerzeilen des Laufs in einem Dialog, zum Kopieren. Auch die, die aus dem
+  Log-Block schon herausgerollt sind: er hält die letzten paar hundert Zeilen, weil ein Restore
+  Tausende ausgibt — und gesucht ist meist der Fehler aus Minute eins.
+
+Im Fenster der Erweiterung macht die Zahl im Banner dasselbe: **3 error lines** ist jetzt ein Knopf,
+und ein Klick beantwortet die Frage, die diese Zahl aufwirft.
+
+Standardfehler gilt dabei nicht als Fehler: docker, git, npm und jeder Fortschrittsbalken schreiben
+ihre normale Ausgabe dorthin, und alles davon zu zählen ist der Grund, warum über einem perfekt
+gelaufenen Lauf „17 error lines" stand. Eine unbekannte Zeile von dort ist eine Warnung — genau das,
+was der Stream ehrlich sagt: nicht die normale Ausgabe, und nicht zwangsläufig ein Problem.
+
 Sobald der Lauf läuft, bekommt jeder Task eine eigene Zeile: was er tut — *starting*, *ready*,
 *exited* — die Adresse, die er gemeldet hat, als Link, und die Prozess-ID dessen, was er gestartet
 hat. Bei einer Desktop-Anwendung ist diese PID der einzige Griff, den man an ihr hat — und genau

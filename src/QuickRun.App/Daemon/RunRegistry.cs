@@ -520,8 +520,24 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
             return true;
         }
 
-        public void Publish(RunEvent e)
+        public void Publish(RunEvent published)
         {
+            // The daemon writes events of its own - checkout progress, notes, the reason a run
+            // could not start - and those are built here rather than in the runner, which is where
+            // severities are worked out. Filled in on the way through, so a window filtering for
+            // errors sees the daemon's as well as the run's.
+            var e = published.Severity is null
+                ? published with
+                {
+                    Severity = published.Kind switch
+                    {
+                        RunEventKind.Failed => LogSeverity.Error,
+                        RunEventKind.Error => LogSeverities.Of(published.Text, fromErrorStream: true),
+                        _ => LogSeverities.Of(published.Text),
+                    },
+                }
+                : published;
+
             lock (_gate)
             {
                 if (e.Progress is { } progress) Summary = Summary with { Progress = progress };

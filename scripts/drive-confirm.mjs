@@ -48,6 +48,13 @@ const shotPath = shotAt > 0 ? process.argv[shotAt + 1] : null;
  */
 const stub = `<script>
 window.__events = [];
+
+// Whoever the page registers for run events, so this driver can be the daemon: the log, its
+// colours, its filter and the dialog behind the error count only exist once events arrive.
+window.__listeners = [];
+window.__emit = (event) => {
+  for (const fn of window.__listeners) fn({ type: 'runEvent', runId: PLAN.id, event });
+};
 window.addEventListener('error', (e) => window.__events.push('error: ' + (e.error?.stack || e.message)));
 window.addEventListener('unhandledrejection', (e) => window.__events.push('rejection: ' + (e.reason?.stack || e.reason)));
 
@@ -66,7 +73,10 @@ window.chrome = {
       window.__events.push('sendMessage: ' + message.type);
       return { ok: true };
     },
-    onMessage: { addListener: () => {}, removeListener: () => {} },
+    onMessage: {
+      addListener: (fn) => window.__listeners.push(fn),
+      removeListener: () => {},
+    },
   },
   windows: { onRemoved: { addListener: () => {}, removeListener: () => {} } },
 };
@@ -198,6 +208,51 @@ await evaluate(`document.getElementById('approve').click()`);
 await new Promise((wait) => setTimeout(wait, 400));
 const afterClick = JSON.parse(await evaluate('JSON.stringify(window.__events)'));
 
+/*
+ * And then the log: a real run's mix, played in as the daemon would send it.
+ *
+ * "3 error lines" above a log is only useful if the reader can get to those three, and the count
+ * is only trustworthy if it leaves out the lines that merely contain the word. Both are checked
+ * here, because both are invisible until the window has actually drawn a log.
+ */
+const LINES = [
+  ['info', 'Compiled successfully in 3.4s'],
+  ['warn', 'npm WARN deprecated request@2.88.2'],
+  ['error', 'npm ERR! code ELIFECYCLE'],
+  ['info', '  compiling src/pages/ErrorPage.tsx'],
+  ['info', 'found 0 vulnerabilities'],
+  ['error', 'Error: connect ECONNREFUSED 127.0.0.1:5432'],
+  ['fatal', 'fatal: repository not found'],
+];
+
+for (const [severity, text] of LINES) {
+  await evaluate(`window.__emit(${JSON.stringify({ kind: 'output', task: 'web', text, severity })})`);
+}
+
+await new Promise((wait) => setTimeout(wait, 400));
+
+const logState = JSON.parse(await evaluate(`JSON.stringify({
+  badge: document.getElementById('errors').textContent,
+  chips: [...document.querySelectorAll('#levels button')].map((b) => b.textContent.trim()),
+  painted: [...document.querySelectorAll('#log span')].map((s) => (s.className || 'info')),
+})`));
+
+// The count opens them: the question "which three?" is the whole point of the number.
+await evaluate("document.getElementById('errors').click()");
+await new Promise((wait) => setTimeout(wait, 300));
+
+const dialog = JSON.parse(await evaluate(`JSON.stringify({
+  open: document.getElementById('problemDialog').open,
+  lines: [...document.querySelectorAll('#problemBody span')].map((s) => s.textContent.trim()),
+})`));
+
+// And the chip filters the log down to them.
+await evaluate("[...document.querySelectorAll('#levels button')].find((b) => /^Errors/.test(b.textContent))?.click()");
+await new Promise((wait) => setTimeout(wait, 300));
+
+const filtered = JSON.parse(await evaluate(`JSON.stringify(
+  [...document.querySelectorAll('#log span')].filter((s) => !s.hidden).map((s) => s.className || 'info'))`));
+
 if (shotPath) {
   const { result } = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(shotPath, Buffer.from(result.data, 'base64'));
@@ -215,5 +270,22 @@ if (plan.commands.length > 0 && seen.commands.length !== plan.commands.length)
 if ((plan.inputs?.length ?? 0) > 0 && seen.inputs.length === 0) problems.push('the plan has inputs and the page shows none');
 if (!afterClick.some((e) => e.startsWith('sendMessage'))) problems.push('clicking Run did nothing');
 
-console.log(JSON.stringify({ seen, consoleErrors, afterClick, problems }, null, 2));
+// The log, and the part of it a reader acts on.
+const bad = LINES.filter(([severity]) => severity === 'error' || severity === 'fatal').length;
+
+if (!logState.badge.startsWith(String(bad)))
+  problems.push(`${bad} lines went wrong and the window says "${logState.badge}"`);
+
+if (logState.painted.join(',') !== LINES.map(([severity]) => severity).join(','))
+  problems.push(`the lines are painted ${logState.painted.join(',')}`);
+
+if (!dialog.open) problems.push('the error count does not open anything');
+
+if (dialog.lines.length !== bad)
+  problems.push(`the dialog shows ${dialog.lines.length} of ${bad} lines that went wrong`);
+
+if (filtered.length !== bad || filtered.some((what) => what !== 'error' && what !== 'fatal'))
+  problems.push(`filtering to the errors left ${filtered.join(',') || 'nothing'}`);
+
+console.log(JSON.stringify({ seen, consoleErrors, afterClick, logState, dialog, filtered, problems }, null, 2));
 process.exit(problems.length === 0 ? 0 : 1);

@@ -32,6 +32,22 @@ const close = document.getElementById('close');
 let decided = false;
 let errorLines = 0;
 
+/** How many of each severity this run has printed, for the chips above the log. */
+const seenLevels = { fatal: 0, error: 0, warn: 0, info: 0 };
+
+/**
+ * The lines that went wrong, kept apart from the block that shows them.
+ *
+ * The block holds the last few hundred lines, so the error from minute one is gone by minute three
+ * - which is exactly the line somebody is looking for when they read "3 error lines" and want to
+ * know which three.
+ */
+const problems = [];
+const PROBLEM_LINES = 400;
+
+/** Which severity the log is filtered to: all, bad (error and fatal), or one of them. */
+let level = 'all';
+
 /** What each task is doing, by name, in the order they first appeared. */
 const tasks = new Map();
 
@@ -491,7 +507,7 @@ async function watchUntilDone() {
       // A task that launches something in the background and exits leaves it running, so a run can
       // read as finished with its processes still there. Stop again, and only then call it stopped.
       if ((answer?.run?.leftovers ?? 0) > 0) {
-        append(`${answer.run.leftovers} process(es) are still running - ending them`, 'err');
+        append(`${answer.run.leftovers} process(es) are still running - ending them`, 'warn');
         await chrome.runtime.sendMessage({ type: 'stop', runId: run.id }).catch(() => null);
         continue;
       }
@@ -505,7 +521,7 @@ async function watchUntilDone() {
 
   // Something is refusing to die. Saying so beats a spinner that never stops.
   setState('Still stopping', 'warn');
-  append('the run has not finished stopping - closing this window leaves it running', 'err');
+  append('the run has not finished stopping - closing this window leaves it running', 'warn');
   close.hidden = false;
 }
 
@@ -576,6 +592,7 @@ function setState(label, kind, { busy = false } = {}) {
   const errors = document.getElementById('errors');
   errors.hidden = errorLines === 0;
   errors.textContent = errorLines === 1 ? '1 error line' : `${errorLines} error lines`;
+  errors.title = 'Show them';
 }
 
 /**
@@ -713,12 +730,24 @@ function consume(event) {
     updateStop();
   }
 
-  if (event.kind === 'error') {
+  // What the line is, as QuickRun read it - not "it came from standard error", which is how a run
+  // that worked perfectly ended up with seventeen error lines above it: docker, git and npm all
+  // write their ordinary output there.
+  const severity = event.severity ?? (event.kind === 'error' ? 'warn' : 'info');
+
+  seenLevels[severity] = (seenLevels[severity] ?? 0) + 1;
+
+  if (severity === 'error' || severity === 'fatal') {
     errorLines += 1;
+    problems.push([severity, `${event.task ? `[${event.task}] ` : ''}${event.text}`]);
+    if (problems.length > PROBLEM_LINES) problems.shift();
+
     setState(document.getElementById('state').textContent, banner.classList.contains('banner--bad') ? 'bad' : 'running');
   }
 
-  append(`${event.task ? `[${event.task}] ` : ''}${event.text}`, event.kind === 'error' ? 'err' : '');
+  renderLevels();
+
+  append(`${event.task ? `[${event.task}] ` : ''}${event.text}`, severity);
 
   // Terminal, one way or another: what is left to do is read the log and close the window.
   if (event.kind === 'finished' || event.kind === 'failed' || event.kind === 'cancelled') conclude(event.kind);
@@ -785,14 +814,14 @@ function flushLog() {
   const batch = document.createDocumentFragment();
   const needle = filterText();
 
-  for (const [line, kind] of lines) {
+  for (const [line, severity] of lines) {
     allLines.push(line);
 
     const entry = document.createElement('span');
-    if (kind) entry.className = kind;
+    if (severity && severity !== 'info') entry.className = severity;
     // textContent: log lines are whatever the repository's commands printed.
     entry.textContent = `${line}\n`;
-    if (needle && !line.toLowerCase().includes(needle)) entry.hidden = true;
+    if (!wanted(entry) || (needle && !line.toLowerCase().includes(needle))) entry.hidden = true;
     batch.append(entry);
   }
 
@@ -817,15 +846,103 @@ function filterText() {
   return filter.value.trim().toLowerCase();
 }
 
+/** Whether this line survives the severity filter. */
+function wanted(entry) {
+  if (level === 'all') return true;
+
+  const what = entry.className || 'info';
+  return level === 'bad' ? what === 'error' || what === 'fatal' : what === level;
+}
+
 function applyFilter() {
   const needle = filterText();
 
   for (const entry of log.children) {
-    entry.hidden = needle !== '' && !entry.textContent.toLowerCase().includes(needle);
+    entry.hidden = !wanted(entry)
+      || (needle !== '' && !entry.textContent.toLowerCase().includes(needle));
   }
 
   countMatches();
 }
+
+/**
+ * The chips above the log, and only the ones this run has anything for.
+ *
+ * Rebuilt when what they say changes rather than on every batch of lines: replacing buttons a few
+ * times a second is how a click lands on one that is already gone.
+ */
+let levelsState = '';
+
+function renderLevels() {
+  const bad = seenLevels.fatal + seenLevels.error;
+  const state = `${bad}/${seenLevels.warn}/${level}`;
+
+  if (levelsState === state) return;
+  levelsState = state;
+
+  const host = document.getElementById('levels');
+  host.textContent = '';
+
+  const chips = [
+    ['all', 'All'],
+    ['bad', `Errors ${bad}`, bad === 0],
+    ['warn', `Warnings ${seenLevels.warn}`, seenLevels.warn === 0],
+  ];
+
+  for (const [value, label, skip] of chips) {
+    if (skip) continue;
+
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.textContent = label;
+    chip.setAttribute('aria-pressed', String(level === value));
+    chip.addEventListener('click', () => {
+      level = value;
+      levelsState = '';
+      renderLevels();
+      applyFilter();
+    });
+
+    host.append(chip);
+  }
+
+  // One chip on its own is a label, not a choice.
+  host.hidden = host.children.length < 2;
+}
+
+/** Every line that went wrong, in a dialog - the scrolled-off ones included. */
+function showProblems() {
+  const body = document.getElementById('problemBody');
+  body.textContent = '';
+
+  for (const [severity, line] of problems) {
+    const span = document.createElement('span');
+    span.className = severity;
+    // textContent, like the log itself: this is output from somebody's commands.
+    span.textContent = `${line}\n`;
+    body.append(span);
+  }
+
+  document.getElementById('problemDialog').showModal();
+}
+
+document.getElementById('errors').addEventListener('click', showProblems);
+
+document.getElementById('problemClose')
+  .addEventListener('click', () => document.getElementById('problemDialog').close());
+
+document.getElementById('problemCopy').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+
+  try {
+    await navigator.clipboard.writeText(problems.map(([, line]) => line).join('\n'));
+    button.textContent = 'Copied';
+  } catch {
+    button.textContent = 'Could not copy';
+  }
+
+  setTimeout(() => { button.textContent = 'Copy'; }, 1500);
+});
 
 function countMatches() {
   const needle = filterText();

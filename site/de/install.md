@@ -58,7 +58,7 @@ Dieselbe Ansicht gibt es im Browser unter `http://127.0.0.1:9876`, wenn du sie d
 
 ## Einstellungen
 
-Zwei Schalter, beide benutzerbezogen, keiner braucht Administratorrechte:
+Drei Schalter, alle benutzerbezogen, keiner braucht Administratorrechte:
 
 - **Start QuickRun when I sign in** — der Browser-Button braucht ein laufendes QuickRun. Unter
   Windows ist das ein Wert unter `HKCU\...\CurrentVersion\Run`, unter Linux eine `.desktop`-Datei
@@ -70,6 +70,10 @@ Zwei Schalter, beide benutzerbezogen, keiner braucht Administratorrechte:
   Unter Linux und macOS wird `quickrun` in ein bin-Verzeichnis verlinkt, das ohnehin im PATH liegt
   (`~/.local/bin`, unter macOS das Homebrew-Verzeichnis, wenn es beschreibbar ist), statt in irgendein
   Shell-Profil zu schreiben.
+- **Keep a plan's window above other windows** — ein Fenster, das QuickRun von sich aus öffnet, wird
+  ohnehin kurz nach vorn geholt: Windows lässt ein Hintergrundprogramm nicht in den Vordergrund und
+  blinkt stattdessen den Taskleisten-Eintrag. Ist der Schalter an, bleibt dieses Fenster oben, bis es
+  geschlossen wird. Gemerkt in `windows.txt` neben den Workspaces, gelesen beim nächsten Öffnen.
 
 `quickrun install` macht beides plus den `quickrun://`-Handler in einem Schritt, `quickrun uninstall`
 nimmt es zurück.

@@ -485,6 +485,21 @@ ol.plan .phase {
 
     <div class="card">
       <div class="row">
+        <label class="grow" for="onTopToggle">Keep a plan's window above other windows</label>
+        <span id="onTopState" class="pill">checking…</span>
+        <input type="checkbox" id="onTopToggle">
+      </div>
+      <p class="muted" style="margin:10px 0 0">
+        A window QuickRun opens by itself is always brought to the front for a moment, because
+        Windows will not let a background program take the foreground - it blinks the taskbar button
+        instead, and a plan waiting behind other windows is a plan nobody sees. With this on it
+        stays on top until you close it.
+      </p>
+      <p id="onTopDetail" class="muted mono" style="margin:0"></p>
+    </div>
+
+    <div class="card">
+      <div class="row">
         <label class="grow" for="pathToggle">Make <span class="mono">quickrun</span> work in a terminal</label>
         <span id="pathState" class="pill">checking…</span>
         <input type="checkbox" id="pathToggle">
@@ -2047,6 +2062,11 @@ function renderActions(entry, run) {
   forget.addEventListener('click', async () => {
     forget.disabled = true;
     await api(`/api/dashboard/runs/${run.id}/forget`, { method: 'POST' }).catch(() => null);
+
+    // The same reasoning as Cancel: this window was opened on one run, and removing that run leaves
+    // nothing for it to show. It stood there empty, which is worse than either outcome.
+    if (confirming()) { window.close(); return; }
+
     refresh();
   });
 
@@ -2159,6 +2179,9 @@ const settings = {
   pathDetail: document.getElementById('pathDetail'),
   pathHow: document.getElementById('pathHow'),
   exe: document.getElementById('exePath'),
+  onTop: document.getElementById('onTopToggle'),
+  onTopState: document.getElementById('onTopState'),
+  onTopDetail: document.getElementById('onTopDetail'),
 };
 
 /** Reads the two system settings when that tab is opened. */
@@ -2256,6 +2279,13 @@ function renderSettings(state) {
     ? `This adds ${state.path.directory} to your own PATH. A terminal that is already open keeps the environment it started with, so open a new one.`
     : `This links quickrun into ${state.path.directory}, which is on the PATH of a normal shell. No profile file is edited.`;
 
+  if (state.windows) {
+    settings.onTop.checked = state.windows.onTop;
+    settings.onTopState.textContent = state.windows.onTop ? 'on' : 'off';
+    settings.onTopState.className = `pill ${state.windows.onTop ? 'ok' : ''}`;
+    settings.onTopDetail.textContent = state.windows.file ? `kept in ${state.windows.file}` : '';
+  }
+
   if (state.executable) settings.exe.textContent = `running from ${state.executable}`;
 }
 
@@ -2282,6 +2312,11 @@ settings.autostart.addEventListener('change', (event) =>
 
 settings.path.addEventListener('change', (event) =>
   setSetting('path', event.currentTarget.checked, settings.path));
+
+// This one changes nothing on the machine - it is read the next time a window opens - so there is
+// no "failed" answer to report, only the new state.
+settings.onTop.addEventListener('change', (event) =>
+  setSetting('windowsOnTop', event.currentTarget.checked, settings.onTop));
 
 /**
  * Reads the workspaces when that tab is opened, not on every poll.

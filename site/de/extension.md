@@ -46,6 +46,16 @@ Während des Auscheckens gibt es noch nichts zu zeigen, also zeigt das Fenster d
 gerade tut. Endet das in einem Grund statt in einem Plan — keine Config, ein Branch, den es nicht
 gibt —, bleibt dieser Grund stehen. Vorher war das ein leeres Fenster.
 
+Außerdem kommt es beim Öffnen nach vorn. Windows lässt ein Hintergrundprogramm nicht in den
+Vordergrund — es blinkt stattdessen der Taskleisten-Eintrag, den man leicht übersieht —, also legt
+sich das Fenster einen Moment lang über die anderen und verhält sich danach wie jedes andere. Der
+Schalter **Keep a plan's window above other windows** in den Einstellungen macht daraus einen
+Dauerzustand, für alle, die gar nicht erst suchen wollen.
+
+Und es schließt sich, wenn nichts mehr darin ist: **Cancel** beantwortet den Plan mit nein,
+**Remove** nimmt den fertigen Lauf weg — und für genau diesen einen Lauf war dieses Fenster da. Leer
+stehenzubleiben ist schlechter als beides.
+
 Das Fenster zeigt außerdem die `description` aus der Config, wenn es eine gibt, das Verzeichnis, in
 das ausgecheckt wurde, und — sobald ein Task eine meldet — die Adresse, auf der es läuft, als Link.
 

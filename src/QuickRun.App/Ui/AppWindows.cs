@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using QuickRun.Core.Config;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using QuickRun.App.Daemon;
@@ -43,6 +44,37 @@ public static class AppWindows
     /// </summary>
     private const int MostConfirmWindows = 5;
 
+    /// <summary>
+    /// How long a window that has just appeared stays above everything else.
+    /// <para>
+    /// Long enough to be seen and to survive the moment the system decides who has the foreground;
+    /// short enough that it is not in the way of what somebody was doing. Windows will not simply
+    /// let a background process take the foreground - it flashes the taskbar button instead - and a
+    /// plan waiting behind three other windows is a plan nobody notices.
+    /// </para>
+    /// </summary>
+    private static readonly TimeSpan RaisedFor = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Brings a window to the front, and leaves it there only if that is what the reader asked for.
+    /// </summary>
+    private static void Raise(Window window, WorkspaceStore store)
+    {
+        window.Show();
+        window.Topmost = true;
+        window.Activate();
+
+        if (new WindowPreferences(store.Root).AlwaysOnTop) return;
+
+        // Back to an ordinary window once it has been seen. On a timer rather than on first focus:
+        // a window nobody clicks would otherwise sit on top for ever, and that is the complaint
+        // this is meant to prevent rather than cause.
+        DispatcherTimer.RunOnce(() =>
+        {
+            if (window.IsVisible) window.Topmost = false;
+        }, RaisedFor);
+    }
+
     /// <param name="hash">
     /// What to show once it is open - the dashboard's own <c>#run?repo=...</c>, when a link named a
     /// repository. Empty means the window opens where it always does.
@@ -64,8 +96,7 @@ public static class AppWindows
             // The same plan again: the window showing it is the answer, not a second one beside it.
             if (_confirm.TryGetValue(hash, out var existing))
             {
-                existing.Show();
-                existing.Activate();
+                Raise(existing, store);
                 return;
             }
 
@@ -77,9 +108,8 @@ public static class AppWindows
                 _confirm.Remove(oldestHash);
                 _confirm[hash] = oldest;
 
-                oldest.Show();
-                oldest.Activate();
                 oldest.GoTo(hash);
+                Raise(oldest, store);
                 return;
             }
 
@@ -98,7 +128,7 @@ public static class AppWindows
 
             window.Closed += (_, _) => _confirm.Remove(hash);
             _confirm[hash] = window;
-            window.Show();
+            Raise(window, store);
         });
     }
 
@@ -118,9 +148,10 @@ public static class AppWindows
             // Clicking the tray icon twice should raise the window, not stack another one.
             if (_dashboard is { } existing)
             {
+                if (hash.Length > 0) existing.GoTo(hash);
+
                 existing.Show();
                 existing.Activate();
-                if (hash.Length > 0) existing.GoTo(hash);
                 return;
             }
 

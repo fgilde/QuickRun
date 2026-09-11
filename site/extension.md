@@ -45,6 +45,15 @@ While it checks the repository out there is nothing to show yet, so the window s
 what it is doing. If that ends in a reason rather than a plan — no config, a branch that is not
 there — the reason is what stays on screen. It used to be an empty window.
 
+It also comes to the front when it appears. Windows does not let a background program take the
+foreground — it blinks the taskbar button instead, which is easy to miss — so the window is put
+above the others for a moment and then behaves like any other window. **Keep a plan's window above
+other windows** in Settings makes that permanent for anyone who would rather not look for it at all.
+
+And it closes when there is nothing left in it: **Cancel** answers the plan with no, **Remove**
+takes the finished run away, and either way this window was opened for that one run. Standing there
+empty is worse than either outcome.
+
 The window also shows the `description` from the config when it has one, the folder the repository
 was checked out into, and — once a task reports one — the address it is listening on, as a link.
 

@@ -53,7 +53,7 @@ there. `quickrun --browser` opens it that way; `quickrun --no-tray` skips the tr
 
 ## Settings
 
-Two switches, both per-user, neither needing administrator rights:
+Three switches, all per-user, none needing administrator rights:
 
 - **Start QuickRun when I sign in** — the browser button needs QuickRun to be running. On Windows
   this is a value under `HKCU\...\CurrentVersion\Run`, on Linux a `.desktop` file in
@@ -64,6 +64,10 @@ Two switches, both per-user, neither needing administrator rights:
   PATH and tells running shells about it, so a *new* terminal has the command. On Linux and macOS it
   links `quickrun` into a bin directory that is already on the PATH (`~/.local/bin`, or Homebrew's
   directory on macOS when it is writable) rather than editing anyone's shell profile.
+- **Keep a plan's window above other windows** — a window QuickRun opens by itself is brought to the
+  front for a moment either way, because Windows does not let a background program take the
+  foreground and blinks the taskbar button instead. With this on, that window stays on top until it
+  is closed. Kept in `windows.txt` next to the workspaces, and read the next time a window opens.
 
 `quickrun install` does both of these plus the `quickrun://` handler in one go, and
 `quickrun uninstall` undoes them.

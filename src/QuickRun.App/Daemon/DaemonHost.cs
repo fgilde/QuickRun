@@ -137,6 +137,7 @@ public static class DaemonHost
         builder.Services.AddSingleton(new RunRegistry(store, UiCommand.Launch));
         builder.Services.AddSingleton(new Dashboard());
         builder.Services.AddSingleton(new TrustedSites(store.Root));
+        builder.Services.AddSingleton(new WindowPreferences(store.Root));
         builder.Services.AddSingleton(new ListenerPort(port));
         builder.Services.AddSingleton(new HostControl());
 
@@ -484,7 +485,8 @@ public static class DaemonHost
             return Results.Json(outcome, Json);
         });
 
-        app.MapGet("/api/dashboard/settings", (HttpContext context, Dashboard dashboard) =>
+        app.MapGet("/api/dashboard/settings", (HttpContext context, Dashboard dashboard,
+            WindowPreferences windows) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
 
@@ -497,13 +499,24 @@ public static class DaemonHost
                 platform = OSKinds.Current.Key(),
                 autostart = new { autostart.Enabled, autostart.Detail, autostart.Stale },
                 path = new { path.Available, path.Detail, path.Directory },
+                windows = new { onTop = windows.AlwaysOnTop, file = windows.Path },
             }, Json);
         });
 
         app.MapPost("/api/dashboard/settings/{setting}", (string setting, SettingRequest request,
-            HttpContext context, Dashboard dashboard, ListenerPort port) =>
+            HttpContext context, Dashboard dashboard, ListenerPort port, WindowPreferences windows) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            // Not a change to the machine, so it needs none of what the other two need - no
+            // executable path, no registry, no shell. It is remembered next to everything else
+            // QuickRun keeps about this machine and read the next time a window opens.
+            if (setting == "windowsOnTop")
+            {
+                windows.SetAlwaysOnTop(request.Enabled);
+
+                return Results.Json(new { windows = new { onTop = windows.AlwaysOnTop, file = windows.Path } }, Json);
+            }
 
             var executable = Environment.ProcessPath;
             if (executable is null)

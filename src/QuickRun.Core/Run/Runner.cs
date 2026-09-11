@@ -636,14 +636,17 @@ public sealed class Runner(Action<RunEvent> onEvent, ProcessGroup? group = null,
 
         try
         {
-            status = await Readiness.HttpStatusAsync(url).WaitAsync(PreflightBudget, ct);
+            // No second deadline on top of the client's own. The request already gives up after
+            // three seconds; wrapping it in a two-second budget meant that on a slow machine the
+            // check was cancelled before its own answer arrived - first as a cancellation thrown
+            // out of the whole run, then, once that was caught, as a warning that silently never
+            // appeared. One timeout, in the client, where the request is.
+            status = await Readiness.HttpStatusAsync(url);
         }
         catch (OperationCanceledException)
         {
-            // A warning is not worth ending a run over. This threw out of the task and out of
-            // ExecuteAsync above it - a task that was ready, warned about by a check that ran out of
-            // time, reported as a cancelled run. Seen on a slow macOS runner, where the request took
-            // longer than the budget more often than anywhere else.
+            // The run itself was stopped while this was in flight. A warning is not worth ending
+            // anything over, least of all a run that is already on its way out.
             return;
         }
 

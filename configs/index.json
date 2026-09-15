@@ -1,5 +1,15 @@
 [
   {
+    "repo": "decolua/9router",
+    "name": "9Router",
+    "description": "A local gateway that puts 40+ AI providers behind one OpenAI-compatible endpoint, with a dashboard to connect them and an API your editor can point at. Starts the checkout in development mode; the dashboard is at the address below and the endpoint for Claude Code, Codex, Cursor or Cline is the same address with /v1. Everything it stores - its database, its keys, the providers you connect - stays in the checkout, so removing the workspace removes all of it.",
+    "docs": "https://github.com/decolua/9router#-setup-guide",
+    "port": null,
+    "icon": "https://github.com/decolua.png?size=80",
+    "config": "configs/decolua/9router.yml",
+    "shipsOwn": false
+  },
+  {
     "repo": "ace-step/ACE-Step",
     "name": "ACE-Step (music)",
     "description": "ACE-Step: A Step Towards Music Generation Foundation Model GPU recommended.",

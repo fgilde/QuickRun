@@ -1,0 +1,59 @@
+# Hand-written, and it wins over the catalogue on purpose: scripts/build-collection.mjs skips any
+# config it did not write. This one runs the repository itself rather than the published image, and
+# it keeps the data it writes inside the checkout - by default 9Router writes into your home
+# directory, which is not what "try this repository" should mean.
+#
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
+version: 1
+name: 9Router
+repository: decolua/9router
+description: >-
+  A local gateway that puts 40+ AI providers behind one OpenAI-compatible endpoint, with a dashboard
+  to connect them and an API your editor can point at. Starts the checkout in development mode; the
+  dashboard is at the address below and the endpoint for Claude Code, Codex, Cursor or Cline is the
+  same address with /v1. Everything it stores - its database, its keys, the providers you connect -
+  stays in the checkout, so removing the workspace removes all of it.
+docs: https://github.com/decolua/9router#-setup-guide
+
+requires:
+  # Next 16, which is what this is built on.
+  - tool: node
+    version: '>=20.9'
+    install: https://nodejs.org
+
+inputs:
+  - id: port
+    label: Port
+    description: >-
+      Where the dashboard and the /v1 endpoint answer. 20128 is the port every example in the
+      project's own documentation uses, so leaving it alone means those examples work as written.
+    default: '20128'
+  - id: password
+    label: Dashboard password
+    description: >-
+      The dashboard asks for this on the first visit. 9Router's own default is 123456 and it is kept
+      here on purpose - it is written down rather than hidden, because a password nobody can read is
+      a dashboard nobody can open. Change it here, or in the dashboard afterwards.
+    default: '123456'
+
+setup:
+  - run: npm install
+
+tasks:
+  - name: dashboard
+    # The package script pins --port 20127 while every line of the documentation says 20128, so the
+    # port is passed here instead: what the config says and what the examples say then agree.
+    run: npx next dev --port ${inputs.port}
+    env:
+      # Its own directory inside the checkout. Without this it writes to ~/.9router and outlives the
+      # workspace, which is the one thing a "run this repository" should not do.
+      DATA_DIR: ${workspace}/.9router-data
+      INITIAL_PASSWORD: ${inputs.password}
+      # The app builds links to itself from these, so they have to carry the chosen port.
+      BASE_URL: http://localhost:${inputs.port}
+      NEXT_PUBLIC_BASE_URL: http://localhost:${inputs.port}
+      NEXT_PUBLIC_CLOUD_URL: https://9router.com
+    # /login rather than the root: the root redirects, and a redirect is a weaker answer to "is it
+    # up" than the page it redirects to.
+    readyWhen: {http: 'http://localhost:${inputs.port}/login'}
+    open: http://localhost:${inputs.port}

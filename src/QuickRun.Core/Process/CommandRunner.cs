@@ -119,8 +119,18 @@ public static class CommandRunner
         }
     }
 
-    /// <summary>How long output is still collected after the process itself has gone.</summary>
-    private static readonly TimeSpan OutputDrain = TimeSpan.FromSeconds(2);
+    /// <summary>
+    /// How long output is still collected after the process itself has gone.
+    /// <para>
+    /// This is a race the reader normally wins by a mile - the pipes are drained on the thread pool,
+    /// and a command that has exited has usually written everything already. Under load it is not a
+    /// mile: on a busy CI runner a test that asked a directory for its one file saw none of the
+    /// output at all, and what that means outside a test is the last lines of a command missing from
+    /// the log. Five seconds costs nothing when the reader is done - the wait ends with it - and it
+    /// is still short enough that a background child holding the pipe cannot hang the run.
+    /// </para>
+    /// </summary>
+    private static readonly TimeSpan OutputDrain = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Runs a process directly (no shell), forwarding every line as it arrives and also returning

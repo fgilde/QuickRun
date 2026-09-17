@@ -67,7 +67,13 @@ public class CommandRunnerTests
             var lines = new List<string>();
             await CommandRunner.StreamAsync(new ProcessSpec(command, dir, null),
                 (line, _) => { lock (lines) lines.Add(line); }, CancellationToken.None);
-            Assert.Contains("marker.txt", string.Join("\n", lines));
+            var output = string.Join("\n", lines);
+
+            // With the output in the message: when this failed on a CI runner and nowhere else, the
+            // assertion said "sub-string not found" and left the question of whether the command had
+            // said anything at all.
+            Assert.True(output.Contains("marker.txt", StringComparison.Ordinal),
+                $"'{command}' in {dir} said: {(output.Length == 0 ? "nothing" : output)}");
         }
         finally { Directory.Delete(dir, true); }
     }

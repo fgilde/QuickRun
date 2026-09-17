@@ -157,9 +157,32 @@ anderen wählen kann.
 | `Procfile` | alle Prozesse, der `web`-Prozess zuerst, `$PORT` fest auf 8080 | 8080 |
 | `.replit` | die `run =`-Zeile | ein dort genannter `--port` |
 | `Makefile`, `Taskfile.yml`, `justfile` | `make run`, `task dev`, `just run` | — |
-| `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle` | `cargo run`, `go run ./...`, `mvn spring-boot:run`, `./gradlew bootRun` | Spring 8080 |
+| `Cargo.toml` mit Binary | `cargo run` | — |
+| `go.mod`, `pom.xml`, `build.gradle` | `go run ./...`, `mvn spring-boot:run`, `./gradlew bootRun` | Spring 8080 |
+| `Dockerfile` ohne Compose-Datei daneben | `docker build`, dann `docker run` | das erste `EXPOSE` |
 
 Ein Test- oder Benchmark-Projekt wird nie als etwas zum Starten angeboten.
+
+### Wo eine Datei liegt, sagt wozu sie da ist
+
+Zwei Repositories können dieselbe Datei aus entgegengesetzten Gründen enthalten. fluxer hat eine
+Compose-Datei unter `.devcontainer` — die Umgebung, in der das Projekt entwickelt wird, mit
+Datenbanken und Message-Bus — und eine unter `deploy/self-hosting`, die die Anwendung startet. Die
+erste zu nehmen und zu starten, war genau das, was QuickRun vorher tat.
+
+Der Rang eines Kandidaten hängt deshalb davon ab, wo er gefunden wurde:
+
+- die Wurzel des Repositories ist der Ort, an den ein Projekt den Einstieg legt
+- jedes Verzeichnis darunter zählt etwas weniger — im Monorepo „ein Teil davon" statt „es"
+- `.devcontainer`, `tests`, `examples`, `docs`, `tools`, `scripts`, `.github` und ihresgleichen
+  zählen deutlich weniger: darin liegt die Werkstatt, nicht das Gebaute
+
+Übersprungen wird nichts. Ein Repository, dessen einziger Einstieg in `examples/` liegt, bietet ihn
+weiterhin an — unter *auch erkannt*, wo man ihn bewusst wählen kann.
+
+Ein Crate muss eines sein, das `cargo run` starten kann: eine Bibliothek hat kein Binary, und eine
+Workspace-Wurzel ohne eigenes Package antwortet *could not determine which binary to run*. Deshalb
+bietet ein Monorepo aus zwanzig Crates nicht mehr zwanzig Einstiege an.
 
 Eine Desktop-Anwendung hat keine Adresse, auf die man warten kann, deshalb bekommt eine erkannte
 [`readyWhen: {window: true}`](/de/config#readywhen): der Lauf gilt als bereit, wenn das Fenster da

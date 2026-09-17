@@ -150,9 +150,32 @@ listed so you can pick another with `--config` or a committed `quickrun.yml`.
 | `Procfile` | every process, the `web` one first, `$PORT` pinned to 8080 | 8080 |
 | `.replit` | its `run =` line | a `--port` it names |
 | `Makefile`, `Taskfile.yml`, `justfile` | `make run`, `task dev`, `just run` | — |
-| `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle` | `cargo run`, `go run ./...`, `mvn spring-boot:run`, `./gradlew bootRun` | Spring 8080 |
+| `Cargo.toml` with a binary | `cargo run` | — |
+| `go.mod`, `pom.xml`, `build.gradle` | `go run ./...`, `mvn spring-boot:run`, `./gradlew bootRun` | Spring 8080 |
+| `Dockerfile` with no compose file beside it | `docker build` then `docker run` | its first `EXPOSE` |
 
 A test or benchmark project is never offered as something to start.
+
+### Where a file sits says what it is for
+
+Two repositories can hold the same file for opposite reasons. fluxer has a compose file under
+`.devcontainer` — the environment the project is developed in, with its databases and its message
+bus — and another under `deploy/self-hosting`, which starts the application. Picking the first one
+and running it is exactly what QuickRun used to do.
+
+So a candidate's rank depends on where it was found:
+
+- the repository root is where a project puts the way in
+- every directory down from it counts a little less — in a monorepo, "a part of it" rather than "it"
+- `.devcontainer`, `tests`, `examples`, `docs`, `tools`, `scripts`, `.github` and their kind count
+  much less: what is in them is the workshop, not the thing being built
+
+None of them is skipped. A repository whose only entry point is in `examples/` still offers it —
+under *also detected*, where you can choose it deliberately.
+
+A crate has to be one that `cargo run` can run: a library has no binary, and a workspace root
+without a package of its own answers *could not determine which binary to run*. That is why a
+monorepo of twenty crates no longer offers twenty ways in.
 
 A desktop application has no address to wait for, so a detected one gets
 [`readyWhen: {window: true}`](/config#readywhen) instead: the run counts as ready when the window is

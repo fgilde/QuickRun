@@ -46,6 +46,52 @@ public static class Detector
     private static readonly string[] ComposeNames =
         { "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml" };
 
+    /// <summary>
+    /// Directories that hold something other than the application.
+    /// <para>
+    /// Found by running this on a real repository: fluxer has a compose file under .devcontainer -
+    /// the environment the project is developed in, with its databases and message bus - and that
+    /// was picked over the compose file under deploy/self-hosting, which is the one that starts the
+    /// application. Both are "a compose file"; only the second one is the project.
+    /// </para>
+    /// <para>
+    /// Not a skip list: something here is still a candidate, and still shown under "also detected".
+    /// A repository whose only entry point is in tests/ should offer it rather than nothing.
+    /// </para>
+    /// </summary>
+    private static readonly HashSet<string> Aside = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".devcontainer", ".github", ".vscode", "test", "tests", "e2e", "spec", "specs",
+        "example", "examples", "sample", "samples", "demo", "demos", "fixture", "fixtures",
+        "doc", "docs", "website", "benchmark", "benchmarks", "bench",
+        "tool", "tools", "script", "scripts", "ci", "template", "templates", "contrib",
+    };
+
+    /// <summary>
+    /// What being found there is worth, added to a candidate's own confidence.
+    /// <para>
+    /// The root is where a project puts the way in, and every directory down from it is a little
+    /// further from "the project" and a little closer to "a part of it". A monorepo is the case that
+    /// makes this matter: twenty crates, each of which would happily claim to be the entry point.
+    /// </para>
+    /// </summary>
+    private static int Placement(string relative)
+    {
+        if (relative.Length == 0) return 0;
+
+        var parts = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // Enough to put it behind anything that is actually the application, and not so much that it
+        // disappears when it is all there is.
+        if (parts.Any(Aside.Contains)) return -60;
+
+        return -3 * parts.Length;
+    }
+
+    /// <summary>The same candidate, ranked for where it was found.</summary>
+    private static Candidate Placed(Candidate candidate) =>
+        candidate with { Confidence = candidate.Confidence + Placement(candidate.RelativeDir) };
+
     public static IReadOnlyList<Candidate> Detect(string root, OSKind os)
     {
         if (!Directory.Exists(root)) return Array.Empty<Candidate>();
@@ -68,7 +114,8 @@ public static class Detector
                 Make(dir, relative),
                 Taskfile(dir, relative),
                 Just(dir, relative),
-                Simple(dir, relative, "Cargo.toml", "cargo", "cargo run", 60),
+                Cargo(dir, relative),
+                Dockerfile(dir, relative),
                 Simple(dir, relative, "go.mod", "go", "go run ./...", 60),
                 Simple(dir, relative, "pom.xml", "maven", "mvn spring-boot:run", 55, 8080),
                 Gradle(dir, relative),
@@ -78,6 +125,7 @@ public static class Detector
         }
 
         return candidates
+            .Select(Placed)
             .OrderByDescending(c => c.Confidence)
             .ThenBy(c => c.RelativeDir, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -445,6 +493,83 @@ public static class Detector
             ? new("gradle", Label("./gradlew bootRun", relative), relative,
                 Array.Empty<string>(), new[] { "./gradlew bootRun" }, 55, 8080)
             : null;
+
+    /// <summary>
+    /// A Rust crate, when it is one that can be run.
+    /// <para>
+    /// <c>cargo run</c> needs a binary. A library crate has none, and a workspace root without a
+    /// package of its own answers "could not determine which binary to run" - so neither is an entry
+    /// point, however many Cargo.toml files a monorepo has. Twenty of them, in fluxer's case, all
+    /// offering to be the way in.
+    /// </para>
+    /// </summary>
+    private static Candidate? Cargo(string dir, string relative)
+    {
+        var file = Path.Combine(dir, "Cargo.toml");
+        if (!File.Exists(file)) return null;
+
+        var text = Read(file) ?? "";
+
+        // A workspace root that is not also a package: cargo run there has nothing to run.
+        if (text.Contains("[workspace]", StringComparison.Ordinal)
+            && !text.Contains("[package]", StringComparison.Ordinal))
+            return null;
+
+        var runnable = File.Exists(Path.Combine(dir, "src", "main.rs"))
+            || text.Contains("[[bin]]", StringComparison.Ordinal)
+            || Directory.Exists(Path.Combine(dir, "src", "bin"));
+
+        if (!runnable) return null;
+
+        return new("cargo", Label("cargo run", relative), relative,
+            Array.Empty<string>(), new[] { "cargo run" }, 60);
+    }
+
+    /// <summary>
+    /// A Dockerfile with no compose file beside it.
+    /// <para>
+    /// A repository that ships one is telling you how it is meant to be built and run, and until now
+    /// QuickRun ignored that unless a compose file said the same thing. Below npm on purpose: in a
+    /// Node repository with both, the dev server is what somebody wants to see, and the image is how
+    /// it is shipped.
+    /// </para>
+    /// </summary>
+    private static Candidate? Dockerfile(string dir, string relative)
+    {
+        var file = Path.Combine(dir, "Dockerfile");
+        if (!File.Exists(file)) return null;
+
+        // Compose already covers this directory, and it says more than a Dockerfile can.
+        if (ComposeNames.Any(n => File.Exists(Path.Combine(dir, n)))) return null;
+
+        var text = Read(file) ?? "";
+        var port = ExposedPort(text);
+
+        // A name of its own, so a second run of the same repository replaces the container rather
+        // than failing on the name - and so it can be removed again when the run stops.
+        var tag = $"quickrun-{Slug(relative)}";
+        var publish = port is { } p ? $"-p {p}:{p} " : "";
+
+        return new("docker", Label($"docker build and run {tag}", relative), relative,
+            new[] { $"docker build -t {tag} ." },
+            new[] { $"docker run --rm --name {tag} {publish}{tag}" }, 70, port);
+    }
+
+    /// <summary>The first port a Dockerfile exposes, which is the one worth publishing.</summary>
+    private static int? ExposedPort(string text)
+    {
+        var match = Regex.Match(text, @"^\s*EXPOSE\s+(?<port>\d{2,5})", RegexOptions.Multiline);
+        return match.Success && int.TryParse(match.Groups["port"].Value, out var port) ? port : null;
+    }
+
+    /// <summary>A directory name reduced to something a container may be called.</summary>
+    private static string Slug(string relative)
+    {
+        var name = relative.Length == 0 ? "app" : relative.Replace('/', '-');
+        var clean = new string(name.Select(c => char.IsAsciiLetterOrDigit(c) ? char.ToLowerInvariant(c) : '-').ToArray());
+
+        return clean.Trim('-') is { Length: > 0 } trimmed ? trimmed : "app";
+    }
 
     private static Candidate? Simple(
         string dir, string relative, string marker, string kind, string command, int confidence, int? port = null) =>

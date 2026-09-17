@@ -147,7 +147,10 @@ public class DetectorTests
     [Fact]
     public void Cargo_and_go_projects_are_detected()
     {
-        using (var repo = new FakeRepo().With("Cargo.toml", "[package]"))
+        // src/main.rs belongs in this: cargo run needs a binary, and a crate without one answers
+        // "a bin target must be available" rather than starting anything. A package on its own used
+        // to be enough here, which is how a monorepo of libraries offered twenty ways in.
+        using (var repo = new FakeRepo().With("Cargo.toml", "[package]").With("src/main.rs", "fn main() {}"))
             Assert.Equal(new[] { "cargo run" }, Assert.Single(Detect(repo)).Run);
 
         using (var repo = new FakeRepo().With("go.mod", "module x"))

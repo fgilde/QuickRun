@@ -460,6 +460,16 @@
     "shipsOwn": false
   },
   {
+    "repo": "fluxerapp/fluxer",
+    "name": "Fluxer",
+    "description": "Chat, voice and video for friends and communities - an open-source take on what Discord does. Starts the project's own self-hosting stack: twenty-five containers, among them Postgres, NATS, Valkey, Meilisearch, SeaweedFS, LiveKit and a Caddy in front of them. The first run downloads several gigabytes of images and takes a while. Every secret it needs is generated here, including a real web-push key pair, and written into deploy/self-hosting/.env inside the checkout; stopping the run removes the containers and their volumes, so nothing is left behind.",
+    "docs": "https://docs.fluxer.app",
+    "port": null,
+    "icon": "https://github.com/fluxerapp.png?size=80",
+    "config": "configs/fluxerapp/fluxer.yml",
+    "shipsOwn": false
+  },
+  {
     "repo": "foldergram/foldergram",
     "name": "Foldergram",
     "description": "Self-hosted folder-based Instagram-style photo and video gallery app. Point volumes at your media.",

@@ -1,0 +1,78 @@
+# Hand-written, and it wins over the catalogue on purpose: scripts/build-collection.mjs skips any
+# config it did not write.
+#
+# This is the biggest thing in the collection by some way: the self-hosting compose file starts
+# twenty-five containers from fifteen images. Everything else here is one or two. It is in the
+# collection anyway, because the alternative - reading fifteen secrets out of a compose file and
+# inventing values for them by hand - is exactly the work a config is supposed to remove.
+#
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
+version: 1
+name: Fluxer
+repository: fluxerapp/fluxer
+description: >-
+  Chat, voice and video for friends and communities - an open-source take on what Discord does.
+  Starts the project's own self-hosting stack: twenty-five containers, among them Postgres, NATS,
+  Valkey, Meilisearch, SeaweedFS, LiveKit and a Caddy in front of them. The first run downloads
+  several gigabytes of images and takes a while. Every secret it needs is generated here, including
+  a real web-push key pair, and written into deploy/self-hosting/.env inside the checkout; stopping
+  the run removes the containers and their volumes, so nothing is left behind.
+docs: https://docs.fluxer.app
+
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+  # For the key generation below - a web-push key pair is a real P-256 pair, not a random string.
+  - tool: node
+    version: '>=20'
+    install: https://nodejs.org
+
+inputs:
+  - id: domain
+    label: Domain
+    description: >-
+      The address this instance answers on. localhost is right for trying it out on this machine;
+      a real domain is what a real installation needs, and then it has to point here.
+    default: localhost
+  - id: port
+    label: Port
+    description: >-
+      Where the front door listens on this machine. Plain http - the stack's own default is https on
+      443 with a certificate Caddy fetches, which needs a domain that resolves from the internet.
+    default: '8880'
+
+setup:
+  # Everything the compose file refuses to start without, generated rather than invented.
+  #
+  # The list is written out rather than read from the compose file: the pattern for reading it is
+  # made of dollar signs and braces, and this command is handed to cmd.exe on Windows and sh
+  # elsewhere, both of which expand exactly those. The first version of this generated nothing and
+  # said so cheerfully. If the project ever adds a required variable, compose says which one is
+  # missing and this list gets it.
+  #
+  # Two of them are not random strings: the web-push pair has to be a real P-256 key, and the relay
+  # secret has to be base64.
+  #
+  # Written once. A second run of the same checkout keeps the keys it already has, because
+  # regenerating them would invalidate every session and every push subscription.
+  - cwd: deploy/self-hosting
+    run: |-
+      node -e "const fs=require('fs'),c=require('crypto');if(fs.existsSync('.env')){console.log('.env is already here - keeping the keys it has');process.exit(0)}const hex=(n)=>c.randomBytes(n||32).toString('hex');const jwk=c.generateKeyPairSync('ec',{namedCurve:'prime256v1'}).privateKey.export({format:'jwk'});const point=Buffer.concat([Buffer.from([4]),Buffer.from(jwk.x,'base64url'),Buffer.from(jwk.y,'base64url')]);const secrets=['POSTGRES_PASSWORD','MEILI_MASTER_KEY','FLUXER_ADMIN_OAUTH_CLIENT_SECRET','FLUXER_ADMIN_SECRET_KEY_BASE','FLUXER_CONNECTION_INITIATION_SECRET','FLUXER_ERLANG_COOKIE','FLUXER_GATEWAY_RPC_AUTH_TOKEN','FLUXER_MEDIA_PROXY_SECRET_KEY','FLUXER_SUDO_MODE_SECRET','FLUXER_S3_ACCESS_KEY','FLUXER_S3_SECRET_KEY','LIVEKIT_API_SECRET'];const lines=secrets.map((k)=>k+'='+hex(32));lines.push('FLUXER_MEDIA_PROXY_UPLOAD_RELAY_SECRET_BASE64='+c.randomBytes(32).toString('base64'));lines.push('LIVEKIT_API_KEY=API'+hex(8));lines.push('FLUXER_VAPID_PUBLIC_KEY='+point.toString('base64url'));lines.push('FLUXER_VAPID_PRIVATE_KEY='+jwk.d);lines.push('FLUXER_DOMAIN=${inputs.domain}');lines.push('FLUXER_HTTP_PORT=${inputs.port}');lines.push('FLUXER_HTTPS_PORT='+(Number('${inputs.port}')+1));lines.push('FLUXER_PUBLIC_SCHEME=http');lines.push('FLUXER_PUBLIC_PORT=${inputs.port}');lines.push('FLUXER_EDGE_SITE_ADDRESS=http://${inputs.domain}:80');fs.writeFileSync('.env',lines.join(String.fromCharCode(10))+String.fromCharCode(10));console.log('generated '+lines.length+' values for ${inputs.domain}')"
+
+tasks:
+  - name: fluxer
+    cwd: deploy/self-hosting
+    run: docker compose --env-file .env up
+    # The application, not the front door. Caddy answers /_health itself the moment it starts, while
+    # everything behind it is still coming up - measured here, that was a good minute of 502s. The
+    # root answers 502 until the app proxy is there, and readiness counts 5xx as not ready, so this
+    # waits for the thing somebody is about to look at.
+    readyWhen: {http: 'http://localhost:${inputs.port}/'}
+    open: http://localhost:${inputs.port}
+
+stop:
+  # down -v, not down: twenty-five containers and their volumes, or a "try it" run leaves several
+  # gigabytes of database behind on the machine.
+  - cwd: deploy/self-hosting
+    run: docker compose --env-file .env down -v
+    continueOnError: true

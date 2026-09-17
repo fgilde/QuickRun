@@ -1,0 +1,50 @@
+# Hand-written, and it wins over the catalogue on purpose: scripts/build-collection.mjs skips any
+# config it did not write.
+#
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
+version: 1
+name: Dispatcharr
+repository: Dispatcharr/Dispatcharr
+description: >-
+  IPTV and stream manager: M3U playlists and EPG guides in, one tidy set of channels out, with a
+  web interface to sort them. Starts the project's own all-in-one image, which has its Postgres,
+  Redis and worker inside the one container - the arrangement its README recommends for trying it.
+  The first page asks you to create an administrator. Nothing is stored, so stopping the run leaves
+  nothing behind, including that account.
+docs: https://dispatcharr.github.io/Dispatcharr-Docs/
+
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+
+inputs:
+  - id: port
+    label: Port
+    description: >-
+      Where Dispatcharr answers on this machine. Its own nginx also listens on this number inside
+      the container, so both sides are set from it.
+    default: '9191'
+
+tasks:
+  - name: dispatcharr
+    # -v /data is an anonymous volume, which docker removes along with the container: the image's
+    # entrypoint writes its secret key and its database under /data and exits if that directory is
+    # not there, and the README's named volume would outlive the run. A run that leaves a database
+    # behind is not what "try it" means here.
+    run: >-
+      docker run --rm --name quickrun-dispatcharr
+      -p ${inputs.port}:${inputs.port}
+      -v /data
+      -e DISPATCHARR_ENV=aio
+      -e DISPATCHARR_PORT=${inputs.port}
+      -e REDIS_HOST=localhost
+      -e CELERY_BROKER_URL=redis://localhost:6379/0
+      ghcr.io/dispatcharr/dispatcharr:latest
+    # The setup page, which is what a first run lands on. Postgres, Redis, the worker and nginx all
+    # start inside this one container, so it is a while before anything answers.
+    readyWhen: {http: 'http://localhost:${inputs.port}'}
+    open: true
+
+stop:
+  - run: docker rm -f quickrun-dispatcharr
+    continueOnError: true

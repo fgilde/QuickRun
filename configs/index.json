@@ -260,6 +260,16 @@
     "shipsOwn": false
   },
   {
+    "repo": "Dispatcharr/Dispatcharr",
+    "name": "Dispatcharr",
+    "description": "IPTV and stream manager: M3U playlists and EPG guides in, one tidy set of channels out, with a web interface to sort them. Starts the project's own all-in-one image, which has its Postgres, Redis and worker inside the one container - the arrangement its README recommends for trying it. The first page asks you to create an administrator. Nothing is stored, so stopping the run leaves nothing behind, including that account.",
+    "docs": "https://dispatcharr.github.io/Dispatcharr-Docs/",
+    "port": null,
+    "icon": "https://github.com/Dispatcharr.png?size=80",
+    "config": "configs/Dispatcharr/Dispatcharr.yml",
+    "shipsOwn": false
+  },
+  {
     "repo": "louislam/dockge",
     "name": "Dockge",
     "description": "A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented manager",
@@ -1417,6 +1427,16 @@
     "port": 8080,
     "icon": "https://github.com/searxng.png?size=80",
     "config": "configs/searxng/searxng.yml",
+    "shipsOwn": false
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "name": "Seerr",
+    "description": "Requests and discovery for a media server: people ask for a film or a series, and Seerr passes it to Radarr or Sonarr and reports back. The successor to Overseerr and Jellyseerr, and it speaks to Jellyfin, Plex and Emby. Starts the published image (seerr/seerr); the first page is its setup wizard, which wants a media server to connect to. Nothing is stored, so stopping the run leaves nothing behind.",
+    "docs": "https://docs.seerr.dev/getting-started/",
+    "port": null,
+    "icon": "https://github.com/seerr-team.png?size=80",
+    "config": "configs/seerr-team/seerr.yml",
     "shipsOwn": false
   },
   {

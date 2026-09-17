@@ -1,0 +1,43 @@
+# Hand-written, and it wins over the catalogue on purpose: scripts/build-collection.mjs skips any
+# config it did not write. The repository's own compose file builds a development image with the
+# checkout mounted into it; this starts the published one, which is what trying it out means.
+#
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
+version: 1
+name: Seerr
+repository: seerr-team/seerr
+description: >-
+  Requests and discovery for a media server: people ask for a film or a series, and Seerr passes it
+  to Radarr or Sonarr and reports back. The successor to Overseerr and Jellyseerr, and it speaks to
+  Jellyfin, Plex and Emby. Starts the published image (seerr/seerr); the first page is its setup
+  wizard, which wants a media server to connect to. Nothing is stored, so stopping the run leaves
+  nothing behind.
+docs: https://docs.seerr.dev/getting-started/
+
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+
+inputs:
+  - id: port
+    label: Port
+    description: Where Seerr answers on this machine. Inside the container it always listens on 5055.
+    default: '5055'
+
+tasks:
+  - name: seerr
+    # An anonymous volume for /app/config, removed with the container: without it the image writes
+    # its database into the container's own filesystem, and with the README's named volume a run
+    # would outlive itself.
+    run: >-
+      docker run --rm --name quickrun-seerr
+      -p ${inputs.port}:5055
+      -v /app/config
+      -e LOG_LEVEL=info
+      seerr/seerr:latest
+    readyWhen: {http: 'http://localhost:${inputs.port}'}
+    open: true
+
+stop:
+  - run: docker rm -f quickrun-seerr
+    continueOnError: true

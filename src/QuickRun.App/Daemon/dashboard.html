@@ -118,16 +118,8 @@ pre[data-log] .fatal { color: var(--danger); font-weight: 600; }
 pre[data-log] .error { color: var(--danger); }
 pre[data-log] .warn { color: var(--warn); }
 
-/* Contact and support, side by side where there is room and stacked where there is not. */
-.connect {
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  align-items: start;
-}
-
-/* No card around them: each widget draws its own frame, its own accent line and its own footer,
-   and a card behind that is a second frame around the first. */
-.connect gilde-contact, .connect gilde-support { display: block; min-width: 0; }
+/* Contact and support: two buttons, each with its own dialog behind it. */
+.connect { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
 /* The config behind a plan, read in place rather than hunted for on disk. */
 #configDialog, #problemDialog {
@@ -663,37 +655,34 @@ quickrun --help                every command and flag</pre>
     </div>
 
     <!--
-      Say something, or keep this going. Both are inline here rather than behind a button: this
-      window is already the place somebody came to on purpose, and a dialog inside a dialog-shaped
-      app is one click for nothing.
+      Say something, or keep this going. Two buttons: each widget brings its own dialog, which is
+      where a form belongs in a window that is otherwise lists and logs.
 
       Loaded when this tab is opened, never before - see connect() below. Everything else in this
       window is served from the binary, and a program that reaches the internet the moment it starts
       is not what QuickRun is.
     -->
     <div class="connect" id="connect" hidden>
-      <gilde-contact project="fgilde/QuickRun" widget="contact" inline language="en"
+      <gilde-contact project="fgilde/QuickRun" widget="contact" language="en"
                      title="Contact QuickRun"
                      width="560" radius="12" padding="22"
-                     show-logo="true" show-description="false" show-homepage="true"
-                     show-preview-notice="false" show-footer="false">
-        <span class="muted">Contact - needs an internet connection.</span>
-      </gilde-contact>
+                     show-logo="true" show-description="true" show-homepage="true"
+                     show-preview-notice="false" show-footer="true"
+                     footer-brand="QuickRun" footer-tagline="gilde.org">Send a message</gilde-contact>
 
-      <gilde-support project="fgilde/QuickRun" widget="support" inline language="en"
+      <gilde-support project="fgilde/QuickRun" widget="support" language="en"
                      title="Support QuickRun"
                      width="560" radius="12" padding="22"
-                     show-logo="true" show-description="false" show-homepage="true"
-                     show-preview-notice="false" show-footer="false"
+                     show-logo="true" show-description="true" show-homepage="true"
+                     show-preview-notice="false" show-footer="true"
+                     footer-brand="QuickRun" footer-tagline="gilde.org"
                      show-support-hint="false" support-layout="rows"
-                     show-support-icons="true" show-support-qr="true">
-        <span class="muted">Ways to support QuickRun - needs an internet connection.</span>
-      </gilde-support>
+                     show-support-icons="true" show-support-qr="true">Support QuickRun</gilde-support>
     </div>
 
-    <p class="muted" id="connectNote" hidden style="margin-top:2px">
-      The two panels above come from connect.gilde.org and are the only thing in this window that is
-      not served from your own machine. They load when you open this tab, and never before.
+    <p class="muted" id="connectNote" hidden style="margin-top:12px">
+      Both buttons open a panel from connect.gilde.org, the only thing in this window that is not
+      served from your own machine. It loads when you open this tab, and never before.
     </p>
   </section>
 </main>
@@ -2262,9 +2251,14 @@ function connect() {
     const script = document.createElement('script');
     script.type = 'module';
     script.src = 'https://connect.gilde.org/widgets/v1.js';
-    // Either way the panels keep the text they already have, which says what they would be.
     script.onload = () => done(true);
-    script.onerror = () => done(false);
+    script.onerror = () => {
+      // Without the script the buttons are two words in a row, so say what happened instead.
+      document.getElementById('connect').hidden = true;
+      document.getElementById('connectNote').textContent =
+        'Contact and support come from connect.gilde.org, which could not be reached just now.';
+      done(false);
+    };
     document.head.append(script);
   });
 

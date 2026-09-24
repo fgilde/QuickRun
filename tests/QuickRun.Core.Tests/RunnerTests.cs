@@ -8,9 +8,17 @@ public class RunnerTests
     private static readonly bool Windows = OSKinds.Current == OSKind.Windows;
 
     private static RunOptions Options(string workspace, params string[] secrets) =>
+        Options(workspace, TimeSpan.FromSeconds(5), secrets);
+
+    /// <param name="readyTimeout">
+    /// How long readiness gets. Five seconds keeps the tests about a task that never becomes ready
+    /// short; a test about what happens *after* it becomes ready needs enough that a cold node on a
+    /// loaded runner still gets there.
+    /// </param>
+    private static RunOptions Options(string workspace, TimeSpan readyTimeout, params string[] secrets) =>
         new(workspace,
             new InterpolationContext(new Dictionary<string, string?>(), workspace, "app", "main", _ => null),
-            new Dictionary<string, string>(), secrets, TimeSpan.FromSeconds(5), SkipRequires: true);
+            new Dictionary<string, string>(), secrets, readyTimeout, SkipRequires: true);
 
     private static RunConfig Config(string yaml) => ConfigParser.Parse(yaml, OSKinds.Current);
 
@@ -472,16 +480,21 @@ public class RunnerTests
         await using var runner = new Runner(log.Sink);
 
         // Not awaited: a server that stays up is the point, so the run only ends when it is stopped.
+        //
+        // Half a minute for readiness, rather than the five seconds the other tests use: this one is
+        // about the line that follows readiness, and on a busy Windows runner a cold node needed
+        // longer than five to answer - which failed the build with "not ready", a statement about
+        // the runner rather than about the callout.
         var run = runner.ExecuteAsync(
             Config($"tasks:\n  - name: web\n    run: {serve}\n    readyWhen:\n      http: http://127.0.0.1:{port}/"),
-            Options(repo.Path), CancellationToken.None);
+            Options(repo.Path, TimeSpan.FromSeconds(30)), CancellationToken.None);
 
         // Waiting for the callout itself and not merely for readiness. The status is asked for
         // after the address has answered, so the line arrives a moment after TaskReady - on two
         // machines it was already there and on a CI runner it was not, which failed a green build
         // for no reason. Either the line or the task exiting ends this; nothing here sleeps a fixed
         // amount and hopes.
-        var deadline = DateTime.UtcNow.AddSeconds(30);
+        var deadline = DateTime.UtcNow.AddSeconds(60);
         while (DateTime.UtcNow < deadline
                && !log.Text.Contains("answers 404", StringComparison.Ordinal)
                && !log.Events.Any(e => e.Kind == RunEventKind.TaskExited))
@@ -495,7 +508,8 @@ public class RunnerTests
             if (!exited)
             {
                 // Still ready - the rule does not change, only what the log says about it.
-                Assert.Contains(log.Events, e => e.Kind == RunEventKind.TaskReady);
+                Assert.True(log.Events.Any(e => e.Kind == RunEventKind.TaskReady),
+                    $"the task never became ready, so there was nothing to call out. Log: {log.Text}");
                 Assert.Contains("answers 404", log.Text);
                 Assert.Contains("is not a running application", log.Text);
             }

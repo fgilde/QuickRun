@@ -82,8 +82,7 @@ const t = computed(() => (de.value
                        :accent="ACCENT" :language="de ? 'de' : 'en'" :title="t.contact"
                        width="560" radius="16" padding="26"
                        show-logo="true" show-description="false" show-homepage="true"
-                       show-preview-notice="false" show-footer="true"
-                       footer-brand="QuickRun" footer-tagline="gilde.org" />
+                       show-preview-notice="false" show-footer="false" />
         <p v-else class="m3-body qr-support-waiting">{{ t.loading }}</p>
       </section>
 
@@ -94,8 +93,7 @@ const t = computed(() => (de.value
                        :accent="ACCENT" :language="de ? 'de' : 'en'" :title="t.support"
                        width="560" radius="16" padding="26"
                        show-logo="true" show-description="false" show-homepage="true"
-                       show-preview-notice="false" show-footer="true"
-                       footer-brand="QuickRun" footer-tagline="gilde.org"
+                       show-preview-notice="false" show-footer="false"
                        show-support-hint="false" support-layout="rows"
                        show-support-icons="true" show-support-qr="true" />
         <p v-else class="m3-body qr-support-waiting">{{ t.loading }}</p>

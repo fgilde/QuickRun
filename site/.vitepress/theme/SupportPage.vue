@@ -32,10 +32,10 @@ const t = computed(() => (de.value
   ? {
       eyebrow: 'Kontakt und Unterstützung',
       title: 'Schreib uns, oder halte QuickRun am Laufen',
-      lead: 'QuickRun ist ein Ein-Personen-Projekt und quelloffen. Eine Nachricht kommt direkt an — '
-        + 'für einen Fehler ist ein Issue auf GitHub oft der schnellere Weg, alles andere gern hier.',
+      lead: 'QuickRun ist ein Ein-Personen-Projekt und quelloffen. Eine Nachricht kommt direkt bei '
+        + 'mir an. Für Fehler ist ein Issue auf GitHub meist schneller, alles andere gern hier.',
       contact: 'Nachricht schreiben',
-      contactText: 'Die Nachricht landet direkt im Postfach — kein Formularsammler dazwischen.',
+      contactText: 'Einfach Kontakt aufnehmen.',
       support: 'QuickRun unterstützen',
       supportText: 'Nichts davon wird erwartet. Es bezahlt die Domain, die Signaturen und die '
         + 'Abende, an denen die nächste Version entsteht.',
@@ -48,10 +48,10 @@ const t = computed(() => (de.value
   : {
       eyebrow: 'Contact and support',
       title: 'Say something, or keep QuickRun going',
-      lead: 'QuickRun is a one-person project and open source. A message here arrives directly — '
-        + 'for a bug an issue on GitHub is usually faster, and anything else is welcome here.',
+      lead: 'QuickRun is a one-person project and open source. A message here reaches me directly. '
+        + 'For a bug an issue on GitHub is usually faster, anything else is welcome here.',
       contact: 'Send a message',
-      contactText: 'A message lands in the inbox directly — no form collector in between.',
+      contactText: 'Just get in touch.',
       support: 'Support QuickRun',
       supportText: 'None of this is expected. It pays for the domain, the signing certificates and '
         + 'the evenings the next version comes out of.',

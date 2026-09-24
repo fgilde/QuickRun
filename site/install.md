@@ -53,7 +53,7 @@ there. `quickrun --browser` opens it that way; `quickrun --no-tray` skips the tr
 
 ## Settings
 
-Three switches, all per-user, none needing administrator rights:
+Four settings, all per-user, none needing administrator rights:
 
 - **Start QuickRun when I sign in** — the browser button needs QuickRun to be running. On Windows
   this is a value under `HKCU\...\CurrentVersion\Run`, on Linux a `.desktop` file in
@@ -68,6 +68,17 @@ Three switches, all per-user, none needing administrator rights:
   front for a moment either way, because Windows does not let a background program take the
   foreground and blinks the taskbar button instead. With this on, that window stays on top until it
   is closed. Kept in `windows.txt` next to the workspaces, and read the next time a window opens.
+- **Remove a checkout this many days after its last run** — housekeeping, so a machine that has tried
+  forty repositories is not still keeping all forty. The default is 30 days; any number is allowed,
+  and 0 switches it off. Only checkouts QuickRun made are removed, never a folder of yours it ran
+  where it lies, and never one a run is using — a plan waiting to be approved counts as in use. It
+  happens shortly after QuickRun starts and every six hours after that, and **Remove them now** does
+  it immediately. Kept in `cleanup.txt` beside the workspaces.
+
+  Worth knowing before choosing a small number: a checkout is not always only source code. A config
+  may keep the application's data inside it — the collection's 9Router config does exactly that, so
+  its database, its keys and the providers you connected live in the workspace — and removing the
+  workspace removes that too. The workspace list says when each one is due to go.
 
 `quickrun install` does both of these plus the `quickrun://` handler in one go, and
 `quickrun uninstall` undoes them.

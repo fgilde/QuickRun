@@ -58,7 +58,7 @@ Dieselbe Ansicht gibt es im Browser unter `http://127.0.0.1:9876`, wenn du sie d
 
 ## Einstellungen
 
-Drei Schalter, alle benutzerbezogen, keiner braucht Administratorrechte:
+Vier Einstellungen, alle benutzerbezogen, keine braucht Administratorrechte:
 
 - **Start QuickRun when I sign in** — der Browser-Button braucht ein laufendes QuickRun. Unter
   Windows ist das ein Wert unter `HKCU\...\CurrentVersion\Run`, unter Linux eine `.desktop`-Datei
@@ -74,6 +74,18 @@ Drei Schalter, alle benutzerbezogen, keiner braucht Administratorrechte:
   ohnehin kurz nach vorn geholt: Windows lässt ein Hintergrundprogramm nicht in den Vordergrund und
   blinkt stattdessen den Taskleisten-Eintrag. Ist der Schalter an, bleibt dieses Fenster oben, bis es
   geschlossen wird. Gemerkt in `windows.txt` neben den Workspaces, gelesen beim nächsten Öffnen.
+- **Remove a checkout this many days after its last run** — Aufräumen, damit ein Rechner, auf dem
+  vierzig Repositories ausprobiert wurden, nicht alle vierzig behält. Standard sind 30 Tage; jede
+  Zahl ist erlaubt, und 0 schaltet es ab. Entfernt werden nur Checkouts, die QuickRun angelegt hat —
+  nie ein eigener Ordner, den es an Ort und Stelle gestartet hat, und nie einer, den ein Lauf gerade
+  benutzt; ein Plan, der auf Bestätigung wartet, zählt als benutzt. Es passiert kurz nach dem Start
+  und danach alle sechs Stunden, **Remove them now** sofort. Gemerkt in `cleanup.txt` neben den
+  Workspaces.
+
+  Vor einer kleinen Zahl zu wissen: Ein Checkout ist nicht immer nur Quellcode. Eine Config kann die
+  Daten der Anwendung darin ablegen — die 9Router-Config aus der Sammlung tut genau das, dort liegen
+  Datenbank, Schlüssel und die verbundenen Provider — und mit dem Workspace ist das mit weg. Die
+  Workspace-Liste sagt bei jedem Eintrag, wann er an der Reihe ist.
 
 `quickrun install` macht beides plus den `quickrun://`-Handler in einem Schritt, `quickrun uninstall`
 nimmt es zurück.

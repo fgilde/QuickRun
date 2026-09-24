@@ -59,6 +59,9 @@ public sealed record BranchRequest(string? Repo, string? Token);
 /// <summary>Turning one of the two system settings on or off.</summary>
 public sealed record SettingRequest(bool Enabled);
 
+/// <param name="Days">Null, or anything below a day, means nothing is removed automatically.</param>
+public sealed record CleanupRequest(int? Days);
+
 /// <summary>
 /// A run started from the local UI. Unlike the extension's request this one may carry a token: the
 /// page asking is QuickRun's own, and a private repository has to come from somewhere.
@@ -138,6 +141,7 @@ public static class DaemonHost
         builder.Services.AddSingleton(new Dashboard());
         builder.Services.AddSingleton(new TrustedSites(store.Root));
         builder.Services.AddSingleton(new WindowPreferences(store.Root));
+        builder.Services.AddSingleton(new CleanupPreferences(store.Root));
         builder.Services.AddSingleton(new ListenerPort(port));
         builder.Services.AddSingleton(new HostControl());
 
@@ -161,7 +165,60 @@ public static class DaemonHost
 
         MapEndpoints(app);
         MapDashboard(app);
+
+        Sweep(app);
+
         return app;
+    }
+
+    /// <summary>How often old checkouts are looked at. Housekeeping, not a deadline.</summary>
+    private static readonly TimeSpan SweepEvery = TimeSpan.FromHours(6);
+
+    /// <summary>
+    /// Removes checkouts nobody has used for a while, now and then.
+    /// <para>
+    /// Once shortly after start and every six hours after that, rather than on a fixed daily
+    /// schedule: a machine that is switched off overnight would otherwise never reach the hour it
+    /// was supposed to happen at, and nothing here is worth a scheduler.
+    /// </para>
+    /// <para>
+    /// Everything it does is decided in the registry, which knows what is in use. A failure is
+    /// logged and the loop carries on: housekeeping must never be the reason a run cannot start.
+    /// </para>
+    /// </summary>
+    private static void Sweep(WebApplication app)
+    {
+        var runs = app.Services.GetRequiredService<RunRegistry>();
+        var preferences = app.Services.GetRequiredService<CleanupPreferences>();
+
+        _ = Task.Run(async () =>
+        {
+            // Not at the very first moment: the listener has a window to open and a run to
+            // possibly pick up, and walking the workspace directory can wait a minute.
+            await Task.Delay(TimeSpan.FromMinutes(1));
+
+            while (true)
+            {
+                try
+                {
+                    if (preferences.RemoveAfterDays is { } days)
+                    {
+                        var (removed, failed) = runs.CleanWorkspaces(TimeSpan.FromDays(days));
+
+                        if (removed > 0)
+                            Output.Info($"removed {removed} workspace(s) unused for {days} days");
+
+                        foreach (var reason in failed) Output.Warn($"could not remove: {reason}");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Output.Warn($"housekeeping failed: {e.Message}");
+                }
+
+                await Task.Delay(SweepEvery);
+            }
+        });
     }
 
     /// <summary>
@@ -486,7 +543,7 @@ public static class DaemonHost
         });
 
         app.MapGet("/api/dashboard/settings", (HttpContext context, Dashboard dashboard,
-            WindowPreferences windows) =>
+            WindowPreferences windows, CleanupPreferences cleanup) =>
         {
             if (!DashboardAuthorized(context, dashboard)) return Forbidden();
 
@@ -500,7 +557,39 @@ public static class DaemonHost
                 autostart = new { autostart.Enabled, autostart.Detail, autostart.Stale },
                 path = new { path.Available, path.Detail, path.Directory },
                 windows = new { onTop = windows.AlwaysOnTop, file = windows.Path },
+                cleanup = new
+                {
+                    days = cleanup.RemoveAfterDays,
+                    file = cleanup.Path,
+                    @default = CleanupPreferences.DefaultDays,
+                },
             }, Json);
+        });
+
+        // Its own endpoint rather than another switch: this one carries a number, and the two
+        // settings beside it are on/off.
+        app.MapPost("/api/dashboard/settings/cleanup", (CleanupRequest request, HttpContext context,
+            Dashboard dashboard, CleanupPreferences cleanup) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            cleanup.SetRemoveAfterDays(request.Days);
+
+            return Results.Json(new { cleanup = new { days = cleanup.RemoveAfterDays, file = cleanup.Path } }, Json);
+        });
+
+        // "Remove them now", for somebody who has just set a number and wants to see it happen.
+        app.MapPost("/api/dashboard/workspaces/clean", (HttpContext context, Dashboard dashboard,
+            RunRegistry runs, CleanupPreferences cleanup) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            if (cleanup.RemoveAfterDays is not { } days)
+                return Results.Json(new { removed = 0, failed = Array.Empty<string>(), off = true }, Json);
+
+            var (removed, failed) = runs.CleanWorkspaces(TimeSpan.FromDays(days));
+
+            return Results.Json(new { removed, failed, days }, Json);
         });
 
         app.MapPost("/api/dashboard/settings/{setting}", (string setting, SettingRequest request,

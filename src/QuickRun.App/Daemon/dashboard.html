@@ -500,6 +500,22 @@ ol.plan .phase {
 
     <div class="card">
       <div class="row">
+        <label class="grow" for="cleanupDays">Remove a checkout this many days after its last run</label>
+        <input id="cleanupDays" type="number" min="0" max="3650" step="1" style="width:6.5em">
+        <span id="cleanupState" class="pill">checking…</span>
+        <button id="cleanupNow" class="action" type="button">Remove them now</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0">
+        0 switches it off. Only checkouts QuickRun made are removed, never a folder of yours that it
+        ran where it lies, and never one a run is using. Worth knowing before choosing a small
+        number: a checkout is not always only source code — a config may keep the application's
+        data inside it, and removing the workspace removes that too.
+      </p>
+      <p id="cleanupDetail" class="muted mono" style="margin:0"></p>
+    </div>
+
+    <div class="card">
+      <div class="row">
         <label class="grow" for="pathToggle">Make <span class="mono">quickrun</span> work in a terminal</label>
         <span id="pathState" class="pill">checking…</span>
         <input type="checkbox" id="pathToggle">
@@ -2182,7 +2198,29 @@ const settings = {
   onTop: document.getElementById('onTopToggle'),
   onTopState: document.getElementById('onTopState'),
   onTopDetail: document.getElementById('onTopDetail'),
+  cleanupDays: document.getElementById('cleanupDays'),
+  cleanupState: document.getElementById('cleanupState'),
+  cleanupDetail: document.getElementById('cleanupDetail'),
+  cleanupNow: document.getElementById('cleanupNow'),
 };
+
+/** How long a checkout is kept, as the settings tab last read it. Used by the workspace list. */
+let removeAfterDays = null;
+
+/**
+ * When this one goes, said beside the date it was last used.
+ *
+ * So the setting is visible where it has its effect: a list of checkouts is exactly where somebody
+ * wonders which of them is about to disappear, and finding that out by waiting is no answer.
+ */
+function goesIn(lastUsed) {
+  if (!removeAfterDays) return '';
+
+  const days = Math.ceil((new Date(lastUsed).getTime() + removeAfterDays * 86400000 - Date.now()) / 86400000);
+
+  if (days <= 0) return ' - due to be removed';
+  return days === 1 ? ' - removed in a day' : ` - removed in ${days} days`;
+}
 
 /** Reads the two system settings when that tab is opened. */
 async function loadSettings() {
@@ -2286,6 +2324,21 @@ function renderSettings(state) {
     settings.onTopDetail.textContent = state.windows.file ? `kept in ${state.windows.file}` : '';
   }
 
+  if (state.cleanup) {
+    removeAfterDays = state.cleanup.days ?? null;
+
+    // Only when it is not being typed in: writing into a field somebody is editing loses what they
+    // were half-way through typing.
+    if (document.activeElement !== settings.cleanupDays)
+      settings.cleanupDays.value = state.cleanup.days ?? 0;
+
+    settings.cleanupState.textContent = state.cleanup.days
+      ? `after ${state.cleanup.days} day${state.cleanup.days === 1 ? '' : 's'}`
+      : 'off';
+    settings.cleanupState.className = `pill ${state.cleanup.days ? 'ok' : ''}`;
+    settings.cleanupDetail.textContent = state.cleanup.file ? `kept in ${state.cleanup.file}` : '';
+  }
+
   if (state.executable) settings.exe.textContent = `running from ${state.executable}`;
 }
 
@@ -2317,6 +2370,44 @@ settings.path.addEventListener('change', (event) =>
 // no "failed" answer to report, only the new state.
 settings.onTop.addEventListener('change', (event) =>
   setSetting('windowsOnTop', event.currentTarget.checked, settings.onTop));
+
+// On change rather than on every keystroke: a number being typed passes through 3 on the way to 30.
+settings.cleanupDays.addEventListener('change', async (event) => {
+  const days = Number(event.currentTarget.value);
+
+  try {
+    await api('/api/dashboard/settings/cleanup', {
+      method: 'POST',
+      body: JSON.stringify({ days: Number.isFinite(days) && days > 0 ? Math.round(days) : null }),
+    });
+  } catch (failure) {
+    say(failure.message);
+  }
+
+  loadSettings();
+  loadWorkspaces();
+});
+
+settings.cleanupNow.addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+
+  try {
+    const result = await api('/api/dashboard/workspaces/clean', { method: 'POST' });
+
+    button.textContent = result.off
+      ? 'nothing to do - it is off'
+      : result.removed === 1 ? '1 removed' : `${result.removed} removed`;
+
+    for (const reason of result.failed ?? []) say(reason);
+
+    loadWorkspaces();
+  } catch (failure) {
+    say(failure.message);
+  } finally {
+    setTimeout(() => { button.textContent = 'Remove them now'; button.disabled = false; }, 2000);
+  }
+});
 
 /**
  * Reads the workspaces when that tab is opened, not on every poll.
@@ -2398,7 +2489,7 @@ function renderWorkspaces(state) {
       <td class="mono">${escapeHtml(w.repo)}</td>
       <td class="mono">${escapeHtml(w.ref)}</td>
       <td class="muted" data-size="${escapeHtml(w.id)}">${w.size ?? 'measuring…'}</td>
-      <td class="muted">${new Date(w.lastUsed).toLocaleString()}</td>
+      <td class="muted">${new Date(w.lastUsed).toLocaleString()}${goesIn(w.lastUsed)}</td>
       <td>
         <button class="action" data-open="${escapeHtml(w.id)}">${revealLabel()}</button>
         <button class="action danger" data-remove="${escapeHtml(w.id)}">Remove</button>

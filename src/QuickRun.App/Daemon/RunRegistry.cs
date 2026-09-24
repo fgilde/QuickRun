@@ -123,6 +123,40 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
 
     private readonly ConcurrentDictionary<string, Entry> _runs = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Removes checkouts nobody has used for a while, and says how many went.
+    /// <para>
+    /// Here rather than in the store, because only this knows what is in use: the store sees
+    /// directories and dates, and a workspace whose run is going has neither an old date nor
+    /// necessarily a locked file - a compose run holds no handle on the checkout at all. Removing
+    /// one of those would pull the ground out from under a running application.
+    /// </para>
+    /// <para>
+    /// A workspace QuickRun ran where it lies is somebody's own folder; the store already refuses to
+    /// delete those, and this never asks it to.
+    /// </para>
+    /// </summary>
+    public (int Removed, IReadOnlyList<string> Failed) CleanWorkspaces(TimeSpan olderThan)
+    {
+        var cutoff = DateTimeOffset.UtcNow - olderThan;
+
+        var busy = _runs.Values
+            .Where(e => e.Summary.State is RunState.Running or RunState.Stopping
+                or RunState.AwaitingConfirmation or RunState.AwaitingInput)
+            .Select(e => e.Summary.Workspace)
+            .Where(w => !string.IsNullOrEmpty(w))
+            .Select(w => Path.GetFullPath(w!).TrimEnd(Path.DirectorySeparatorChar))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var stale = store.List(withSizes: false)
+            .Where(w => w.LastUsed < cutoff)
+            .Where(w => !w.Local)
+            .Where(w => !busy.Contains(Path.GetFullPath(w.Path).TrimEnd(Path.DirectorySeparatorChar)))
+            .ToList();
+
+        return store.RemoveEach(stale);
+    }
+
     public bool AnyActive => _runs.Values.Any(e =>
         e.Summary.State is RunState.Running or RunState.Stopping
             or RunState.AwaitingConfirmation or RunState.AwaitingInput);

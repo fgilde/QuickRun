@@ -118,6 +118,17 @@ pre[data-log] .fatal { color: var(--danger); font-weight: 600; }
 pre[data-log] .error { color: var(--danger); }
 pre[data-log] .warn { color: var(--warn); }
 
+/* Contact and support, side by side where there is room and stacked where there is not. */
+.connect {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+}
+
+/* No card around them: each widget draws its own frame, its own accent line and its own footer,
+   and a card behind that is a second frame around the first. */
+.connect gilde-contact, .connect gilde-support { display: block; min-width: 0; }
+
 /* The config behind a plan, read in place rather than hunted for on disk. */
 #configDialog, #problemDialog {
   width: min(860px, 92vw); max-height: 86vh; padding: 16px 18px;
@@ -650,6 +661,42 @@ quickrun --help                every command and flag</pre>
         <a href="https://github.com/fgilde/QuickRun" target="_blank" rel="noreferrer">Source</a>
       </p>
     </div>
+
+    <!--
+      Say something, or keep this going. Both are inline here rather than behind a button: this
+      window is already the place somebody came to on purpose, and a dialog inside a dialog-shaped
+      app is one click for nothing.
+
+      Loaded when this tab is opened, never before - see connect() below. Everything else in this
+      window is served from the binary, and a program that reaches the internet the moment it starts
+      is not what QuickRun is.
+    -->
+    <div class="connect" id="connect" hidden>
+      <gilde-contact project="fgilde/QuickRun" widget="contact" inline language="en"
+                     title="Contact QuickRun"
+                     width="560" radius="12" padding="22"
+                     show-logo="true" show-description="false" show-homepage="true"
+                     show-preview-notice="false" show-footer="true"
+                     footer-brand="QuickRun" footer-tagline="gilde.org">
+        <span class="muted">Contact - needs an internet connection.</span>
+      </gilde-contact>
+
+      <gilde-support project="fgilde/QuickRun" widget="support" inline language="en"
+                     title="Support QuickRun"
+                     width="560" radius="12" padding="22"
+                     show-logo="true" show-description="true" show-homepage="true"
+                     show-preview-notice="false" show-footer="true"
+                     footer-brand="QuickRun" footer-tagline="gilde.org"
+                     show-support-hint="false" support-layout="rows"
+                     show-support-icons="true" show-support-qr="true">
+        <span class="muted">Ways to support QuickRun - needs an internet connection.</span>
+      </gilde-support>
+    </div>
+
+    <p class="muted" id="connectNote" hidden style="margin-top:2px">
+      The two panels above come from connect.gilde.org and are the only thing in this window that is
+      not served from your own machine. They load when you open this tab, and never before.
+    </p>
   </section>
 </main>
 
@@ -721,6 +768,7 @@ document.querySelectorAll('nav button').forEach((tab) => {
   tab.addEventListener('click', () => {
     if (tab.dataset.tab === 'workspaces') loadWorkspaces();
     if (tab.dataset.tab === 'settings') loadSettings();
+    if (tab.dataset.tab === 'about') connect();
     document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
     document.querySelectorAll('main section').forEach((s) => { s.hidden = s.id !== tab.dataset.tab; });
     history.replaceState(null, '', `#${tab.dataset.tab}`);
@@ -2182,6 +2230,47 @@ function flushLog(entry) {
 
   entry.log.hidden = false;
   if (atBottom) entry.log.scrollTop = entry.log.scrollHeight;
+}
+
+/* ---- contact and support ------------------------------------------------------------------- */
+
+/**
+ * The two panels under About, loaded the first time that tab is opened.
+ *
+ * Not at start-up, and not from the binary: they come from connect.gilde.org, and a window that
+ * reached the internet on its own the moment it appeared would be the one thing this program
+ * promises not to be. Opening About is somebody asking for them.
+ *
+ * The accent is read from the page rather than written twice, so the panels are the colour this
+ * window is - including after a theme change, since the variable is what both follow.
+ */
+let connecting = null;
+
+function connect() {
+  if (connecting) return connecting;
+
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#3fb950';
+  const dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+  for (const element of document.querySelectorAll('gilde-contact, gilde-support')) {
+    element.setAttribute('accent', accent);
+    element.setAttribute('theme', dark);
+  }
+
+  document.getElementById('connect').hidden = false;
+  document.getElementById('connectNote').hidden = false;
+
+  connecting = new Promise((done) => {
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://connect.gilde.org/widgets/v1.js';
+    // Either way the panels keep the text they already have, which says what they would be.
+    script.onload = () => done(true);
+    script.onerror = () => done(false);
+    document.head.append(script);
+  });
+
+  return connecting;
 }
 
 /* ---- settings ----------------------------------------------------------------------------- */

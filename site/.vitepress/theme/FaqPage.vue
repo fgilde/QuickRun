@@ -1,6 +1,26 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
+
+/**
+ * The contact widget's script, loaded when this page is.
+ *
+ * Only here and on the support page: it is 128KB, and a reader looking up a config key should not
+ * be paying for a button they are not looking at. Until it is there - or if it never arrives - the
+ * button beside the issue link is an ordinary link to the support page, which is the same
+ * destination by a longer road.
+ */
+const ready = ref(false);
+
+onMounted(() => {
+  if (customElements.get('gilde-contact')) { ready.value = true; return; }
+
+  const script = document.createElement('script');
+  script.type = 'module';
+  script.src = 'https://connect.gilde.org/widgets/v1.js';
+  script.onload = () => { ready.value = true; };
+  document.head.append(script);
+});
 
 const { lang } = useData();
 const de = computed(() => lang.value.startsWith('de'));
@@ -88,6 +108,8 @@ const t = computed(() => (de.value
       restTitle: 'Noch eine Frage?',
       restText: 'Issues sind der schnellste Weg — auch für „bei meinem Repository macht es X".',
       restCta: 'Issue aufmachen',
+      write: 'Nachricht schreiben',
+      writeTitle: 'Kontakt zu QuickRun',
     }
   : {
       eyebrow: 'Questions',
@@ -168,6 +190,8 @@ const t = computed(() => (de.value
       restTitle: 'Another question?',
       restText: 'An issue is the fastest route - including "on my repository it does X".',
       restCta: 'Open an issue',
+      write: 'Send a message',
+      writeTitle: 'Contact QuickRun',
     }));
 </script>
 
@@ -198,14 +222,30 @@ const t = computed(() => (de.value
       <article class="m3-card m3-card--filled qr-rest">
         <h2 class="m3-title">{{ t.restTitle }}</h2>
         <p class="m3-body">{{ t.restText }}</p>
-        <a class="m3-button" href="https://github.com/fgilde/QuickRun/issues/new"
-           target="_blank" rel="noreferrer">{{ t.restCta }}</a>
+        <div class="qr-rest-actions">
+          <a class="m3-button" href="https://github.com/fgilde/QuickRun/issues/new"
+             target="_blank" rel="noreferrer">{{ t.restCta }}</a>
+
+          <!-- Not everything is an issue. The widget draws its own button and brings its own
+               dialog, so this is the whole of it. -->
+          <gilde-contact v-if="ready"
+                         project="fgilde/QuickRun" widget="contact" theme="auto" accent="#5a45d6"
+                         :language="de ? 'de' : 'en'" :title="t.writeTitle"
+                         width="560" radius="16" padding="26"
+                         show-logo="true" show-description="false" show-homepage="true"
+                         show-preview-notice="false" show-footer="true"
+                         footer-brand="QuickRun" footer-tagline="gilde.org">{{ t.write }}</gilde-contact>
+
+          <a v-else class="m3-button m3-button--outlined" :href="link('/support')">{{ t.write }}</a>
+        </div>
       </article>
     </section>
   </div>
 </template>
 
 <style scoped>
+.qr-rest-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+
 .qr-faq-head { padding: 60px 0 26px; }
 .qr-faq-title { margin-top: 12px; }
 .qr-faq-lead { margin: 16px 0 0; max-width: 58ch; }

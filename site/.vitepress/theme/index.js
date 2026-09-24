@@ -16,6 +16,7 @@ import LandingPage from './LandingPage.vue';
 import RunPage from './RunPage.vue';
 import CollectionPage from './CollectionPage.vue';
 import SiteFooter from './SiteFooter.vue';
+import SupportPage from './SupportPage.vue';
 import TourPage from './TourPage.vue';
 
 /**
@@ -50,6 +51,7 @@ export default {
     app.component('CollectionPage', CollectionPage);
     app.component('TourPage', TourPage);
     app.component('FaqPage', FaqPage);
+    app.component('SupportPage', SupportPage);
     app.component('Gallery', Gallery);
   },
 };

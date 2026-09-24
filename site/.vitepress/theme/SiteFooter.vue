@@ -23,6 +23,7 @@ const t = computed(() => (de.value
         cli: 'Kommandozeile',
         extension: 'Browser-Erweiterung',
         badge: 'README-Badge',
+        support: 'Kontakt und Unterstützung',
         embed: 'Einbinden',
         components: 'Web-Komponenten',
         security: 'Sicherheit',
@@ -50,6 +51,7 @@ const t = computed(() => (de.value
         cli: 'Command line',
         extension: 'Browser extension',
         badge: 'README badge',
+        support: 'Contact and support',
         embed: 'Embed a button',
         components: 'Web components',
         security: 'Security',
@@ -92,6 +94,7 @@ const columns = computed(() => {
     {
       title: t.value.project,
       items: [
+        { text: l.support, href: withBase(`${base}support`) },
         { text: l.security, href: withBase(`${base}security`) },
         { text: l.privacy, href: withBase(`${base}privacy`) },
         { text: l.releases, href: 'https://github.com/fgilde/QuickRun/releases', external: true },

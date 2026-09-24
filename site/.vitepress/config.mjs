@@ -19,7 +19,9 @@ export default defineConfig({
   vue: {
     template: {
       compilerOptions: {
-        isCustomElement: (tag) => tag.startsWith('quickrun-'),
+        // quickrun-* are our own elements; gilde-* are the contact and support widgets on the
+        // support page and in the questions page's button.
+        isCustomElement: (tag) => tag.startsWith('quickrun-') || tag.startsWith('gilde-'),
       },
     },
   },
@@ -44,6 +46,7 @@ export default defineConfig({
           { text: 'Config reference', link: '/config' },
           { text: 'Embed', link: '/embed' },
           { text: 'Security', link: '/security' },
+          { text: 'Support', link: '/support' },
         ],
         sidebar: [
           {
@@ -71,6 +74,7 @@ export default defineConfig({
               { text: 'Web components', link: '/components' },
               { text: 'Security', link: '/security' },
               { text: 'Privacy', link: '/privacy' },
+              { text: 'Contact and support', link: '/support' },
             ],
           },
         ],
@@ -92,6 +96,7 @@ export default defineConfig({
           { text: 'Config-Referenz', link: '/de/config' },
           { text: 'Einbinden', link: '/de/embed' },
           { text: 'Sicherheit', link: '/de/security' },
+          { text: 'Kontakt', link: '/de/support' },
         ],
         sidebar: [
           {
@@ -119,6 +124,7 @@ export default defineConfig({
               { text: 'Web-Komponenten', link: '/de/components' },
               { text: 'Sicherheit', link: '/de/security' },
               { text: 'Datenschutz', link: '/de/privacy' },
+              { text: 'Kontakt und Unterstützung', link: '/de/support' },
             ],
           },
         ],

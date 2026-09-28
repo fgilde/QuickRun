@@ -724,6 +724,21 @@ public static class DaemonHost
                     Json, statusCode: StatusCodes.Status409Conflict);
         });
 
+        // The same run again, as a new one waiting for the same confirmation.
+        app.MapPost("/api/dashboard/runs/{id}/repeat", async (string id, HttpContext context,
+            Dashboard dashboard, RunRegistry runs) =>
+        {
+            if (!DashboardAuthorized(context, dashboard)) return Forbidden();
+
+            var (summary, error) = await runs.RepeatAsync(id);
+
+            if (summary is null) return Results.NotFound(new { error });
+
+            return error is null
+                ? Results.Json(summary, Json)
+                : Results.Json(new { error, run = summary }, Json, statusCode: StatusCodes.Status422UnprocessableEntity);
+        });
+
         // Off the list, but nothing is deleted: the workspace and its checkout stay where they are.
         app.MapPost("/api/dashboard/runs/{id}/forget", (string id, HttpContext context, Dashboard dashboard, RunRegistry runs) =>
             !DashboardAuthorized(context, dashboard) ? Forbidden()

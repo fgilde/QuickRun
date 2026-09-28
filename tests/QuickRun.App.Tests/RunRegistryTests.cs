@@ -711,4 +711,47 @@ public class RunRegistryTests
 
         Assert.InRange(replayed, 1, 600);
     }
+
+    /// <summary>
+    /// Run again is a new run, planned from what the first one was asked for - including the values
+    /// it was answered with, which is the part nobody wants to type a second time.
+    /// </summary>
+    [Fact]
+    public async Task A_finished_run_can_be_asked_for_again()
+    {
+        using var repo = new LocalRepo();
+        using var home = new TempHome();
+        repo.Write("quickrun.yml", "inputs:\n  - id: who\n    required: true\nrun: echo hello\n");
+        repo.Commit("add config");
+
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+        var args = new RunArgs(repo.Url, "main", null, null, new[] { "who=world" }, null, false, true, true, null);
+
+        var (first, error) = await registry.PrepareAsync(args);
+        Assert.Null(error);
+
+        var (again, failure) = await registry.RepeatAsync(first!.Id);
+
+        Assert.Null(failure);
+        Assert.NotEqual(first.Id, again!.Id);
+        Assert.Equal(RunState.AwaitingConfirmation, again.State);
+
+        // The answers came along: without them the config asks for "who" again instead of planning.
+        Assert.Equal(first.Commands.Count, again.Commands.Count);
+
+        // And the first run is still there with its log and its workspace.
+        Assert.NotNull(registry.Get(first.Id));
+    }
+
+    [Fact]
+    public async Task A_run_nobody_knows_cannot_be_repeated()
+    {
+        using var home = new TempHome();
+        var registry = new RunRegistry(new WorkspaceStore(home.Path));
+
+        var (summary, error) = await registry.RepeatAsync("nosuchrun");
+
+        Assert.Null(summary);
+        Assert.Equal("unknown run", error);
+    }
 }

@@ -35,7 +35,10 @@ The window has these sections:
 
   A finished run can still own processes: a task that launches a server in the background and exits
   is finished as a task, and the server is still there. Such a run reads *still running* and keeps a
-  **Stop** that ends those processes - that case is why "stopped" used to be a lie. **Remove** takes
+  **Stop** that ends those processes - that case is why "stopped" used to be a lie. **Run again** plans the
+  same run once more - the same repository, the same branch, the same answers to any inputs, without
+  typing any of it again - and, like every other run, waits for you to confirm the plan before
+  anything starts. The finished run stays where it is with its log. **Remove** takes
   a finished run off the list and deletes nothing, the checkout stays in Workspaces; it is refused
   while processes are still alive, because the entry is the only handle left on them
 - **Config builder** — write, check and test a `quickrun.yml`, see [the config builder](/builder)

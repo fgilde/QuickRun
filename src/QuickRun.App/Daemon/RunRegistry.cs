@@ -274,6 +274,26 @@ public sealed class RunRegistry(WorkspaceStore store, Action<string>? openUrl = 
     public bool Stop(string id) => _runs.TryGetValue(id, out var entry) && entry.RequestStop();
 
     /// <summary>
+    /// The same thing again: a new run, prepared from what the old one was asked for.
+    /// <para>
+    /// A new run rather than a restart of the old one, because the old one's log, its workspace and
+    /// its exit code are what somebody is looking at when they decide to repeat it. The arguments
+    /// are the ones that were used, so a run that came from a folder, a pull request, a config in
+    /// the builder or a collection entry repeats as that, down to the values it was answered with.
+    /// </para>
+    /// <para>
+    /// It only plans. Nothing runs until the plan is confirmed, exactly as the first time.
+    /// </para>
+    /// </summary>
+    public async Task<(RunSummary? Summary, string? Error)> RepeatAsync(string id)
+    {
+        if (!_runs.TryGetValue(id, out var entry)) return (null, "unknown run");
+        if (entry.Args is not { } args) return (null, "this run cannot be repeated");
+
+        return await PrepareAsync(args);
+    }
+
+    /// <summary>
     /// Takes a finished run off the list. Only a finished one: forgetting a run that is still going
     /// would leave its processes with nobody watching them and no way back to its log.
     /// </summary>

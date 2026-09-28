@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
+import { loadConnect, skinAll } from './connect';
 
 /**
  * The contact widget's script, loaded when this page is.
@@ -12,14 +13,12 @@ import { useData, withBase } from 'vitepress';
  */
 const ready = ref(false);
 
-onMounted(() => {
-  if (customElements.get('gilde-contact')) { ready.value = true; return; }
+onMounted(async () => {
+  if (!await loadConnect()) return;
 
-  const script = document.createElement('script');
-  script.type = 'module';
-  script.src = 'https://connect.gilde.org/widgets/v1.js';
-  script.onload = () => { ready.value = true; };
-  document.head.append(script);
+  ready.value = true;
+  await nextTick();
+  skinAll('gilde-contact');
 });
 
 const { lang } = useData();
@@ -230,7 +229,7 @@ const t = computed(() => (de.value
                dialog, so this is the whole of it. -->
           <gilde-contact v-if="ready"
                          project="fgilde/QuickRun" widget="contact" theme="auto" accent="#5a45d6"
-                         :language="de ? 'de' : 'en'" :title="t.writeTitle"
+                         :language.attr="de ? 'de' : 'en'" :title.attr="t.writeTitle"
                          width="560" radius="16" padding="26"
                          show-logo="true" show-description="true" show-homepage="true"
                          show-preview-notice="false" show-footer="true"

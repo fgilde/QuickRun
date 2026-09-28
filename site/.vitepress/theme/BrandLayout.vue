@@ -86,10 +86,15 @@ function href(target) {
           <a v-for="item in t.nav" :key="item.text" :href="href(item.href)" @click="open = false">
             {{ item.text }}
           </a>
-          <a class="qr-bar-lang" :href="swap">{{ t.other }}</a>
         </nav>
 
         <div class="qr-bar-actions">
+          <a class="qr-icon-button" :href="swap" :title="t.other" :aria-label="t.other">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 6h-2.5a15.6 15.6 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8ZM12 4c.7 1 1.3 2.3 1.7 4h-3.4c.4-1.7 1-3 1.7-4ZM4.3 14a8 8 0 0 1 0-4h2.9a17.6 17.6 0 0 0 0 4H4.3Zm.8 2h2.5c.3 1.3.8 2.5 1.4 3.6A8 8 0 0 1 5.1 16Zm2.5-8H5.1a8 8 0 0 1 3.9-3.6A15.6 15.6 0 0 0 7.6 8ZM12 20c-.7-1-1.3-2.3-1.7-4h3.4c-.4 1.7-1 3-1.7 4Zm2.1-6H9.9a15.7 15.7 0 0 1 0-4h4.2a15.7 15.7 0 0 1 0 4Zm.9 5.6c.6-1.1 1.1-2.3 1.4-3.6h2.5a8 8 0 0 1-3.9 3.6Zm1.8-5.6a17.6 17.6 0 0 0 0-4h2.9a8 8 0 0 1 0 4h-2.9Z"/>
+            </svg>
+          </a>
+
           <button type="button" class="qr-icon-button" :title="t.theme" :aria-label="t.theme"
                   @click="toggleTheme">
             <svg v-if="isDark" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -164,6 +169,7 @@ html.dark .qr-logo-dark { display: block; }
 .qr-bar-nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 
 .qr-bar-nav a {
+  white-space: nowrap;
   padding: 9px 14px;
   border-radius: var(--m3-radius-full);
   color: var(--m3-on-surface-variant);
@@ -173,7 +179,6 @@ html.dark .qr-logo-dark { display: block; }
 }
 
 .qr-bar-nav a:hover { background: var(--m3-surface-container-high); color: var(--m3-on-surface); }
-.qr-bar-lang { color: var(--m3-primary) !important; }
 
 .qr-bar-actions { display: flex; align-items: center; gap: 10px; }
 
@@ -188,6 +193,7 @@ html.dark .qr-logo-dark { display: block; }
   background: transparent;
   color: var(--m3-on-surface-variant);
   cursor: pointer;
+  text-decoration: none;
 }
 
 .qr-icon-button:hover { background: var(--m3-surface-container-high); color: var(--m3-on-surface); }

@@ -40,7 +40,11 @@ Das Fenster hat diese Bereiche:
   Ein beendeter Run kann weiterhin Prozesse besitzen: ein Task, der einen Server im Hintergrund
   startet und sich beendet, ist als Task fertig — der Server läuft weiter. So ein Run zeigt *still
   running* und behält ein **Stop**, das diese Prozesse beendet; genau dieser Fall war es, in dem
-  „stopped" gelogen hat. **Remove** nimmt einen beendeten Run aus der Liste und löscht nichts, der
+  „stopped" gelogen hat. **Run again** plant denselben Run
+  noch einmal: dasselbe Repository, derselbe Branch, dieselben Antworten auf Inputs, ohne dass man
+  etwas davon erneut eintippt. Wie bei jedem Run wartet er auf die Bestätigung des Plans, bevor
+  etwas startet; der beendete Run bleibt mit seinem Log stehen. **Remove** nimmt einen beendeten Run
+  aus der Liste und löscht nichts, der
   Checkout bleibt unter Workspaces; solange noch Prozesse leben, wird es abgelehnt, weil der Eintrag
   der letzte Griff an ihnen ist
 - **Config builder** — eine `quickrun.yml` schreiben, prüfen und testen, siehe [Config-Builder](/de/builder)

@@ -1573,6 +1573,37 @@ function renderPlan(run, panel = starter.plan) {
   });
 }
 
+/**
+ * A finished run, asked for again.
+ *
+ * The daemon still holds what this run was asked for, so nothing is rebuilt from what the card
+ * happens to show - a folder, a pull request, a config from the builder and the values that were
+ * typed into a form all come back as they were.
+ */
+async function repeatRun(run, button) {
+  button.disabled = true;
+  const doing = 'checking out and building the plan…';
+
+  say(doing);
+  preparing(doing, { repo: run.repo });
+
+  try {
+    renderPlan(await api(`/api/dashboard/runs/${run.id}/repeat`, { method: 'POST' }));
+    say('');
+  } catch (failure) {
+    if (failure.run?.state === 'awaitingInput') {
+      renderPlan(failure.run);
+      say('this repository asks for a few values first');
+    } else {
+      say(failure.message);
+      preparing(null, { why: failure.message });
+    }
+  } finally {
+    button.disabled = false;
+    refresh();
+  }
+}
+
 async function prepareRun({ fromCollection = false, config = null } = {}) {
   const target = starter.repo.value.trim();
   if (!target) { say('a repository or a folder is needed'); return; }
@@ -2105,6 +2136,15 @@ function renderActions(entry, run) {
     entry.actions.append(kill);
     return;
   }
+
+  // The same repository, the same branch, the same answers - without typing any of it again. It
+  // prepares and stops there: what starts a run is still the confirmation, as it is everywhere.
+  const again = document.createElement('button');
+  again.className = 'action';
+  again.textContent = 'Run again';
+  again.title = 'plans the same run once more; nothing starts until you confirm it';
+  again.addEventListener('click', () => repeatRun(run, again));
+  entry.actions.append(again);
 
   const forget = document.createElement('button');
   forget.className = 'action';

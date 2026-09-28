@@ -75,7 +75,7 @@ const t = computed(() => (de.value
                        project="fgilde/QuickRun" widget="contact" :inline.attr="''" theme="auto"
                        :language.attr="de ? 'de' : 'en'" :title.attr="t.contact"
                        width="560" radius="16" padding="26"
-                       show-logo="true" show-description="false" show-homepage="true"
+                       show-logo="true" show-description="false" show-homepage="false"
                        show-preview-notice="false" show-footer="false" />
         <p v-else class="m3-body qr-support-waiting">{{ t.loading }}</p>
       </section>
@@ -86,7 +86,7 @@ const t = computed(() => (de.value
                        project="fgilde/QuickRun" widget="support" :inline.attr="''" theme="auto"
                        :language.attr="de ? 'de' : 'en'" :title.attr="t.support"
                        width="560" radius="16" padding="26"
-                       show-logo="true" show-description="false" show-homepage="true"
+                       show-logo="true" show-description="false" show-homepage="false"
                        show-preview-notice="false" show-footer="false"
                        show-support-hint="false" support-layout="rows"
                        show-support-icons="true" show-support-qr="true" />

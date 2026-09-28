@@ -231,7 +231,7 @@ const t = computed(() => (de.value
                          project="fgilde/QuickRun" widget="contact" theme="auto" accent="#5a45d6"
                          :language.attr="de ? 'de' : 'en'" :title.attr="t.writeTitle"
                          width="560" radius="16" padding="26"
-                         show-logo="true" show-description="true" show-homepage="true"
+                         show-logo="true" show-description="true" show-homepage="false"
                          show-preview-notice="false" show-footer="true"
                          footer-brand="QuickRun" footer-tagline="gilde.org">{{ t.write }}</gilde-contact>
 

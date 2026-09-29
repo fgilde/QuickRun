@@ -368,6 +368,10 @@ async function inject() {
     const verdict = await send({ type: 'shouldShow', target: asTarget(target) });
     if (verdict && verdict.show === false) continue;
 
+    // Checked again after the wait: GitHub kept rendering meanwhile, and another inject() may have
+    // placed its button while this one was waiting for the verdict.
+    if (target.anchor.querySelector(`.${BUTTON_CLASS}`)) continue;
+
     const button = makeButton(target);
     setState(button, status.state === 'ready' ? 'ready' : status.state);
     if (status.state === 'not-installed') setLabel(button, 'Install QuickRun');

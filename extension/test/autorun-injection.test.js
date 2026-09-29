@@ -32,14 +32,14 @@ function element(tag) {
     appendChild(kid) { node.children.push(kid); return kid; },
     addEventListener() {},
     remove() {},
-    // A fresh anchor never already holds a button; that is what inject() checks for.
-    querySelector: () => null,
+    // Finds a button already placed, which is what inject() checks for.
+    querySelector: () => node.children.find((kid) => kid.className === 'quickrun-button') ?? null,
   };
   return node;
 }
 
 /** Runs content.js against one address and reports every message it sent. */
-function inject(search, { times = 1, path = '/acme/app' } = {}) {
+function inject(search, { times = 1, parallel = false, path = '/acme/app' } = {}) {
   const sent = [];
   const anchor = element('div');
 
@@ -96,8 +96,11 @@ function inject(search, { times = 1, path = '/acme/app' } = {}) {
   };
   vm.runInContext(source, sandbox);
 
+  sent.anchor = anchor;
+
   return (async () => {
-    for (let i = 0; i < times; i += 1) await sandbox.inject();
+    if (parallel) await Promise.all(Array.from({ length: times }, () => sandbox.inject()));
+    else for (let i = 0; i < times; i += 1) await sandbox.inject();
 
     // inject() does not await the autorun - it must not hold up the other buttons - so the run it
     // asks for arrives a few microtasks later. Settle until nothing new turns up.
@@ -202,4 +205,11 @@ test('a branch list does not run whichever branch happens to be first', async ()
   // mean "run whichever branch this list put at the top".
   const runs = runsOf(await inject('?executeQuickRun', { path: '/acme/app/branches' }));
   assert.equal(runs.length, 0);
+});
+
+test('overlapping injections place one button, not one each', async () => {
+  // GitHub keeps mutating while shouldShow waits on the daemon, so a second inject() starts before
+  // the first has placed its button. Both saw an empty toolbar and both appended.
+  const sent = await inject('', { times: 3, parallel: true });
+  assert.equal(sent.anchor.children.length, 1);
 });

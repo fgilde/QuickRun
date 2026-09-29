@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "QuickRun",
   "version": "0.1.0",
-  "description": "Run any git repository with one click, from the GitHub page you found it on.",
+  "description": "Run any git repository with one click, from the GitHub, GitLab, Bitbucket or Azure DevOps page you found it on.",
   "homepage_url": "https://quickrun.org",
   "icons": {
     "16": "icons/icon-16.png",
@@ -29,7 +29,11 @@
   "content_scripts": [
     {
       "matches": [
-        "https://github.com/*"
+        "https://github.com/*",
+        "https://gitlab.com/*",
+        "https://bitbucket.org/*",
+        "https://dev.azure.com/*",
+        "https://*.visualstudio.com/*"
       ],
       "js": [
         "targets.js",
@@ -43,20 +47,15 @@
     }
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "icons/icon-32.png"
-      ],
-      "matches": [
-        "https://github.com/*"
-      ]
-    }
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ]
 }

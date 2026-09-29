@@ -53,6 +53,9 @@ for target in ("chromium", "firefox", "safari"):
             }
         }
         # Firefox has no Private Network Access gate, so localhost needs no extra permission dance.
+        # optional_host_permissions arrived in Firefox 128; before it, origins asked for later go in
+        # optional_permissions, which every Firefox this build supports reads.
+        manifest["optional_permissions"] = manifest.pop("optional_host_permissions")
 
     if target == "safari":
         # Safari does not give an MV3 background service worker the cross-origin access that

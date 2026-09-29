@@ -49,6 +49,8 @@ function inject(search, { times = 1, parallel = false, path = '/acme/app' } = {}
     setTimeout: () => 0,          // schedule() must not run inject() behind the test's back
     clearTimeout: () => {},
     location: {
+      hostname: 'github.com',
+      origin: 'https://github.com',
       pathname: path,
       search,
       href: `https://github.com/acme/app${search}`,
@@ -77,6 +79,9 @@ function inject(search, { times = 1, parallel = false, path = '/acme/app' } = {}
           }
         },
       },
+      storage: {
+        local: { get: (defaults) => Promise.resolve(defaults) },
+      },
     },
   };
 
@@ -86,7 +91,7 @@ function inject(search, { times = 1, parallel = false, path = '/acme/app' } = {}
   // targets.js first, the way the manifest loads it; placement is stubbed so no page markup is
   // needed to find out where a button would go.
   vm.runInContext(targetsSource, sandbox);
-  sandbox.QuickRunPlacement = {
+  const place = {
     repoToolbar: () => anchor,
     pullRequestActions: () => anchor,
     branchRows: () => [
@@ -94,6 +99,7 @@ function inject(search, { times = 1, parallel = false, path = '/acme/app' } = {}
       { ref: 'second', anchor: element('div') },
     ],
   };
+  sandbox.QuickRunPlacement = { forType: () => place };
   vm.runInContext(source, sandbox);
 
   sent.anchor = anchor;

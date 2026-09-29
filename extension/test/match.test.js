@@ -9,7 +9,12 @@ test('a repository is the same however it was written down', () => {
   assert.ok(sameRepo('git@github.com:acme/app.git', 'ACME/App'));
   assert.ok(sameRepo('https://github.com/acme/app/', 'acme/app'));
 
+  assert.ok(sameRepo('https://acme@dev.azure.com/acme/web/_git/app', 'https://dev.azure.com/acme/web/_git/app'));
+  assert.ok(sameRepo('git@gitlab.com:acme/app.git', 'https://gitlab.com/acme/app'));
+
   assert.ok(!sameRepo('acme/app', 'acme/other'));
+  // The same path on another host is another repository.
+  assert.ok(!sameRepo('https://gitlab.com/acme/app', 'acme/app'));
   assert.ok(!sameRepo('', ''));
   assert.ok(!sameRepo(undefined, undefined));
 });
@@ -28,6 +33,9 @@ test('a pull request button matches the run of that pull request', () => {
   assert.ok(matchesTarget({ repo: 'acme/app', ref: 'pull/42/head' }, { repo: 'acme/app', pr: 42 }));
   assert.ok(matchesTarget({ repo: 'acme/app', ref: 'refs/pull/42/head' }, { repo: 'acme/app', pr: '42' }));
   assert.ok(!matchesTarget({ repo: 'acme/app', ref: 'pull/7/head' }, { repo: 'acme/app', pr: 42 }));
+
+  const gitlab = 'https://gitlab.com/acme/app';
+  assert.ok(matchesTarget({ repo: gitlab, ref: 'merge-requests/42/head' }, { repo: gitlab, pr: 42 }));
 });
 
 test('a finished run that left processes running is still worth acting on', () => {

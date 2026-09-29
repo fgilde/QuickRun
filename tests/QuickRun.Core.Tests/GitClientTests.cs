@@ -30,6 +30,20 @@ public class GitClientTests
     public void NormalizeRepoUrl_rejects_anything_else(string input)
         => Assert.Throws<ArgumentException>(() => GitClient.NormalizeRepoUrl(input));
 
+    [Theory]
+    [InlineData("https://github.com/acme/app", "pull/7/head")]
+    [InlineData("https://gitlab.com/acme/app", "merge-requests/7/head")]
+    [InlineData("https://dev.azure.com/acme/proj/_git/app", "pull/7/merge")]
+    [InlineData("https://acme.visualstudio.com/proj/_git/app", "pull/7/merge")]
+    [InlineData("git@ssh.dev.azure.com:v3/acme/proj/app", "pull/7/merge")]
+    public void PullRequestRefs_tries_the_host_form_first(string url, string expected)
+        => Assert.Equal(expected, GitClient.PullRequestRefs(url, 7)[0]);
+
+    [Fact]
+    public void PullRequestRefs_on_an_unknown_host_offers_every_form()
+        => Assert.Equal(new[] { "pull/7/head", "merge-requests/7/head", "pull/7/merge" },
+            GitClient.PullRequestRefs("https://git.example.org/acme/app", 7));
+
     [Fact]
     public void AuthUrl_injects_a_token_into_an_https_url()
         => Assert.Equal("https://ghp_x@github.com/acme/app",
@@ -238,6 +252,30 @@ public class GitClientTests
             Assert.NotEmpty(updates);
             Assert.All(updates, u => Assert.InRange(u.Percent, 0, 100));
             Assert.All(updates, u => Assert.False(string.IsNullOrWhiteSpace(u.Detail)));
+        }
+        finally { LocalRepo.DeleteTree(target); }
+    }
+
+    [Fact]
+    public void A_pull_request_is_found_under_whichever_ref_form_the_server_publishes()
+    {
+        // A GitLab server at an address that does not say GitLab: pull/7/head is tried first and
+        // is missing, merge-requests/7/head is where the commit actually is.
+        using var repo = new LocalRepo();
+        repo.Branch("feature");
+        repo.Write("feature.txt", "from the merge request");
+        repo.Commit("feature");
+        var head = repo.Head();
+        CommandRunner.Capture("git", new[] { "update-ref", "refs/merge-requests/7/head", head }, repo.Path);
+        repo.Checkout("main");
+
+        var target = TempDir();
+        try
+        {
+            var outcome = Client().CheckoutOrUpdate(repo.Url, "main", 7, target, false);
+
+            Assert.True(outcome.Ok, outcome.Error);
+            Assert.Equal(head, outcome.Commit);
         }
         finally { LocalRepo.DeleteTree(target); }
     }

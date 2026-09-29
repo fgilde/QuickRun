@@ -62,11 +62,42 @@ test('every manifest asks only for what the extension uses', () => {
     const manifest = read(`dist/${target}/manifest.json`);
 
     assert.equal(manifest.manifest_version, 3, target);
-    assert.deepEqual(manifest.permissions.sort(), ['storage'], target);
+    // scripting registers the content script on a self-hosted server once it has been granted.
+    assert.deepEqual(manifest.permissions.sort(), ['scripting', 'storage'], target);
 
     // Loopback only, by both names. A host permission for anything else would be a new review
     // question every release, and there is nothing else to talk to.
     assert.deepEqual(manifest.host_permissions.sort(),
       ['http://127.0.0.1/*', 'http://localhost/*'], target);
   }
+});
+
+test('every manifest puts the button on each supported host', () => {
+  const hosts = [
+    'https://github.com/*', 'https://gitlab.com/*', 'https://bitbucket.org/*',
+    'https://dev.azure.com/*', 'https://*.visualstudio.com/*',
+  ];
+
+  for (const target of TARGETS) {
+    const manifest = read(`dist/${target}/manifest.json`);
+
+    assert.deepEqual(manifest.content_scripts[0].matches, hosts, target);
+
+    // The icon travels as a data URL, so no page can probe for an extension file to learn that
+    // QuickRun is installed.
+    assert.equal(manifest.web_accessible_resources, undefined, target);
+  }
+});
+
+test('a self-hosted server is asked for when it is added, never at install', () => {
+  const later = ['https://*/*', 'http://*/*'];
+
+  for (const target of ['chromium', 'safari']) {
+    assert.deepEqual(read(`dist/${target}/manifest.json`).optional_host_permissions, later, target);
+  }
+
+  // Firefox before 128 reads origins asked for later only from optional_permissions.
+  const firefox = read('dist/firefox/manifest.json');
+  assert.deepEqual(firefox.optional_permissions, later);
+  assert.equal(firefox.optional_host_permissions, undefined);
 });

@@ -49,7 +49,15 @@ async function startWorker(session, calls, { windows }) {
       getURL: (path) => `chrome-extension://test/${path}`,
       sendMessage: async () => {},
     },
+    // Self-hosted servers: none added, so nothing is ever registered.
+    scripting: {
+      getRegisteredContentScripts: async () => [],
+      unregisterContentScripts: async () => {},
+      registerContentScripts: async () => {},
+    },
+    permissions: { contains: async () => false, onRemoved: { addListener: () => {} } },
     storage: {
+      onChanged: { addListener: () => {} },
       session,
       local: { get: async (defaults) => ({ ...defaults }) },
     },

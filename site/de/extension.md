@@ -3,6 +3,20 @@
 Die Erweiterung setzt einen Run-Button dorthin, wo du schon bist: neben das Branch-Dropdown auf der
 Repository-Seite, in den Header eines Pull Requests und in jede Zeile der Branch-Liste.
 
+Das tut sie auf github.com, gitlab.com, bitbucket.org und Azure DevOps (dev.azure.com und das ältere
+`<org>.visualstudio.com`).
+
+Ein eigenes GitLab oder einen eigenen Azure DevOps Server trägst du in den Optionen der Erweiterung
+ein: die Adresse und welches der beiden es ist. Der Browser fragt dann einmal, ob QuickRun auf dieser
+Adresse laufen darf, und auf keiner anderen. Deshalb wird nicht schon bei der Installation gefragt:
+eine Erweiterung, die auf jeder Seite laufen darf, zeigt allen "kann alle Daten auf allen Websites
+lesen und ändern", nur wegen der wenigen mit eigenem Server. Bitbucket Server geht noch nicht. Dort
+fügst du die Clone-URL direkt in QuickRun ein.
+
+Ein Pull Request auf Bitbucket Cloud hat keinen Ref, den git holen kann. Sein Button startet deshalb
+den Quell-Branch des Pull Requests, bei einem Fork aus diesem Fork. Auf den anderen Hosts startet der
+Button den Pull Request selbst.
+
 Ohne Erweiterung bleibt das [README-Badge](/de/badge): ein Link, den ein Repository-Besitzer in sein
 eigenes README setzt und der über eine https-Seite dasselbe lokale Fenster erreicht.
 

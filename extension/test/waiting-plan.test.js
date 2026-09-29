@@ -45,7 +45,15 @@ async function startWorker({ session, windows, local = {} }) {
       getURL: (path) => `chrome-extension://test/${path}`,
       sendMessage: async () => {},
     },
+    // Self-hosted servers: none added, so nothing is ever registered.
+    scripting: {
+      getRegisteredContentScripts: async () => [],
+      unregisterContentScripts: async () => {},
+      registerContentScripts: async () => {},
+    },
+    permissions: { contains: async () => false, onRemoved: { addListener: () => {} } },
     storage: {
+      onChanged: { addListener: () => {} },
       session,
       local: { get: async (defaults) => ({ ...defaults, ...local }) },
     },
@@ -88,7 +96,9 @@ function daemon(calls, { runId, state, probe }) {
   };
 }
 
-const respond = (payload) => ({ ok: true, status: 200, text: async () => JSON.stringify(payload) });
+const respond = (payload) => ({
+  ok: true, status: 200, text: async () => JSON.stringify(payload), arrayBuffer: async () => new ArrayBuffer(4),
+});
 
 async function withWorker(options, body) {
   const calls = [];

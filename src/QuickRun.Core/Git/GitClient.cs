@@ -77,6 +77,25 @@ public sealed class GitClient(
         };
     }
 
+    /// <summary>
+    /// Where a host publishes a pull request's commits, most likely first. GitLab calls them merge
+    /// requests, and Azure DevOps advertises only the merge result. A self-hosted server's name says
+    /// nothing about which of them it is, so every form is a candidate and the first that fetches
+    /// wins. Bitbucket Cloud publishes none at all; the extension runs its source branch instead.
+    /// </summary>
+    public static IReadOnlyList<string> PullRequestRefs(string repoUrl, int number)
+    {
+        var host = SafeHost(repoUrl).ToLowerInvariant();
+        var github = $"pull/{number}/head";
+        var gitlab = $"merge-requests/{number}/head";
+        var azure = $"pull/{number}/merge";
+
+        if (host == "gitlab.com") return new[] { gitlab, github, azure };
+        if (host is "dev.azure.com" or "ssh.dev.azure.com" || host.EndsWith(".visualstudio.com", StringComparison.Ordinal))
+            return new[] { azure, github, gitlab };
+        return new[] { github, gitlab, azure };
+    }
+
     public static string HostOf(string repoUrl)
     {
         if (SshPattern(repoUrl))
@@ -195,9 +214,13 @@ public sealed class GitClient(
                 var cloned = GitWithProgress(null, "clone", "--depth", "1", candidate, dir);
                 if (cloned.ExitCode != 0) { firstError ??= cloned.Output; continue; }
 
-                var spec = $"pull/{number}/head";
-                var fetched = GitWithProgress(dir, "fetch", "--depth", "1", "origin", spec);
-                if (fetched.ExitCode != 0) return new(false, Trim(fetched.Output), null);
+                CommandResult? fetched = null;
+                foreach (var spec in PullRequestRefs(url, number))
+                {
+                    fetched = GitWithProgress(dir, "fetch", "--depth", "1", "origin", spec);
+                    if (fetched.ExitCode == 0) break;
+                }
+                if (fetched!.ExitCode != 0) return new(false, Trim(fetched.Output), null);
 
                 var checkedOut = Git(dir, "checkout", "-q", "FETCH_HEAD");
                 return checkedOut.ExitCode == 0
@@ -219,7 +242,8 @@ public sealed class GitClient(
     /// </summary>
     private GitOutcome Update(string url, string @ref, int? pullRequest, string dir)
     {
-        var spec = pullRequest is { } number ? $"pull/{number}/head" : @ref;
+        // Only the likeliest form: a miss falls through to Clone, which tries every one.
+        var spec = pullRequest is { } number ? PullRequestRefs(url, number)[0] : @ref;
 
         var steps = new[]
         {

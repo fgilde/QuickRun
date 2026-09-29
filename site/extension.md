@@ -3,6 +3,19 @@
 The extension puts a Run button where you already are: next to the branch dropdown on a repository
 page, in a pull request header, and on every row of the branch list.
 
+It does that on github.com, gitlab.com, bitbucket.org and Azure DevOps (dev.azure.com and the older
+`<org>.visualstudio.com`).
+
+A GitLab or an Azure DevOps Server of your own can be added in the extension's options: its address
+and which of the two it is. The browser then asks once whether QuickRun may run on that address, and
+on no other. That is why it is not asked at install: an extension that may run on every site shows
+"read and change all your data on all websites", for everybody, for the sake of the few with a
+server. Bitbucket Server is not supported yet. For it, paste the clone URL into QuickRun directly.
+
+A Bitbucket Cloud pull request has no ref git can fetch, so its button runs the pull request's
+source branch, from the fork it came from if there is one. On the other hosts the button runs the
+pull request itself.
+
 Without the extension there is still the [README badge](/badge): a link a repository owner puts in
 their own README, which reaches the same local window through an https page.
 

@@ -1,4 +1,4 @@
-// Where the button goes on each kind of GitHub page.
+// Where the button goes on each kind of page, per host.
 //
 // GitHub's class names are hashed per deploy (OverviewContent-module__Box_3__wzlJx) and its pages
 // are rendered client-side, so nothing here anchors on styling. Every lookup is semantic - the
@@ -106,5 +106,106 @@ globalThis.QuickRunPlacement = (() => {
     return rows;
   }
 
-  return { commonRow, visible, firstVisible, repoToolbar, pullRequestActions, branchRows };
+  /** The path of a repository as its own links spell it: `/acme/app` out of any form of `repo`. */
+  function pathOf(repo) {
+    try {
+      return new URL(repo).pathname.replace(/\/+$/, '');
+    } catch {
+      return `/${repo}`;
+    }
+  }
+
+  /** One entry per row that links to a branch, placed right after that link. */
+  function rowsOf(links, refOf) {
+    const seen = new Set();
+    const rows = [];
+
+    for (const link of links) {
+      const row = link.closest('tr, li, [role="row"]');
+      if (!row || seen.has(row)) continue;
+
+      const ref = refOf(link);
+      if (!ref) continue;
+
+      seen.add(row);
+      rows.push({ ref, anchor: link.parentElement ?? row });
+    }
+
+    return rows;
+  }
+
+  const github = { repoToolbar, pullRequestActions, branchRows };
+
+  // gitlab.com and a self-hosted GitLab draw the same pages.
+  const gitlab = {
+    // Holds Find file and the Code dropdown on the project page and in the file view.
+    repoToolbar: () => document.querySelector('[data-testid="tree-controls-container"]'),
+    pullRequestActions: () => firstVisible(document, [
+      '.detail-page-header .js-issuable-actions',
+      '.detail-page-header',
+    ]),
+    branchRows: (repo) => rowsOf(
+      document.querySelectorAll(`[data-testid="branch-container"] a[href*="${pathOf(repo)}/-/tree/"]`),
+      (link) => QuickRunTargets.refFromTreeHref(link.getAttribute('href'), '/-/tree/'),
+    ),
+  };
+
+  const bitbucket = {
+    // The group beside the repository name: Pull requests, Clone, Repository actions.
+    repoToolbar: () =>
+      document.querySelector('[data-testid="repo-actions-menu--trigger"]')?.closest('[role="group"]')
+      ?? document.querySelector('[data-qa="page-header-wrapper"] [role="group"]'),
+    pullRequestActions: () =>
+      document.querySelector('[data-qa="pr-header-actions-drop-down-menu-styles"]')?.closest('[role="group"]')
+      ?? document.querySelector('[data-testid="pr-header"] [role="group"]'),
+    branchRows: (repo) => rowsOf(
+      document.querySelectorAll(`a[href*="${pathOf(repo)}/branch/"]`),
+      (link) => QuickRunTargets.refFromTreeHref(link.getAttribute('href'), '/branch/'),
+    ),
+  };
+
+  // Not checked against a live page: Azure DevOps shows nothing to a visitor who is not signed in.
+  // Azure DevOps Server draws the same pages, so these serve it too.
+  // The header command bar is the one container every Repos page shares.
+  const azure = {
+    repoToolbar: () => firstVisible(document, [
+      '.repos-files-header .bolt-header-commandbar',
+      '.bolt-header-commandbar',
+    ]),
+    pullRequestActions: () => firstVisible(document, [
+      '.repos-pr-header .bolt-header-commandbar',
+      '.bolt-header-commandbar',
+    ]),
+    branchRows: (repo) => rowsOf(
+      document.querySelectorAll(`a[href*="${pathOf(repo)}?"][href*="version=GB"]`),
+      (link) => QuickRunTargets.refFromVersion(new URL(link.href, location.href).search),
+    ),
+  };
+
+  /**
+   * Bitbucket Cloud publishes no ref for a pull request, so its button runs the source branch - of
+   * the fork it came from, when it came from one. The header names it as `owner/repo:branch`.
+   */
+  function bitbucketPullRequestSource(repo) {
+    const text = document.querySelector(
+      '[data-qa="pr-branches-and-state-styles"] [role="presentation"] span[aria-hidden="true"]',
+    )?.textContent?.trim();
+    if (!text) return null;
+
+    const colon = text.lastIndexOf(':');
+    if (colon === -1) return { repo, ref: text };
+
+    const ref = text.slice(colon + 1);
+    return ref ? { repo: `${new URL(repo).origin}/${text.slice(0, colon)}`, ref } : null;
+  }
+
+  /** The placements for a kind of site, as QuickRunTargets.typeOf or a self-hosted entry names it. */
+  function forType(type) {
+    return { gitlab, bitbucket, azure }[type] ?? github;
+  }
+
+  return {
+    commonRow, visible, firstVisible, repoToolbar, pullRequestActions, branchRows,
+    forType, bitbucketPullRequestSource,
+  };
 })();

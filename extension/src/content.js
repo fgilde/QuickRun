@@ -1,31 +1,44 @@
-// Injects the QuickRun button into GitHub.
+// Injects the QuickRun button into GitHub, GitLab, Bitbucket and Azure DevOps.
 //
-// GitHub is a Turbo-driven SPA, so injection hooks navigation events and a MutationObserver rather
-// than running once. Selectors are anchored on data-testid and ARIA labels where those exist, and
+// All four render client-side (GitHub through Turbo), so injection hooks navigation events and a
+// MutationObserver rather than running once. Selectors are anchored on data-testid and ARIA labels where those exist, and
 // every failure is silent: a missing button is acceptable, a broken GitHub page is not.
 
 const BUTTON_CLASS = 'quickrun-button';
 
-/** Where a button belongs, and what it should run. Path handling lives in targets.js. */
-function targets() {
-  const parsed = QuickRunTargets.parseLocation(location.pathname);
+/**
+ * Where a button belongs, and what it should run. Path handling lives in targets.js.
+ *
+ * @param custom the self-hosted server this page is on, if the person added it in the options
+ */
+function targets(custom) {
+  const parsed = QuickRunTargets.parseLocation(location.pathname, location.hostname, location.search, custom);
   if (!parsed) return [];
+
+  const type = custom?.type ?? QuickRunTargets.typeOf(location.hostname);
+  const place = QuickRunPlacement.forType(type);
 
   switch (parsed.kind) {
     case 'repo':
-      return withAnchor({ repo: parsed.repo, label: 'Run this' }, QuickRunPlacement.repoToolbar());
+      return withAnchor({ repo: parsed.repo, label: 'Run this' }, place.repoToolbar());
     case 'tree':
       return withAnchor(
         { repo: parsed.repo, ref: parsed.ref, label: 'Run this branch' },
-        QuickRunPlacement.repoToolbar(),
+        place.repoToolbar(),
       );
-    case 'pull':
-      return withAnchor(
-        { repo: parsed.repo, pr: parsed.pr, label: `Run PR #${parsed.pr}` },
-        QuickRunPlacement.pullRequestActions(),
-      );
+    case 'pull': {
+      const label = `Run PR #${parsed.pr}`;
+
+      // No ref to fetch a Bitbucket pull request by: its button runs the branch it came from.
+      if (type === 'bitbucket') {
+        const source = QuickRunPlacement.bitbucketPullRequestSource(parsed.repo);
+        return source ? withAnchor({ ...source, label }, place.pullRequestActions()) : [];
+      }
+
+      return withAnchor({ repo: parsed.repo, pr: parsed.pr, label }, place.pullRequestActions());
+    }
     case 'branches':
-      return QuickRunPlacement.branchRows(parsed.repo).map((row) => ({
+      return place.branchRows(parsed.repo).map((row) => ({
         repo: parsed.repo,
         ref: row.ref,
         anchor: row.anchor,
@@ -51,7 +64,7 @@ function makeButton(target) {
   const icon = document.createElement('img');
   icon.className = 'quickrun-icon';
   icon.alt = '';
-  icon.src = chrome.runtime.getURL('icons/icon-32.png');
+  icon.src = iconSource;
 
   const label = document.createElement('span');
   label.className = 'quickrun-label';
@@ -357,10 +370,20 @@ function send(message) {
   return chrome.runtime.sendMessage(message).catch((error) => ({ error: String(error) }));
 }
 
+/** The icon as a data URL, asked of the background once per page. See background.js, 'icon'. */
+let iconSource = '';
+
+/** The server this page is on, when it is one the person added rather than one of the four. */
+async function customHost() {
+  const { customHosts } = await chrome.storage.local.get({ customHosts: [] });
+  return customHosts.find((entry) => entry.origin === location.origin) ?? null;
+}
+
 async function inject() {
   const status = await send({ type: 'status' });
+  iconSource ||= (await send({ type: 'icon' }))?.icon ?? '';
 
-  for (const target of targets()) {
+  for (const target of targets(await customHost())) {
     if (!target.anchor || target.anchor.querySelector(`.${BUTTON_CLASS}`)) continue;
 
     // A setting decides whether this repository gets a button at all: every repository, only the

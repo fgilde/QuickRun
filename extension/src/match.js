@@ -2,21 +2,24 @@
 //
 // A page that was reloaded has forgotten the run it started, so the button asks the daemon "is this
 // branch running right now". Answering it means comparing what a run recorded - a URL, a .git
-// suffix, whatever case the user typed - against what a GitHub page knows about itself.
+// suffix, whatever case the user typed - against what a repository page knows about itself.
 
-/** owner/repo, however it was written down. */
+/** host/owner/repo, however it was written down. A bare owner/repo is GitHub's. */
 export function sameRepo(left, right) {
   return normalise(left) === normalise(right) && normalise(left).length > 0;
 }
 
 function normalise(repo) {
-  return String(repo ?? '')
+  const value = String(repo ?? '')
     .trim()
     .replace(/\.git$/i, '')
-    .replace(/^[a-z]+:\/\/[^/]+\//i, '')
-    .replace(/^git@[^:]+:/i, '')
+    .replace(/^[a-z]+:\/\/([^/@]+@)?/i, '')
+    .replace(/^git@([^:]+):/i, '$1/')
     .replace(/\/+$/, '')
     .toLowerCase();
+
+  if (!value) return '';
+  return value.split('/')[0].includes('.') ? value : `github.com/${value}`;
 }
 
 /**
@@ -32,8 +35,7 @@ export function matchesTarget(run, target) {
 
   if (target.pr) {
     const ref = String(run.ref ?? '');
-    return ref === `pull/${target.pr}/head`
-      || ref === `refs/pull/${target.pr}/head`
+    return new RegExp(`^(refs/)?(pull|merge-requests)/${Number(target.pr)}/(head|merge)$`).test(ref)
       || ref === String(target.pr);
   }
 

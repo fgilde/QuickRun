@@ -65,12 +65,30 @@
     disappearing without explanation.
   </p>
 
+  <h2>Self-hosted servers</h2>
+  <p class="muted">
+    The button appears on github.com, gitlab.com, bitbucket.org and Azure DevOps by itself. For a
+    GitLab or an Azure DevOps Server of your own, add its address here. Your browser asks once
+    whether QuickRun may run on it, and only on that one address.
+  </p>
+  <ul id="customHosts"></ul>
+  <p>
+    <input id="customOrigin" type="text" placeholder="git.example.org" style="width: 16rem" aria-label="Server address">
+    <select id="customType" aria-label="Kind of server">
+      <option value="gitlab">GitLab</option>
+      <option value="azure">Azure DevOps Server</option>
+    </select>
+    <button id="addCustom" type="button">Add</button>
+    <span id="customResult" class="muted"></span>
+  </p>
+
   <h2>Not installed?</h2>
   <p class="muted">
     QuickRun is a small tool that runs on your machine.
     <a href="https://quickrun.org/download" target="_blank" rel="noreferrer">Download it here.</a>
   </p>
 
+  <script src="targets.js"></script>
   <script src="options.js" type="module"></script>
 </body>
 </html>

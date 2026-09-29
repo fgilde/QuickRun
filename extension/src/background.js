@@ -63,6 +63,8 @@ async function handle(message, sender) {
       return activeRun(message.target);
     case 'shouldShow':
       return shouldShow(message.target);
+    case 'icon':
+      return { icon: await iconDataUrl() };
     case 'showLog':
       return showLog(message.runId, sender?.tab?.id);
     case 'reveal':
@@ -335,6 +337,75 @@ async function openWindow(run, page) {
  */
 // The promise is returned rather than dropped: the browser ignores it, a test can wait for it.
 chrome.windows.onRemoved.addListener((windowId) => windowClosed(windowId));
+
+/* ---- self-hosted servers ----------------------------------------------------------------------- */
+
+/**
+ * The button on servers the person added in the options.
+ *
+ * The four public hosts are in the manifest. A server of one's own cannot be: the browser only runs
+ * a content script where it was allowed to, and asking for every site at install time would put
+ * "read and change all your data on all websites" in front of everybody for the sake of a few. So
+ * each server is granted on its own, and its content script is registered here once it has been.
+ */
+const CUSTOM_SCRIPT = 'quickrun-custom-hosts';
+
+async function syncCustomHosts() {
+  const { customHosts } = await chrome.storage.local.get({ customHosts: [] });
+
+  const matches = [];
+  for (const { origin } of customHosts) {
+    const pattern = `${origin}/*`;
+    if (await chrome.permissions.contains({ origins: [pattern] })) matches.push(pattern);
+  }
+
+  const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [CUSTOM_SCRIPT] });
+  if (registered.length > 0) await chrome.scripting.unregisterContentScripts({ ids: [CUSTOM_SCRIPT] });
+  if (matches.length === 0) return;
+
+  // The same files the manifest injects on the public hosts, read from it so the two cannot drift.
+  const [declared] = chrome.runtime.getManifest().content_scripts;
+  await chrome.scripting.registerContentScripts([{
+    id: CUSTOM_SCRIPT,
+    matches,
+    js: declared.js,
+    css: declared.css,
+    runAt: declared.run_at,
+  }]);
+}
+
+function resyncCustomHosts() {
+  syncCustomHosts().catch((error) => console.warn('QuickRun: self-hosted servers', error));
+}
+
+// On every start of this worker, not only on install: a registration is cheap to redo, and an event
+// page in Firefox or Safari may not have kept it.
+resyncCustomHosts();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.customHosts) resyncCustomHosts();
+});
+// Access withdrawn from the browser's own settings rather than from ours.
+chrome.permissions.onRemoved.addListener(resyncCustomHosts);
+
+/**
+ * The button's icon as a data URL.
+ *
+ * A page can only load an extension file listed in web_accessible_resources for that page's site,
+ * and that list is fixed in the manifest - a server added later can never be on it. Handing the
+ * page the bytes needs no list, and it tells no site that QuickRun is installed.
+ */
+let icon = null;
+
+async function iconDataUrl() {
+  if (icon) return icon;
+
+  const bytes = new Uint8Array(await (await fetch(chrome.runtime.getURL('icons/icon-32.png'))).arrayBuffer());
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+
+  icon = `data:image/png;base64,${btoa(binary)}`;
+  return icon;
+}
 
 async function windowClosed(windowId) {
   const windows = await remembered(WINDOWS);

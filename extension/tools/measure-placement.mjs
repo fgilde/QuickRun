@@ -6,6 +6,9 @@
 //
 //   node tools/measure-placement.mjs https://github.com/microsoft/vscode/branches
 //   node tools/measure-placement.mjs https://github.com/microsoft/vscode/pull/1
+//   QUICKRUN_TYPE=gitlab node tools/measure-placement.mjs https://salsa.debian.org/debian/devscripts
+//
+// QUICKRUN_TYPE stands in for a self-hosted server added in the options: gitlab or azure.
 //
 // Needs Chrome and network access, so it is a hand-run tool rather than part of CI.
 
@@ -17,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const url = process.argv[2];
 if (!url) {
-  console.error('usage: node tools/measure-placement.mjs <github url>');
+  console.error('usage: node tools/measure-placement.mjs <repository page url>');
   process.exit(2);
 }
 
@@ -67,8 +70,10 @@ const fixture = rendered
 <script>${src('placement.js')}</script>
 <script>
 window.addEventListener('load', () => setTimeout(() => {
-  const P = globalThis.QuickRunPlacement;
-  const parsed = QuickRunTargets.parseLocation(${JSON.stringify(new URL(url).pathname)});
+  const custom = ${JSON.stringify(process.env.QUICKRUN_TYPE ? { type: process.env.QUICKRUN_TYPE, origin: new URL(url).origin } : null)};
+  const P = globalThis.QuickRunPlacement.forType(custom?.type ?? QuickRunTargets.typeOf(${JSON.stringify(new URL(url).hostname)}));
+  const parsed = QuickRunTargets.parseLocation(
+    ${JSON.stringify(new URL(url).pathname)}, ${JSON.stringify(new URL(url).hostname)}, ${JSON.stringify(new URL(url).search)}, custom);
 
   const describe = (el) => el ? {
     tag: el.tagName,
@@ -102,6 +107,7 @@ window.addEventListener('load', () => setTimeout(() => {
     result.widensTheTable = result.overflowAfter.some((a, i) => a > before[i] + 1);
   } else if (parsed?.kind === 'pull') {
     result.anchors = [describe(P.pullRequestActions())];
+    result.source = globalThis.QuickRunPlacement.bitbucketPullRequestSource(parsed.repo);
   } else {
     result.anchors = [describe(P.repoToolbar())];
   }

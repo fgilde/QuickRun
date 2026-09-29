@@ -30,7 +30,7 @@ function render(state) {
       // Both, and labelled: which is the extension and which is the application it reached.
       status.textContent = `extension ${MINE} · connected to QuickRun ${state.version}`;
       button('Open dashboard', 'primary', () => open(`http://127.0.0.1:${state.port ?? 9876}`));
-      say('Open any repository on GitHub and use the Run button.');
+      say('Open a repository on GitHub, GitLab, Bitbucket or Azure DevOps and use the Run button.');
       break;
 
     default:

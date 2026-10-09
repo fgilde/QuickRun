@@ -118,8 +118,11 @@ pre[data-log] .fatal { color: var(--danger); font-weight: 600; }
 pre[data-log] .error { color: var(--danger); }
 pre[data-log] .warn { color: var(--warn); }
 
-/* Contact and support: two buttons, each with its own dialog behind it. */
-.connect { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* Who made this, at the top of About. */
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.brand a { color: inherit; text-decoration: none; }
+.brand .name { font-size: 16px; font-weight: 700; }
+.brand .by { margin-left: auto; font-size: 12.5px; }
 
 /* The config behind a plan, read in place rather than hunted for on disk. */
 #configDialog, #problemDialog {
@@ -632,6 +635,11 @@ quickrun --help                every command and flag</pre>
   <section id="about" hidden>
     <h2>About</h2>
     <div class="card">
+      <div class="brand">
+        <a href="https://quickrun.org" target="_blank" rel="noreferrer"><img src="/icon.png" alt="" width="32" height="32"></a>
+        <a class="name" href="https://quickrun.org" target="_blank" rel="noreferrer">QuickRun</a>
+        <a class="by muted" href="https://www.gilde.org" target="_blank" rel="noreferrer">by gilde.org</a>
+      </div>
       <div class="row"><span class="grow">Version</span><span class="mono" id="aboutVersion"></span></div>
       <div class="row"><span class="grow">Installed as</span><span class="mono" id="aboutSource"></span></div>
       <div class="row"><span class="grow">Listening on</span><span class="mono">http://127.0.0.1:{{PORT}}</span></div>
@@ -648,42 +656,37 @@ quickrun --help                every command and flag</pre>
         outside any sandbox. Every run shows the exact commands first and waits for your
         confirmation.
       </p>
+      <!--
+        Contact and support are two links in this line. Each widget brings its own dialog, which is
+        where a form belongs in a window that is otherwise lists and logs.
+
+        Loaded when this tab is opened, never before - see connect() below. Everything else in this
+        window is served from the binary, and a program that reaches the internet the moment it
+        starts is not what QuickRun is.
+      -->
       <p class="muted">
         <a href="https://quickrun.org/security" target="_blank" rel="noreferrer">Security model</a> ·
-        <a href="https://github.com/fgilde/QuickRun" target="_blank" rel="noreferrer">Source</a>
+        <a href="https://github.com/fgilde/QuickRun" target="_blank" rel="noreferrer">Source</a><span id="connect" hidden> ·
+        <gilde-contact project="fgilde/QuickRun" widget="contact" language="en"
+                       title="Contact QuickRun"
+                       width="560" radius="12" padding="22"
+                       show-logo="true" show-description="true" show-homepage="true"
+                       show-preview-notice="false" show-footer="true"
+                       footer-brand="QuickRun" footer-tagline="gilde.org">Contact</gilde-contact> ·
+        <gilde-support project="fgilde/QuickRun" widget="support" language="en"
+                       title="Support QuickRun"
+                       width="560" radius="12" padding="22"
+                       show-logo="true" show-description="true" show-homepage="true"
+                       show-preview-notice="false" show-footer="true"
+                       footer-brand="QuickRun" footer-tagline="gilde.org"
+                       show-support-hint="false" support-layout="rows"
+                       show-support-icons="true" show-support-qr="true">Support</gilde-support></span>
+      </p>
+      <p class="muted" id="connectNote" hidden>
+        Contact and Support open a panel from connect.gilde.org, the only thing in this window that
+        is not served from your own machine. It loads when you open this tab, and never before.
       </p>
     </div>
-
-    <!--
-      Say something, or keep this going. Two buttons: each widget brings its own dialog, which is
-      where a form belongs in a window that is otherwise lists and logs.
-
-      Loaded when this tab is opened, never before - see connect() below. Everything else in this
-      window is served from the binary, and a program that reaches the internet the moment it starts
-      is not what QuickRun is.
-    -->
-    <div class="connect" id="connect" hidden>
-      <gilde-contact project="fgilde/QuickRun" widget="contact" language="en"
-                     title="Contact QuickRun"
-                     width="560" radius="12" padding="22"
-                     show-logo="true" show-description="true" show-homepage="true"
-                     show-preview-notice="false" show-footer="true"
-                     footer-brand="QuickRun" footer-tagline="gilde.org">Send a message</gilde-contact>
-
-      <gilde-support project="fgilde/QuickRun" widget="support" language="en"
-                     title="Support QuickRun"
-                     width="560" radius="12" padding="22"
-                     show-logo="true" show-description="true" show-homepage="true"
-                     show-preview-notice="false" show-footer="true"
-                     footer-brand="QuickRun" footer-tagline="gilde.org"
-                     show-support-hint="false" support-layout="rows"
-                     show-support-icons="true" show-support-qr="true">Support QuickRun</gilde-support>
-    </div>
-
-    <p class="muted" id="connectNote" hidden style="margin-top:12px">
-      Both buttons open a panel from connect.gilde.org, the only thing in this window that is not
-      served from your own machine. It loads when you open this tab, and never before.
-    </p>
   </section>
 </main>
 
@@ -2291,9 +2294,12 @@ function connect() {
     const script = document.createElement('script');
     script.type = 'module';
     script.src = 'https://connect.gilde.org/widgets/v1.js';
-    script.onload = () => done(true);
+    script.onload = () => {
+      asLinks();
+      done(true);
+    };
     script.onerror = () => {
-      // Without the script the buttons are two words in a row, so say what happened instead.
+      // Without the script the links are two words that do nothing, so say what happened instead.
       document.getElementById('connect').hidden = true;
       document.getElementById('connectNote').textContent =
         'Contact and support come from connect.gilde.org, which could not be reached just now.';
@@ -2303,6 +2309,27 @@ function connect() {
   });
 
   return connecting;
+}
+
+/**
+ * The widgets draw their trigger as a large accent button, which in a line of links shouts. Their
+ * shadow root is open, and an adopted sheet survives the widget redrawing its own children.
+ */
+async function asLinks() {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
+    :host { font-size: inherit; line-height: inherit; }
+    .surface > .primary {
+      all: unset; cursor: pointer; color: LinkText; text-decoration: underline;
+    }
+    .surface > .primary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  `);
+
+  for (const name of ['gilde-contact', 'gilde-support']) {
+    await customElements.whenDefined(name);
+    const root = document.querySelector(name)?.shadowRoot;
+    if (root) root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+  }
 }
 
 /* ---- settings ----------------------------------------------------------------------------- */

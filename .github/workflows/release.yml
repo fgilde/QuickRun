@@ -516,6 +516,8 @@ jobs:
         shell: pwsh
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          # Where wingetcreate looks for it by itself; --token would put it on the command line.
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
           if (-not $env:WINGET_TOKEN) {
             Write-Host "::warning::WINGET_TOKEN not set - this release was not submitted to winget"
@@ -543,7 +545,13 @@ jobs:
           ./wingetcreate.exe update fgilde.QuickRun `
             --version $version `
             --urls "$base/quickrun-win-x64.zip|x64" "$base/quickrun-win-arm64.zip|arm64" `
-            --token $env:WINGET_TOKEN `
             --submit
+
+          # pwsh does not stop on a native command's exit code, so a refused submission would
+          # otherwise still announce itself as submitted - and continue-on-error paints it green.
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::warning::winget refused QuickRun $version - see wingetcreate's output above"
+            exit 1
+          }
 
           Write-Host "::notice::QuickRun $version is submitted to winget - it lands when the pull request is merged"

@@ -75,6 +75,11 @@ winget catalogue. Run `wingetcreate new` once with the release URLs, or open the
 hand. Every submission is merged by a Microsoft moderator, which takes one to seven days - winget
 therefore lags a release rather than tracking it.
 
+**If a submission says the fork could not be synced:** `wingetcreate` keeps a fork of
+`microsoft/winget-pkgs` under your account and syncs it before each pull request. A fork that has
+fallen tens of thousands of commits behind does not sync through the API. Fast-forward it once with
+`gh repo sync <you>/winget-pkgs --branch master` and run the winget job again.
+
 ## Chrome Web Store
 
 Register once at the [developer dashboard](https://chrome.google.com/webstore/devconsole)

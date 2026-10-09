@@ -63,8 +63,6 @@ async function handle(message, sender) {
       return activeRun(message.target);
     case 'shouldShow':
       return shouldShow(message.target);
-    case 'icon':
-      return { icon: await iconDataUrl() };
     case 'showLog':
       return showLog(message.runId, sender?.tab?.id);
     case 'reveal':
@@ -387,25 +385,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // Access withdrawn from the browser's own settings rather than from ours.
 chrome.permissions.onRemoved.addListener(resyncCustomHosts);
 
-/**
- * The button's icon as a data URL.
- *
- * A page can only load an extension file listed in web_accessible_resources for that page's site,
- * and that list is fixed in the manifest - a server added later can never be on it. Handing the
- * page the bytes needs no list, and it tells no site that QuickRun is installed.
- */
-let icon = null;
-
-async function iconDataUrl() {
-  if (icon) return icon;
-
-  const bytes = new Uint8Array(await (await fetch(chrome.runtime.getURL('icons/icon-32.png'))).arrayBuffer());
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-
-  icon = `data:image/png;base64,${btoa(binary)}`;
-  return icon;
-}
 
 async function windowClosed(windowId) {
   const windows = await remembered(WINDOWS);

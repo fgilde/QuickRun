@@ -64,7 +64,7 @@ function makeButton(target) {
   const icon = document.createElement('img');
   icon.className = 'quickrun-icon';
   icon.alt = '';
-  icon.src = iconSource;
+  icon.src = ICON;
 
   const label = document.createElement('span');
   label.className = 'quickrun-label';
@@ -370,8 +370,13 @@ function send(message) {
   return chrome.runtime.sendMessage(message).catch((error) => ({ error: String(error) }));
 }
 
-/** The icon as a data URL, asked of the background once per page. See background.js, 'icon'. */
-let iconSource = '';
+/**
+ * icons/icon-32.png, inline. A page may only load an extension file listed in
+ * web_accessible_resources for its site, and that list cannot name a server added later. Asking the
+ * background for the bytes left Firefox buttons without an icon; a constant cannot fail.
+ * test/icon.test.js keeps it equal to the file.
+ */
+const ICON = 'data:image/png;base64,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';
 
 /** The server this page is on, when it is one the person added rather than one of the four. */
 async function customHost() {
@@ -381,7 +386,6 @@ async function customHost() {
 
 async function inject() {
   const status = await send({ type: 'status' });
-  iconSource ||= (await send({ type: 'icon' }))?.icon ?? '';
 
   for (const target of targets(await customHost())) {
     if (!target.anchor || target.anchor.querySelector(`.${BUTTON_CLASS}`)) continue;

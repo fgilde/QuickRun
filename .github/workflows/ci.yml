@@ -21,6 +21,23 @@ jobs:
       - run: dotnet build --no-restore
       - run: dotnet test --no-build --verbosity normal
 
+      # Changed configs only, against the build above: a typo in a config is found in seconds, and a
+      # push that touches no config costs nothing. Running them is configs-smoke.yml's job.
+      - name: Changed configs are valid
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          node --test scripts/config-status.test.mjs
+          git fetch --quiet --depth=1 origin "$BASE" 2>/dev/null || true
+          changed=$(git diff --name-only --diff-filter=AM "$BASE" HEAD -- 'configs/*.yml' 2>/dev/null) \
+            || changed=$(git ls-files 'configs/*.yml')
+          if [ -z "$changed" ]; then echo "no config changed"; exit 0; fi
+          for file in $changed; do
+            dotnet run --project src/QuickRun.App --no-build -- validate "$file"
+          done
+
       - name: Site builds and carries no page-wide styles
         if: matrix.os == 'ubuntu-latest'
         shell: bash

@@ -1,0 +1,169 @@
+name: configs-smoke
+
+# Runs configs for real, so the collection does not rot: setup, every task ready, stop.
+#
+# Deliberately not "all of them, all the time". A pull request runs the configs it changes, the
+# weekly run takes the ten that were tested longest ago (configs/CI-SKIP stays out), and anything
+# else is a click on Run workflow. One job a week reaches every config in about four months.
+#
+# The result of each config is kept in status.json on the `status` branch, never as a commit on
+# main. A config that fails gets one issue labelled config-broken, closed again once it passes.
+
+on:
+  pull_request:
+    paths: ['configs/**/*.yml']
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      configs:
+        description: 'Paths under configs/, space-separated (e.g. CorentinTh/it-tools.yml). Empty: the ten due next.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: configs-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pick:
+    runs-on: ubuntu-latest
+    outputs:
+      configs: ${{ steps.pick.outputs.configs }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        shell: bash
+        env:
+          REQUESTED: ${{ github.event.inputs.configs }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE" ]; then
+            list=$(git diff --name-only --diff-filter=AM "$BASE" HEAD -- 'configs/*.yml' | sed 's|^configs/||')
+          elif [ -n "$REQUESTED" ]; then
+            list=$(printf '%s\n' $REQUESTED)
+          else
+            git show origin/status:status.json > status.json 2>/dev/null || echo '{}' > status.json
+            list=$(node scripts/config-status.mjs pick --status status.json --count 10 | node -e "for (const c of JSON.parse(require('fs').readFileSync(0,'utf8'))) console.log(c)")
+          fi
+          json=$(printf '%s\n' $list | node -e "console.log(JSON.stringify(require('fs').readFileSync(0,'utf8').split('\n').filter(Boolean)))")
+          echo "configs=$json" >> "$GITHUB_OUTPUT"
+          echo "picked: $json"
+
+      # Built once and handed to every smoke job, rather than built ten times.
+      - if: steps.pick.outputs.configs != '[]'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - if: steps.pick.outputs.configs != '[]'
+        run: dotnet publish src/QuickRun.App -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o out
+      - if: steps.pick.outputs.configs != '[]'
+        uses: actions/upload-artifact@v7
+        with:
+          name: quickrun
+          path: out/quickrun
+          retention-days: 1
+
+  smoke:
+    needs: pick
+    if: needs.pick.outputs.configs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        config: ${{ fromJson(needs.pick.outputs.configs) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: quickrun
+      - name: Smoke
+        shell: bash
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          chmod +x quickrun
+          set +e
+          ./quickrun run -f "configs/$CONFIG" --smoke --timeout 25 2>&1 | tee smoke.log
+          code=${PIPESTATUS[0]}
+          set -e
+          commit=$(grep -o 'smoke: passed at [0-9a-f]*' smoke.log | awk '{print $NF}')
+          error=$(grep 'smoke: ' smoke.log | tail -1 | sed 's/.*smoke: //')
+          mkdir -p result
+          CODE=$code COMMIT=$commit ERROR="$error" node -e "
+            const fs = require('fs');
+            fs.writeFileSync('result/result.json', JSON.stringify({
+              config: process.env.CONFIG, ok: process.env.CODE === '0', date: new Date().toISOString(),
+              commit: process.env.COMMIT || null, error: process.env.ERROR || null }));"
+          tail -n 60 smoke.log > result/log-tail.txt
+          exit $code
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: result-${{ strategy.job-index }}
+          path: result/
+          retention-days: 7
+
+  # A pull request reports through its checks. Only the weekly and the hand-started runs record a
+  # status and file issues - a half-finished pull request is not a verdict on the config.
+  report:
+    needs: [pick, smoke]
+    if: always() && needs.pick.outputs.configs != '[]' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: result-*
+          path: results
+
+      - name: Record on the status branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin status || true
+          git show origin/status:status.json > status.json 2>/dev/null || echo '{}' > status.json
+          node scripts/config-status.mjs record --status status.json --results results
+          cp status.json "$RUNNER_TEMP/status.json"
+          if git rev-parse --verify --quiet origin/status >/dev/null; then
+            git checkout --quiet -B status origin/status
+          else
+            git checkout --quiet --orphan status
+            git rm -rf --quiet .
+          fi
+          cp "$RUNNER_TEMP/status.json" status.json
+          git add status.json
+          git commit --quiet -m "status: ${{ github.event_name }} run ${{ github.run_id }}" || exit 0
+          git push --quiet origin status
+
+      - name: One issue per broken config
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create config-broken --color B60205 --description 'A config in configs/ that no longer starts' 2>/dev/null || true
+          for dir in results/*/; do
+            [ -f "$dir/result.json" ] || continue
+            config=$(node -p "require('./$dir/result.json').config")
+            ok=$(node -p "require('./$dir/result.json').ok")
+            title="Config broken: $config"
+            existing=$(gh issue list --label config-broken --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+            if [ "$ok" = "true" ]; then
+              [ -n "$existing" ] && gh issue close "$existing" --comment "Passes again: $RUN"
+            else
+              body=$(printf 'The smoke run of `configs/%s` failed.\n\nRun: %s\n\n```\n%s\n```\n' "$config" "$RUN" "$(cat "$dir/log-tail.txt")")
+              if [ -n "$existing" ]; then gh issue comment "$existing" --body "$body"
+              else gh issue create --title "$title" --label config-broken --body "$body"; fi
+            fi
+          done

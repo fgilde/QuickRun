@@ -1,0 +1,11 @@
+# Configs the scheduled smoke run leaves out, one path under configs/ per line. They still run when
+# named by hand: Actions -> configs-smoke -> Run workflow.
+#
+# Twenty-five containers, more than a hosted runner's disk takes in one go.
+fluxerapp/fluxer.yml
+# Built for a GPU, which hosted runners do not have; on CPU they start too slowly to judge, or not at all.
+Comfy-Org/ComfyUI.yml
+ace-step/ACE-Step.yml
+fgilde/Maestro.yml
+fgilde/MuseForge.yml
+vladmandic/automatic.yml

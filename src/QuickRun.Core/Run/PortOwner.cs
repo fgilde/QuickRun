@@ -113,6 +113,27 @@ public static class PortOwner
         return int.TryParse(address[(colon + 1)..], out var found) && found == port;
     }
 
+    private static readonly string[] ContainerRuntimes =
+    {
+        "com.docker.backend", "com.docker.vpnkit", "vpnkit", "vpnkit-bridge", "wslrelay",
+        "docker-proxy", "dockerd", "docker desktop", "rootlessport", "gvproxy", "podman",
+        "containerd", "limactl", "colima", "orbstack", "rancher-desktop",
+    };
+
+    /// <summary>Whether a process name belongs to Docker, Podman or another container runtime.</summary>
+    public static bool IsContainerRuntime(string processName)
+    {
+        var name = processName.Trim().ToLowerInvariant();
+        if (name.EndsWith(".exe", StringComparison.Ordinal)) name = name[..^4];
+        return ContainerRuntimes.Any(runtime => name == runtime || name.StartsWith(runtime + "-", StringComparison.Ordinal));
+    }
+
+    private static string? NameOf(int pid)
+    {
+        try { return System.Diagnostics.Process.GetProcessById(pid).ProcessName; }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException) { return null; }
+    }
+
     private static IEnumerable<string> Lines(string? output) =>
         (output ?? "").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
 
@@ -120,7 +141,8 @@ public static class PortOwner
     /// Ends the process listening on a port, and everything it started. Returns what it did, for a
     /// log line - a stop that killed something has to say so.
     /// </summary>
-    public static string? Reclaim(int port, Func<int, int?>? owner = null, Action<int>? kill = null)
+    public static string? Reclaim(int port, Func<int, int?>? owner = null, Action<int>? kill = null,
+        Func<int, string?>? nameOf = null)
     {
         owner ??= p => ListeningPid(p);
         var pid = owner(port);
@@ -130,6 +152,13 @@ public static class PortOwner
         // Never this process. A daemon that killed itself while stopping a run would be a
         // spectacular way to fix a leftover.
         if (pid == Environment.ProcessId) return null;
+
+        // A published container port is held by the runtime's port forwarder, not by the container,
+        // and for a moment after the container is gone it still is. That process forwards every
+        // other container's ports too: killing it to finish one run broke all the others.
+        var name = (nameOf ?? NameOf)(pid.Value);
+        if (name is not null && IsContainerRuntime(name))
+            return $"port {port} is still held by {name}, the container runtime - left alone";
 
         try
         {

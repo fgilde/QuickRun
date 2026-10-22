@@ -112,12 +112,38 @@ public class PortOwnerTests
     {
         var killed = new List<int>();
 
-        var what = PortOwner.Reclaim(3001, owner: _ => 24680, kill: killed.Add);
+        var what = PortOwner.Reclaim(3001, owner: _ => 24680, kill: killed.Add, nameOf: _ => "node");
 
         Assert.Equal(new[] { 24680 }, killed);
         Assert.Contains("3001", what);
         Assert.Contains("24680", what);
     }
+
+    [Theory]
+    [InlineData("com.docker.backend")]
+    [InlineData("com.docker.backend.exe")]
+    [InlineData("wslrelay")]
+    [InlineData("docker-proxy")]
+    [InlineData("vpnkit-bridge")]
+    [InlineData("gvproxy")]
+    public void A_container_runtime_holding_the_port_is_left_alone(string name)
+    {
+        // A smoke run of a config publishing -p 80:80 killed whatever held port 80 after
+        // docker rm -f: Docker Desktop's forwarder, which carries every other container's ports.
+        var killed = new List<int>();
+
+        var what = PortOwner.Reclaim(80, owner: _ => 24680, kill: killed.Add, nameOf: _ => name);
+
+        Assert.Empty(killed);
+        Assert.Contains("left alone", what);
+    }
+
+    [Theory]
+    [InlineData("node")]
+    [InlineData("dotnet")]
+    [InlineData("docker-compose-helper-of-my-own")]
+    public void An_ordinary_process_is_not_mistaken_for_a_runtime(string name)
+        => Assert.False(PortOwner.IsContainerRuntime(name));
 
     /// <summary>
     /// The whole point, against the real operating system: a listener this test opens is found by

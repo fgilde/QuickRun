@@ -19,3 +19,18 @@ public class ConsoleAttachTests
     public void A_console_of_its_own_gets_the_question(bool answer)
         => Assert.Equal(answer, ConsoleAttach.Confirm("Run these commands?", borrowed: false, () => answer));
 }
+
+public class OpensWindowTests
+{
+    [Theory]
+    [InlineData(new string[0], true)]
+    [InlineData(new[] { "ui" }, true)]
+    [InlineData(new[] { "--port", "9999" }, true)]
+    [InlineData(new[] { "--help" }, false)]
+    [InlineData(new[] { "--version" }, false)]
+    [InlineData(new[] { "run", "acme/app" }, false)]
+    [InlineData(new[] { "update" }, false)]
+    [InlineData(new[] { "ui", "--help" }, false)]
+    public void Only_the_window_leaves_the_terminal_alone(string[] args, bool window)
+        => Assert.Equal(window, Program.OpensWindow(args));
+}

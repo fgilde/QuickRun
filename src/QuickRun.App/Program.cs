@@ -16,8 +16,10 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        // Before anything writes: bind to the parent console if this was started from a terminal.
-        ConsoleAttach.TryAttach();
+        // Before anything writes: bind to the parent console if this was started from a terminal -
+        // except for the window. A process on the terminal's console is ended with it, so "quickrun"
+        // typed into cmd took the window and the tray down the moment that terminal was closed.
+        if (!OpensWindow(args)) ConsoleAttach.TryAttach();
 
         // And before anything can throw. An exception on the interface thread ends the process from
         // inside the UI framework, where there is no frame of ours to catch it - so the only way to
@@ -39,15 +41,7 @@ internal static class Program
     private static int Execute(string[] args)
     {
 
-        // Double-clicking the binary must do something useful. Printing CLI help into a console window
-        // that closes again is the worst possible front door, so no command means: start the daemon, put
-        // an icon in the tray and open the dashboard.
-        //
-        // Options without a command take the same path - "quickrun --port 9999" is plainly a request to
-        // start, not a usage error.
-        string[] globalFlags = ["-h", "--help", "-v", "--version"];
-        if (args.Length == 0 || (args[0].StartsWith('-') && !globalFlags.Contains(args[0], StringComparer.Ordinal)))
-            args = ["ui", .. args];
+        if (OpensWindow(args) && (args.Length == 0 || args[0] != "ui")) args = ["ui", .. args];
 
         var app = Build();
 
@@ -60,6 +54,25 @@ internal static class Program
             Output.Error(e.Message);
             return 2;
         }
+    }
+
+    /// <summary>
+    /// Whether these arguments start the window rather than a command.
+    /// <para>
+    /// Double-clicking the binary must do something useful. Printing CLI help into a console window
+    /// that closes again is the worst possible front door, so no command means: start the daemon,
+    /// put an icon in the tray and open the dashboard. Options without a command take the same path -
+    /// "quickrun --port 9999" is plainly a request to start, not a usage error.
+    /// </para>
+    /// </summary>
+    internal static bool OpensWindow(string[] args)
+    {
+        string[] globalFlags = ["-h", "--help", "-v", "--version"];
+        if (args.Any(a => a is "-h" or "--help")) return false;
+
+        return args.Length == 0
+            || args[0] == "ui"
+            || (args[0].StartsWith('-') && !globalFlags.Contains(args[0], StringComparer.Ordinal));
     }
 
     /// <summary>

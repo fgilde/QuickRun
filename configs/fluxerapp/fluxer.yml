@@ -62,7 +62,7 @@ setup:
 tasks:
   - name: fluxer
     cwd: deploy/self-hosting
-    run: docker compose --env-file .env up
+    run: docker compose up
     # The application, not the front door. Caddy answers /_health itself the moment it starts, while
     # everything behind it is still coming up - measured here, that was a good minute of 502s. The
     # root answers 502 until the app proxy is there, and readiness counts 5xx as not ready, so this
@@ -74,5 +74,5 @@ stop:
   # down -v, not down: twenty-five containers and their volumes, or a "try it" run leaves several
   # gigabytes of database behind on the machine.
   - cwd: deploy/self-hosting
-    run: docker compose --env-file .env down -v
+    run: docker compose down -v
     continueOnError: true

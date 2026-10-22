@@ -44,11 +44,11 @@ setup:
 
 tasks:
   - name: openterminalui
-    run: docker compose --env-file .env up --build
+    run: docker compose up --build
     # The image's own healthcheck uses /health, so that is what counts as ready.
     readyWhen: {http: 'http://localhost:${inputs.port}/health'}
     open: http://localhost:${inputs.port}
 
 stop:
-  - run: docker compose --env-file .env down -v
+  - run: docker compose down -v
     continueOnError: true

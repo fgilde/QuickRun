@@ -351,7 +351,7 @@ const configLink = (entry) => withBase('/' + entry.config);
 .qr-collection-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
 
 .qr-collection-head { display: flex; align-items: center; gap: 12px; }
-.qr-collection-head img { border-radius: 8px; flex: none; }
+.qr-collection-head img { border-radius: 8px; flex: none; object-fit: contain; }
 .qr-collection-name { display: grid; min-width: 0; }
 .qr-collection-repo { font-size: 12px; opacity: 0.75; overflow-wrap: anywhere; }
 
@@ -416,7 +416,7 @@ const configLink = (entry) => withBase('/' + entry.config);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 .qr-modal-head { display: flex; align-items: center; gap: 12px; }
-.qr-modal-head img { border-radius: 8px; flex: none; }
+.qr-modal-head img { border-radius: 8px; flex: none; object-fit: contain; }
 .qr-modal-name { display: grid; flex: 1; min-width: 0; }
 .qr-modal-repo { font-size: 12px; opacity: 0.7; overflow-wrap: anywhere; }
 .qr-modal-note { margin: 0; font-size: 12.5px; opacity: 0.7; }

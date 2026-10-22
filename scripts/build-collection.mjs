@@ -305,9 +305,55 @@ writeFileSync(listing, written.sort().join('\n') + '\n');
 // An index, so the site can show the collection without reading a hundred and sixty files. Written
 // in the same pass, so it cannot describe something that is not there.
 //
-// The icon is the owner's GitHub avatar rather than the catalogue's artwork: that artwork belongs to
-// the projects, and copying it into this repository is not ours to do. An avatar is public, usually
-// is the project's own mark, and costs this repository nothing.
+// The icon is the application's own mark, linked where it already lives rather than copied in. In
+// order: the catalogue's square icon, the catalogue's logo, the dashboard-icons set the catalogue
+// keys its icons by, and only then the owner's GitHub avatar. The avatar alone was the old rule, and
+// for every repository owned by a person rather than an organisation it showed that person's face.
+const catalog = dirname(dirname(presetsPath));
+const CATALOG_RAW = 'https://raw.githubusercontent.com/fgilde/AspireUI/master/src/AspireUI.Server/catalog';
+const DASHBOARD_ICONS = 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png';
+
+const avatar = (owner) => `https://github.com/${owner}.png?size=80`;
+
+/** A catalogue media file that is really there, as the URL it is published under. */
+function media(path) {
+  if (!/^\/media\/[A-Za-z0-9._/-]+$/.test(path ?? '') || path.includes('..')) return null;
+  return existsSync(join(catalog, path)) ? CATALOG_RAW + path : null;
+}
+
+/** The first file in the app's media folder called `name`, whatever its extension. */
+function mediaNamed(id, name) {
+  if (!/^[A-Za-z0-9._-]+$/.test(id ?? '')) return null;
+  const folder = join(catalog, 'media', id);
+  if (!existsSync(folder)) return null;
+
+  const file = readdirSync(folder).find((f) => f.startsWith(`${name}.`));
+  return file ? media(`/media/${id}/${file}`) : null;
+}
+
+async function reachable(url) {
+  try {
+    return (await fetch(url, { method: 'HEAD' })).ok;
+  } catch {
+    return false;
+  }
+}
+
+async function iconFor(app, owner) {
+  const local = mediaNamed(app?.id, 'icon')
+    ?? media(app?.logo)
+    ?? (/^https:\/\//.test(app?.logo ?? '') ? app.logo : null)
+    ?? mediaNamed(app?.id, 'logo');
+  if (local) return local;
+
+  if (/^[a-z0-9-]+$/.test(app?.icon ?? '')) {
+    const slug = `${DASHBOARD_ICONS}/${app.icon}.png`;
+    if (await reachable(slug)) return slug;
+  }
+
+  return avatar(owner);
+}
+
 // Which of these repositories have since committed a quickrun.yml of their own.
 //
 // Asked here rather than in the browser: the page would need one request per card, and a hundred and
@@ -399,6 +445,7 @@ function describe(text) {
     name: scalar('name'),
     description: block('description') ?? scalar('description'),
     docs: scalar('docs'),
+    icon: scalar('icon'),
   };
 }
 
@@ -416,7 +463,10 @@ const extra = handWritten(outDir, written).map((relative) => {
     // A hand-written config often asks for its port rather than fixing one, and a number the card
     // states has to be one the run will actually use.
     port: null,
-    icon: `https://github.com/${owner}.png?size=80`,
+    // The config's own icon: a URL, or a path in the repository it starts.
+    icon: !read.icon ? avatar(owner)
+      : /^https:\/\//.test(read.icon) ? read.icon
+      : `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${read.icon.replace(/^\.?\//, '')}`,
     config: `configs/${relative}`,
   };
 });
@@ -433,7 +483,7 @@ for (const [repo, has] of flags) if (has) own.add(repo);
 
 console.log(`  ${own.size} of ${repos.length} ship their own config`);
 
-const index = written.map((relative) => {
+const index = (await inBatches(written, 8, async (relative) => {
   const [owner, file] = relative.split('/');
   const repo = file.replace(/\.yml$/, '');
 
@@ -448,13 +498,13 @@ const index = written.map((relative) => {
     description: String(app?.description ?? '').replace(/\s+/g, ' ').trim(),
     docs: app?.website ?? `https://github.com/${owner}/${repo}`,
     port: app?.port ?? null,
-    icon: `https://github.com/${owner}.png?size=80`,
+    icon: await iconFor(app, owner),
     config: `configs/${relative}`,
     // True when the repository has a quickrun.yml of its own, so the card can offer both: this
     // config, or the one the repository ships.
     shipsOwn: own.has(`${owner}/${repo}`),
   };
-}).concat(extra.map((e) => ({
+})).concat(extra.map((e) => ({
   repo: e.repo,
   name: e.name,
   description: e.description,

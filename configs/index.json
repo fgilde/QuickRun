@@ -1220,6 +1220,16 @@
     "shipsOwn": false
   },
   {
+    "repo": "Hitheshkaranth/OpenTerminalUI",
+    "name": "OpenTerminalUI",
+    "description": "A self-hosted trading terminal: market data, charting, screening, backtesting, alerts and an AI research agent. Builds the project's own image and starts it with Redis via docker compose. All API keys are optional - without them it runs on free and fallback data sources. The first run builds the image and takes a few minutes. Redis is published on port 6379, so a Redis already running there has to stop first. An admin account is generated and printed in the log; stopping the run removes the containers and their volume, so nothing is left behind.",
+    "docs": "https://github.com/Hitheshkaranth/OpenTerminalUI#-quick-start",
+    "port": null,
+    "icon": "https://raw.githubusercontent.com/Hitheshkaranth/OpenTerminalUI/HEAD/frontend/public/icon-192.png",
+    "config": "configs/Hitheshkaranth/OpenTerminalUI.yml",
+    "shipsOwn": false
+  },
+  {
     "repo": "outline/outline",
     "name": "Outline",
     "description": "# Hosting Outline ... This guide contains documentation for installing and configuring the Outline knowledge base in a variety of environments. There is a separate guide that on how to use Outline for general documentation of Outline's features. ... While we've done our best to make this as easy as possible, however please note that Outline is engineered as a horizontally scalable cloud platform and requires…",

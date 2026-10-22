@@ -1,0 +1,54 @@
+# Hand-written, and it wins over the catalogue on purpose: scripts/build-collection.mjs skips any
+# config it did not write.
+#
+# Suggested on r/devtools. The project's own install.sh does three things before compose: copies
+# .env.example to .env, fills in two signing secrets and an admin password. The app refuses to
+# start without the secrets, so the setup step below does the same job in node - install.sh is
+# bash and does not run on Windows.
+#
+# yaml-language-server: $schema=https://quickrun.org/quickrun.schema.json
+version: 1
+name: OpenTerminalUI
+repository: Hitheshkaranth/OpenTerminalUI
+description: >-
+  A self-hosted trading terminal: market data, charting, screening, backtesting, alerts and an AI
+  research agent. Builds the project's own image and starts it with Redis via docker compose. All
+  API keys are optional - without them it runs on free and fallback data sources. The first run
+  builds the image and takes a few minutes. Redis is published on port 6379, so a Redis already
+  running there has to stop first. An admin account is generated and printed in the log; stopping
+  the run removes the containers and their volume, so nothing is left behind.
+docs: https://github.com/Hitheshkaranth/OpenTerminalUI#-quick-start
+icon: frontend/public/icon-192.png
+
+requires:
+  - tool: docker
+    install: https://docs.docker.com/get-docker/
+  # For the secret generation below. install.sh uses openssl or python, neither is a given on Windows.
+  - tool: node
+    version: '>=18'
+    install: https://nodejs.org
+
+inputs:
+  - id: port
+    label: Port
+    description: Where the web UI listens on this machine.
+    default: '8000'
+
+setup:
+  # QuickRun cleans the checkout before every run, so each run starts with fresh secrets and a fresh
+  # admin password. That is safe because stop removes the volume with the old ones. The guard is for
+  # a folder run in place with --path, where an existing .env belongs to whoever made it.
+  # No dollar signs or percent signs in here: this runs through cmd.exe on Windows and sh elsewhere.
+  - run: |-
+      node -e "const fs=require('fs'),c=require('crypto');if(fs.existsSync('.env')){console.log('.env is already here - keeping it');process.exit(0)}const hex=()=>c.randomBytes(32).toString('hex');const pw=c.randomBytes(12).toString('base64url');const set={JWT_SECRET_KEY:hex(),CACHE_SIGNING_KEY:hex(),BOOTSTRAP_ADMIN_PASSWORD:pw,APP_PORT:'${inputs.port}'};const seen=new Set();const lines=fs.readFileSync('.env.example','utf8').split(/\r?\n/).map((l)=>{const k=l.split('=')[0].trim();if(k in set){seen.add(k);return k+'='+set[k]}return l});for(const k in set){if(!seen.has(k))lines.push(k+'='+set[k])}fs.writeFileSync('.env',lines.join(String.fromCharCode(10)));console.log('admin login: admin@openterminal.local / '+pw)"
+
+tasks:
+  - name: openterminalui
+    run: docker compose --env-file .env up --build
+    # The image's own healthcheck uses /health, so that is what counts as ready.
+    readyWhen: {http: 'http://localhost:${inputs.port}/health'}
+    open: http://localhost:${inputs.port}
+
+stop:
+  - run: docker compose --env-file .env down -v
+    continueOnError: true

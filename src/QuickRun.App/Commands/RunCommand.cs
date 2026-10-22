@@ -179,7 +179,7 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             Output.Warn($"port {conflict.Port} (needed by task '{conflict.Task}') is already in use - "
                         + "the readiness check may match another application");
 
-        if (!settings.Yes && !AnsiConsole.Confirm("Run these commands?", defaultValue: false))
+        if (!settings.Yes && !ConsoleAttach.Confirm("Run these commands?"))
         {
             Output.Info("cancelled");
             return 0;

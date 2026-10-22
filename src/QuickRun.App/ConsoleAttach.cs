@@ -1,3 +1,4 @@
+using Spectre.Console;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -25,6 +26,33 @@ public static class ConsoleAttach
     /// <summary>True when this process has a console to write to.</summary>
     public static bool HasConsole { get; private set; }
 
+    /// <summary>
+    /// True when the console is the parent shell's, borrowed after the shell already moved on. The
+    /// shell does not wait for a GUI-subsystem program, so it reads the keyboard at the same time.
+    /// </summary>
+    public static bool Borrowed { get; private set; }
+
+    /// <summary>
+    /// Asks a yes/no question, or refuses to when it cannot be answered.
+    /// <para>
+    /// On a borrowed console the answer goes to the shell, not to QuickRun: "y" ran as a command in
+    /// cmd and the question waited for nothing. The only honest move is to say so and stop, and the
+    /// safe default stays no - for a run, this question is the one thing between a repository and
+    /// its commands executing.
+    /// </para>
+    /// </summary>
+    public static bool Confirm(string question) =>
+        Confirm(question, Borrowed, () => AnsiConsole.Confirm(question, defaultValue: false));
+
+    internal static bool Confirm(string question, bool borrowed, Func<bool> ask)
+    {
+        if (!borrowed) return ask();
+
+        Output.Error($"{question} - QuickRun cannot ask in this window: the shell reads the answer, "
+                     + "not QuickRun. Run the same command again with --yes.");
+        return false;
+    }
+
     public static void TryAttach()
     {
         if (!OperatingSystem.IsWindows())
@@ -44,6 +72,7 @@ public static class ConsoleAttach
         if (GetConsoleWindow() != IntPtr.Zero) return true;
 
         if (!AttachConsole(AttachParentProcess)) return false;
+        Borrowed = true;
 
         try
         {

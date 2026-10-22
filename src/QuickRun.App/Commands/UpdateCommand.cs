@@ -62,7 +62,7 @@ public sealed class UpdateCommand : AsyncCommand<UpdateCommand.Settings>
         Output.Info($"update available: {status.Latest}");
         if (settings.CheckOnly) return 0;
 
-        if (!settings.Yes && !AnsiConsole.Confirm($"Install QuickRun {status.Latest}?", defaultValue: false))
+        if (!settings.Yes && !ConsoleAttach.Confirm($"Install QuickRun {status.Latest}?"))
         {
             Output.Info("cancelled");
             return 0;

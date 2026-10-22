@@ -116,7 +116,7 @@ public sealed class CleanCommand : Command<CleanCommand.Settings>
         try { age = WorkspaceOps.ParseAge(settings.OlderThan); }
         catch (ArgumentException e) { Output.Error(e.Message); return 2; }
 
-        if (settings.All && !settings.Yes && !AnsiConsole.Confirm("Delete every workspace?", defaultValue: false))
+        if (settings.All && !settings.Yes && !ConsoleAttach.Confirm("Delete every workspace?"))
         {
             Output.Info("cancelled");
             return 0;

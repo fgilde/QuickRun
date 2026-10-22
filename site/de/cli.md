@@ -54,6 +54,8 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `--fresh` | Workspace löschen und neu klonen |
 | `-y, --yes` | Bestätigung überspringen; fehlende erforderliche Eingaben schlagen dann fehl statt zu fragen |
 | `--no-open` | keine Browser-URL öffnen, die die Config anfordert |
+| `--smoke` | Config prüfen: laufen lassen, bis jeder Task bereit ist, stoppen, Exit-Code 0 oder 1. Schließt `--yes` und `--no-open` ein |
+| `--timeout <Minuten>` | mit `--smoke`: wie lange jeder Task bis zur Bereitschaft brauchen darf, Image-Downloads eingeschlossen. Standard 20 |
 
 Ohne `--yes` wird nichts ausgeführt, bevor der Plan gedruckt und bestätigt wurde.
 

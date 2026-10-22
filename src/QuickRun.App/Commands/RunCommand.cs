@@ -74,6 +74,15 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
         [Description("Do not open any browser URL the config asks for.")]
         public bool NoOpen { get; init; }
 
+        [CommandOption("--smoke")]
+        [Description("Check the config instead of using it: run until every task is ready, then stop "
+                     + "and exit 0, or exit 1 if something failed. Implies --yes and --no-open.")]
+        public bool Smoke { get; init; }
+
+        [CommandOption("--timeout")]
+        [Description("With --smoke: minutes to wait for every task to be ready. Default 20.")]
+        public int TimeoutMinutes { get; init; } = 20;
+
         /// <summary>
         /// The folder to run, if that is what this is.
         /// <para>
@@ -147,8 +156,11 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             args = settings.ToArgs();
         }
 
+        var yes = settings.Yes || settings.Smoke;
+        var noOpen = settings.NoOpen || settings.Smoke;
+
         var preparation = RunPipeline.Prepare(args, store, git,
-            settings.Yes
+            yes
                 ? (_, provided) => provided
                 : Prompts.Collect);
 
@@ -179,7 +191,7 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             Output.Warn($"port {conflict.Port} (needed by task '{conflict.Task}') is already in use - "
                         + "the readiness check may match another application");
 
-        if (!settings.Yes && !ConsoleAttach.Confirm("Run these commands?"))
+        if (!yes && !ConsoleAttach.Confirm("Run these commands?"))
         {
             Output.Info("cancelled");
             return 0;
@@ -192,7 +204,8 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
                 RunPipeline.RepoName(plan.Repo), plan.Ref),
             InputResolver.ToEnv(config.Inputs, preparation.Values!),
             secrets,
-            Readiness.DefaultTimeout,
+            // A smoke run on a fresh machine pulls every image first, and that is part of starting.
+            settings.Smoke ? TimeSpan.FromMinutes(Math.Max(1, settings.TimeoutMinutes)) : Readiness.DefaultTimeout,
             // A missing toolchain is installed here rather than reported: everything QuickRun puts
             // on a machine lives under its own root, and this is where that root is.
             ToolRoot: Path.Combine(store.Root, "tools"));
@@ -205,9 +218,28 @@ public sealed class RunCommand : AsyncCommand<RunCommand.Settings>
             cts.Cancel();
         };
 
-        await using var runner = new Runner(e => Report(e, settings.NoOpen, reporter));
+        // A smoke run ends itself: as soon as every task is ready, or something has failed.
+        var smoke = settings.Smoke ? new SmokeCheck(config.Tasks.Count) : null;
+        if (smoke is not null) cts.CancelAfter(TimeSpan.FromMinutes(Math.Max(1, settings.TimeoutMinutes)));
+
+        await using var runner = new Runner(e =>
+        {
+            Report(e, noOpen, reporter);
+            if (smoke?.See(e) == true) cts.Cancel();
+        });
         var outcome = await runner.ExecuteAsync(config, options, cts.Token);
         await runner.StopAsync();
+
+        if (smoke is not null)
+        {
+            var problem = smoke.Verdict(outcome, settings.TimeoutMinutes);
+            store.Touch(preparation.WorkspaceId!, plan.Repo, plan.Ref, plan.Commit,
+                problem is null, preparation.LocalFolder);
+
+            if (problem is null) Output.Info($"smoke: passed at {plan.Commit ?? plan.Ref}");
+            else Output.Error($"smoke: {problem}");
+            return problem is null ? 0 : 1;
+        }
 
         // The folder travels with the preparation, so recording the outcome does not turn a note
         // about somebody's working copy into a claim that QuickRun owns it.

@@ -53,6 +53,8 @@ quickrun run acme/app --input apiKey=sk-1 --input port=3000
 | `--fresh` | delete the workspace and clone again |
 | `-y, --yes` | skip the confirmation prompt; missing required inputs then fail rather than prompt |
 | `--no-open` | do not open any browser URL the config asks for |
+| `--smoke` | check the config: run until every task is ready, stop, exit 0 or 1. Implies `--yes` and `--no-open` |
+| `--timeout <minutes>` | with `--smoke`: how long every task may take to be ready, image downloads included. Default 20 |
 
 Nothing executes before the plan is printed and confirmed, unless `--yes` is given.
 

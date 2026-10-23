@@ -103,8 +103,8 @@ const t = computed(() => (de.value
       steps: [
         {
           title: 'QuickRun installieren',
-          text: 'Ein Binary, kein Installer nötig. Optional Autostart und quickrun im PATH — beides '
-            + 'ein Schalter in den Einstellungen.',
+          text: 'Ein Binary, kein Installer nötig. Danach einmal quickrun eingeben, dann gehen Fenster '
+            + 'und Tray auf. Autostart ist ein Schalter in den Einstellungen.',
           code: 'winget install fgilde.QuickRun',
         },
         {
@@ -207,8 +207,8 @@ const t = computed(() => (de.value
       steps: [
         {
           title: 'Install QuickRun',
-          text: 'One binary, no installer required. Autostart and quickrun on your PATH are optional - '
-            + 'each is a switch in Settings.',
+          text: 'One binary, no installer required. Then type quickrun once and the window and the '
+            + 'tray come up. Autostart is a switch in Settings.',
           code: 'winget install fgilde.QuickRun',
         },
         {

@@ -12,9 +12,10 @@ double-click it — and QuickRun puts an icon in the tray and opens its window. 
 appears: the binary is a desktop application that also works as a command line tool when you start
 it from a terminal.
 
-`winget install fgilde.QuickRun` works once the package is accepted into the winget repository; the
-submission is [under review](https://github.com/microsoft/winget-pkgs/pulls?q=fgilde.QuickRun).
-Until then use scoop, which installs from the manifest this site serves.
+`winget install fgilde.QuickRun` or scoop installs QuickRun and puts `quickrun` on your `PATH`, but
+neither starts it. Open a new terminal afterwards and type `quickrun` once: the window opens and the
+icon appears in the tray. From then on it is the same as a download, and if you switch on
+**Start QuickRun when I sign in** in Settings, it starts by itself after every sign-in.
 
 The Homebrew formula and the scoop manifest are regenerated with every release and served from here,
 so neither needs a separate tap or bucket repository.

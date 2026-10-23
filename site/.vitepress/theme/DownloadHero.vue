@@ -27,6 +27,8 @@ const t = computed(() => (props.lang === 'de'
       pending: 'Prüfung läuft',
       unpacked: 'Entpackt laden',
       note: 'Binaries sind nicht signiert. Unter macOS ist Homebrew deshalb der empfohlene Weg.',
+      thenWindows: 'Danach ein neues Terminal öffnen und einmal quickrun eingeben: Fenster und Tray-Icon '
+        + 'erscheinen. winget und scoop starten es nicht selbst.',
     }
   : {
       yours: 'For your system',
@@ -40,6 +42,8 @@ const t = computed(() => (props.lang === 'de'
       pending: 'review pending',
       unpacked: 'Load unpacked',
       note: 'Binaries are unsigned. On macOS, Homebrew is the recommended path for that reason.',
+      thenWindows: 'Then open a new terminal and type quickrun once: the window and the tray icon appear. '
+        + 'winget and scoop do not start it themselves.',
     }));
 
 const platforms = [
@@ -141,6 +145,8 @@ function label(build) {
         </button>
       </div>
 
+      <p v-if="mine.os === 'windows'" class="qr-then">{{ t.thenWindows }}</p>
+
       <div class="qr-builds">
         <span class="qr-eyebrow">{{ t.direct }}</span>
         <a v-for="build in mine.builds" :key="build.asset" :href="`${base}/${build.asset}`">
@@ -218,6 +224,7 @@ html.dark .qr-logo--mono { filter: invert(1); }
 }
 
 .qr-command + .qr-command { margin-top: 8px; }
+.qr-then { margin: 10px 0 0; font-size: 13.5px; opacity: 0.8; }
 .qr-secondary { opacity: .82; }
 
 .qr-command code {
